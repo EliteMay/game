@@ -13,16 +13,20 @@ const required = [
   'games/scrap-factory/game.css',
   'games/scrap-factory/game-ux.css',
   'games/scrap-factory/factory-management.css',
+  'games/scrap-factory/progression.css',
   'games/scrap-factory/config.js',
   'games/scrap-factory/logistics.js',
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
+  'games/scrap-factory/progression.js',
+  'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
   'games/scrap-factory/world-runtime.js',
   'games/scrap-factory/game.js',
   'scripts/logistics.test.mjs',
   'scripts/factory-management.test.mjs',
+  'scripts/progression.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -57,6 +61,7 @@ for (const file of jsFiles) {
 for (const [name, script] of [
   ['Directional logistics', 'scripts/logistics.test.mjs'],
   ['Factory management', 'scripts/factory-management.test.mjs'],
+  ['Progression', 'scripts/progression.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -94,6 +99,9 @@ for (const id of ['open-guide-hud', 'guide-panel', 'machine-rotate', 'machine-re
 if (!scrapHtml.includes('"./world.js": "./world-runtime.js"')) failures.push('Scrap Factory import map must route world.js through world-runtime.js');
 if (!scrapHtml.includes('src="./feature-pack.js"')) failures.push('Scrap Factory must load feature-pack.js');
 
+const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/factory-management.js'), 'utf8');
+if (!factoryManagement.includes("import './progression-ui.js';")) failures.push('Factory management must load progression-ui.js');
+
 const textFiles = [];
 function collectText(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -121,4 +129,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression tests.`);
