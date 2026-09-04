@@ -14,6 +14,7 @@ const required = [
   'games/scrap-factory/config.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
+  'games/scrap-factory/world-runtime.js',
   'games/scrap-factory/game.js',
   'README.md',
   'REQUIREMENTS.md',
@@ -66,6 +67,11 @@ for (const relative of htmlFiles) {
   }
   if (!/<html\s+lang=["']ja["']/i.test(html)) failures.push(`Missing html lang=ja: ${relative}`);
   if (!/<title>[^<]+<\/title>/i.test(html)) failures.push(`Missing title: ${relative}`);
+}
+
+const scrapIndex = fs.readFileSync(path.join(root, 'games/scrap-factory/index.html'), 'utf8');
+if (!scrapIndex.includes('"./world.js": "./world-runtime.js"')) {
+  failures.push('Scrap Factory import map is missing the runtime visual fix route.');
 }
 
 const textFiles = [];
