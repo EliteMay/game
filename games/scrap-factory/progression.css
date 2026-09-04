@@ -1,0 +1,196 @@
+.progression-hud {
+  position: absolute;
+  right: 20px;
+  top: 132px;
+  min-width: 126px;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 0 9px;
+  padding: 6px 10px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-left: 3px solid var(--accent);
+  background: rgb(20 24 25 / 0.84);
+  color: #edf0e9;
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.progression-hud:hover,
+.progression-hud:focus-visible {
+  border-color: rgb(255 255 255 / 0.34);
+  outline: none;
+}
+
+.progression-hud span {
+  grid-row: 1 / 3;
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.progression-hud strong { font-size: 1rem; line-height: 1; }
+.progression-hud small { color: #aab1ab; font-size: 0.6rem; font-weight: 800; }
+
+.progression-objective {
+  position: absolute;
+  left: 20px;
+  top: 158px;
+  width: min(370px, calc(100vw - 40px));
+  padding: 12px 14px 14px;
+  border-left: 3px solid var(--accent);
+  background: rgb(20 24 25 / 0.83);
+  backdrop-filter: blur(8px);
+}
+
+.progression-objective > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--accent);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.09em;
+}
+.progression-objective h2 { margin: 7px 0 4px; font-size: 0.95rem; }
+.progression-objective p { margin: 0; color: #b0b7b1; font-size: 0.68rem; line-height: 1.5; }
+
+.progression-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 28px;
+  background: rgb(11 14 15 / 0.8);
+  backdrop-filter: blur(6px);
+}
+
+.progression-card {
+  width: min(1120px, 100%);
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  border: 1px solid #444b4c;
+  border-top: 4px solid var(--accent);
+  background: #202526;
+  box-shadow: var(--shadow);
+}
+
+.progression-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.progression-header h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -0.035em; }
+.progression-header p:last-child { max-width: 700px; margin: 8px 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.55; }
+.progression-content { display: grid; gap: 14px; padding: 22px 24px 26px; }
+
+.progression-rank-hero {
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  border: 1px solid #444b4c;
+  background: #272d2e;
+}
+.progression-rank-hero > div:first-child { display: grid; justify-items: start; }
+.progression-rank-hero > div:first-child span { color: var(--accent); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.1em; }
+.progression-rank-hero > div:first-child strong { margin-top: 3px; font-size: 2.4rem; line-height: 1; }
+.progression-rank-hero h3 { margin: 0; font-size: 1.1rem; }
+.progression-rank-hero p { margin: 5px 0 0; color: #a8b0aa; font-size: 0.72rem; }
+.progression-rank-hero .primary-action:disabled,
+.research-row .secondary-action:disabled { cursor: not-allowed; opacity: 0.45; }
+.phase-complete-label { padding: 8px 10px; border: 1px solid #57605b; color: #aab2ac; font-size: 0.67rem; letter-spacing: 0.1em; }
+
+.progression-legacy {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  border-left: 3px solid #7d8e83;
+  background: #242b29;
+  color: #b4bcb6;
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+.progression-legacy strong { color: #d6dcd6; font-size: 0.62rem; letter-spacing: 0.09em; white-space: nowrap; }
+.progression-columns { display: grid; grid-template-columns: 1.35fr 0.65fr; gap: 14px; }
+.progression-section { padding: 16px; border: 1px solid #3d4445; background: #272d2e; }
+.progression-section > header { padding-bottom: 11px; border-bottom: 1px solid #3a4142; }
+.progression-section > header span { color: var(--accent); font-size: 0.59rem; font-weight: 900; letter-spacing: 0.12em; }
+.progression-section > header h3 { margin: 3px 0 0; font-size: 1rem; }
+
+.rank-required {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 32px;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px;
+  border-left: 3px solid #7d8581;
+  background: #222829;
+}
+.rank-required.is-complete { border-left-color: #6d9b75; background: #243027; }
+.rank-required > span { color: var(--accent); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.1em; }
+.rank-required > div { display: grid; gap: 4px; }
+.rank-required strong { font-size: 0.8rem; }
+.rank-required small { color: #a6aea8; font-size: 0.67rem; line-height: 1.45; }
+.rank-required em { color: #8fd098; font-size: 1rem; font-style: normal; font-weight: 900; }
+.rank-optionals { margin-top: 14px; }
+.rank-optionals__head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; color: #aeb5af; font-size: 0.68rem; }
+.rank-optional { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 9px; align-items: center; min-height: 47px; padding: 7px 0; border-bottom: 1px solid #363d3e; }
+.rank-optional > span { width: 24px; height: 24px; display: grid; place-items: center; border: 1px solid #505859; color: #8fd098; font-size: 0.68rem; font-weight: 900; }
+.rank-optional > div { display: flex; justify-content: space-between; gap: 12px; }
+.rank-optional strong { font-size: 0.75rem; }
+.rank-optional small { color: #929b94; font-size: 0.67rem; font-variant-numeric: tabular-nums; }
+
+.progression-unlocks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.progression-unlocks > span { padding: 6px 8px; border: 1px solid #4d5651; background: #222829; color: #c1c7c1; font-size: 0.66rem; }
+.progression-unlocks > small,
+.progression-empty { color: #929a94; font-size: 0.72rem; }
+.progression-note { margin: 10px 0 0; color: #9ea69f; font-size: 0.7rem; line-height: 1.55; }
+
+.research-list { display: grid; gap: 7px; margin-top: 12px; }
+.research-row { display: grid; grid-template-columns: 108px minmax(0, 1fr) 150px; gap: 14px; align-items: center; padding: 12px; border: 1px solid #3a4240; background: #222829; }
+.research-row--complete { border-color: #526b57; background: #253027; }
+.research-row__meta { display: grid; gap: 4px; }
+.research-row__meta span { color: var(--accent); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.09em; }
+.research-row__meta em { color: #8f9891; font-size: 0.62rem; font-style: normal; }
+.research-row__body { min-width: 0; }
+.research-row__body strong { font-size: 0.84rem; }
+.research-row__body p { margin: 4px 0; color: #a5ada7; font-size: 0.7rem; line-height: 1.45; }
+.research-row__body small { color: #89928b; font-size: 0.62rem; overflow-wrap: anywhere; }
+.research-row__action { display: grid; gap: 7px; justify-items: stretch; }
+.research-row__action > span { color: #969f98; font-size: 0.58rem; font-weight: 900; letter-spacing: 0.08em; text-align: right; }
+.progression-lock-note { display: block; margin-top: 5px; color: #d0aa65; font-size: 0.65rem; font-weight: 800; }
+.build-option[data-progression-locked="true"] { opacity: 0.58; }
+
+@media (max-width: 900px) {
+  .progression-columns { grid-template-columns: 1fr; }
+  .research-row { grid-template-columns: 92px minmax(0, 1fr); }
+  .research-row__action { grid-column: 2; justify-self: start; min-width: 150px; }
+  .research-row__action > span { text-align: left; }
+}
+
+@media (max-width: 620px) {
+  .progression-panel { padding: 10px; }
+  .progression-card { max-height: calc(100vh - 20px); }
+  .progression-header,
+  .progression-content { padding-left: 14px; padding-right: 14px; }
+  .progression-rank-hero { grid-template-columns: 76px 1fr; }
+  .progression-rank-hero > .primary-action,
+  .phase-complete-label { grid-column: 1 / -1; justify-self: start; }
+  .rank-required { grid-template-columns: 70px minmax(0, 1fr) 26px; }
+  .rank-optional > div { display: grid; }
+  .research-row { grid-template-columns: 1fr; }
+  .research-row__action { grid-column: 1; }
+  .progression-hud,
+  .progression-objective { display: none; }
+}
