@@ -1,4 +1,4 @@
-import { BUILD_MENU_ORDER, HAND_CRAFTS, SAVE_KEY } from './config.js';
+import { BUILDINGS, BUILD_MENU_ORDER, HAND_CRAFTS, SAVE_KEY } from './config.js';
 import {
   RESEARCH,
   claimRankUp,
@@ -15,7 +15,6 @@ const STYLE_HREF = './progression.css';
 const state = {
   panel: null,
   authoritativeProgression: null,
-  resetRequested: false,
 };
 
 function readRoot() {
@@ -52,12 +51,10 @@ function writeProgression(root, game) {
 }
 
 function enforceAuthoritativeProgression() {
-  if (!state.authoritativeProgression || state.resetRequested) return;
+  if (!state.authoritativeProgression) return;
   const root = readRoot();
   const currentGame = root?.games?.['scrap-factory'];
   if (!root || !currentGame) return;
-  const current = normalizeProgression(currentGame.progression, currentGame);
-  if (JSON.stringify(current) === JSON.stringify(state.authoritativeProgression)) return;
   try {
     const next = structuredClone(root);
     next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: state.authoritativeProgression };
@@ -65,7 +62,7 @@ function enforceAuthoritativeProgression() {
     next.updatedAt = new Date().toISOString();
     localStorage.setItem(SAVE_KEY, JSON.stringify(next));
   } catch (error) {
-    console.warn('Progression merge retry failed', error);
+    console.warn('Progression final merge failed', error);
   }
 }
 
@@ -211,11 +208,7 @@ function renderPanel() {
     const current = readGame();
     if (!current.game) return;
     const result = claimRankUp(current.game);
-    if (result.changed && writeProgression(current.root, current.game)) {
-      renderPanel();
-      renderHud();
-      applyProgressionGates();
-    }
+    if (result.changed && writeProgression(current.root, current.game)) window.location.reload();
   });
 
   content.querySelectorAll('[data-research]').forEach((button) => {
@@ -223,11 +216,7 @@ function renderPanel() {
       const current = readGame();
       if (!current.game) return;
       const result = completeResearch(current.game, button.dataset.research);
-      if (result.changed && writeProgression(current.root, current.game)) {
-        renderPanel();
-        renderHud();
-        applyProgressionGates();
-      }
+      if (result.changed && writeProgression(current.root, current.game)) window.location.reload();
     });
   });
 }
@@ -254,6 +243,10 @@ function applyBuildGate(game) {
       if (cost) cost.textContent = `RANK ${requiredBuildingRank(type)}`;
     } else if (button.dataset.progressionLocked) {
       delete button.dataset.progressionLocked;
+      const cost = BUILDINGS[type]?.cost || 0;
+      const costNode = button.querySelector('.build-option__cost');
+      if (costNode) costNode.textContent = `$${cost}`;
+      button.disabled = Number(game.money || 0) < cost;
     }
   });
 }
@@ -268,8 +261,6 @@ function applyCraftGate(game) {
       button.dataset.progressionLocked = 'true';
       const action = button.lastElementChild;
       if (action) action.textContent = '研究必要';
-    } else if (button.dataset.progressionLocked) {
-      delete button.dataset.progressionLocked;
     }
   });
 }
@@ -288,10 +279,27 @@ function applyProgressionGates() {
   renameLegacyFactoryRank();
 }
 
+function blockedBuildFromClick(event, game) {
+  const button = event.target instanceof Element ? event.target.closest('#build-list .build-option') : null;
+  if (!button) return false;
+  const index = [...document.querySelectorAll('#build-list .build-option')].indexOf(button);
+  const type = BUILD_MENU_ORDER[index];
+  return Boolean(type && !isBuildingUnlocked(game, type));
+}
+
+function blockedCraftFromClick(event, game) {
+  const button = event.target instanceof Element ? event.target.closest('#craft-list .craft-option') : null;
+  if (!button) return false;
+  const index = [...document.querySelectorAll('#craft-list .craft-option')].indexOf(button);
+  const craft = Object.values(HAND_CRAFTS)[index];
+  return Boolean(craft && !isHandCraftUnlocked(game, craft.id));
+}
+
 function bindGuards() {
   document.addEventListener('click', (event) => {
-    const locked = event.target instanceof Element ? event.target.closest('[data-progression-locked="true"]') : null;
-    if (!locked) return;
+    const { game } = readGame();
+    if (!game) return;
+    if (!blockedBuildFromClick(event, game) && !blockedCraftFromClick(event, game)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   }, true);
@@ -306,19 +314,8 @@ function bindGuards() {
     event.stopImmediatePropagation();
   }, true);
 
-  document.querySelector('#reset-save')?.addEventListener('click', () => {
-    state.resetRequested = true;
-    window.setTimeout(() => { state.resetRequested = false; }, 0);
-  });
-
   window.addEventListener('beforeunload', enforceAuthoritativeProgression);
   window.addEventListener('pagehide', enforceAuthoritativeProgression);
-
-  const observer = new MutationObserver(() => {
-    applyProgressionGates();
-    renderHud();
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function boot() {
@@ -331,11 +328,10 @@ function boot() {
   applyProgressionGates();
   renderHud();
   window.setInterval(() => {
-    enforceAuthoritativeProgression();
     renderHud();
     applyProgressionGates();
     if (!state.panel?.hidden) renderPanel();
-  }, 750);
+  }, 500);
 }
 
 boot();
