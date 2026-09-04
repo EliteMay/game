@@ -47,13 +47,13 @@ export const BUILDINGS = {
   },
   crusher: {
     id: 'crusher', name: '粉砕機', cost: 80, category: 'production', buildable: true,
-    description: '鉄くず1個を2.2秒で破砕金属1個へ加工する。出力は隣接する正しい向きのコンベアへ送れる。',
-    color: 0x8a6b4d, accepts: ['metal_scrap'], recipe: 'crusher_metal',
+    description: '鉄くず1個を2.2秒で破砕金属1個へ加工する。Rank 4以降は稼働時に18 Powerを使用する。',
+    color: 0x8a6b4d, accepts: ['metal_scrap'], recipe: 'crusher_metal', powerUse: 18,
   },
   smelter: {
     id: 'smelter', name: '簡易精錬炉', cost: 140, category: 'production', buildable: true,
-    description: '破砕金属1個を3.0秒で鉄インゴット1個へ精錬する。鉄インゴットは手作業クラフトにも使う。',
-    color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron',
+    description: '破砕金属1個を3.0秒で鉄インゴット1個へ精錬する。Rank 4以降は稼働時に30 Powerを使用する。',
+    color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron', powerUse: 30,
   },
   conveyor: {
     id: 'conveyor', name: 'コンベア', cost: 12, category: 'logistics', buildable: true,
@@ -62,8 +62,18 @@ export const BUILDINGS = {
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
-    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Eで手動投入・回収もできる。',
-    color: 0x52616c, accepts: ['raw', 'processed', 'product'],
+    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Rank 4以降は3 Powerを使用する。',
+    color: 0x52616c, accepts: ['raw', 'processed', 'product'], powerUse: 3,
+  },
+  generator: {
+    id: 'generator', name: 'スクラップ発電機', cost: 260, category: 'power', buildable: true,
+    description: '鉄くず1個を燃料として24秒稼働し、80 Powerを供給するRank 4向け発電設備。',
+    color: 0x7a6242, accepts: ['metal_scrap'], powerGeneration: 80,
+  },
+  power_pole: {
+    id: 'power_pole', name: '電力ポール', cost: 45, category: 'power', buildable: true,
+    description: 'Starter Gridや発電機から電力網を延長し、周囲10mの設備へ給電する。ポール同士は12.5m以内で接続する。',
+    color: 0x59605f, accepts: [],
   },
 };
 
@@ -73,7 +83,7 @@ export const HAND_CRAFTS = {
   tool_kit: { id: 'tool_kit', name: '工具セット', input: { iron_plate: 2, copper_wire: 1 }, output: { tool_kit: 1 } },
 };
 
-export const BUILD_MENU_ORDER = ['crusher', 'smelter', 'conveyor', 'storage', 'seller'];
+export const BUILD_MENU_ORDER = ['crusher', 'smelter', 'conveyor', 'storage', 'seller', 'generator', 'power_pole'];
 
 export const SCRAP_SPAWNS = [
   { item: 'metal_scrap', weight: 48 },
