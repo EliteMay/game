@@ -11,9 +11,12 @@ import {
   researchState,
 } from './progression.js';
 
-const PENDING_KEY = 'scrap-factory-progression-pending-v1';
 const STYLE_HREF = './progression.css';
-const state = { panel: null };
+const state = {
+  panel: null,
+  authoritativeProgression: null,
+  resetRequested: false,
+};
 
 function readRoot() {
   try {
@@ -23,30 +26,21 @@ function readRoot() {
   }
 }
 
-function readPending() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null');
-    return parsed && typeof parsed === 'object' ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 function readGame() {
   const root = readRoot();
   const game = root?.games?.['scrap-factory'];
   if (!game) return { root, game: null };
-  game.progression = normalizeProgression(readPending() || game.progression, game);
+  game.progression = normalizeProgression(state.authoritativeProgression || game.progression, game);
   return { root, game };
 }
 
 function writeProgression(root, game) {
   if (!root || !game?.progression) return false;
   try {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(game.progression));
+    state.authoritativeProgression = structuredClone(game.progression);
     const next = structuredClone(root);
     next.games ??= {};
-    next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: game.progression };
+    next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: state.authoritativeProgression };
     next.revision = Math.max(1, Number(next.revision || 0) + 1);
     next.updatedAt = new Date().toISOString();
     localStorage.setItem(SAVE_KEY, JSON.stringify(next));
@@ -54,6 +48,24 @@ function writeProgression(root, game) {
   } catch (error) {
     console.error('Progression save failed', error);
     return false;
+  }
+}
+
+function enforceAuthoritativeProgression() {
+  if (!state.authoritativeProgression || state.resetRequested) return;
+  const root = readRoot();
+  const currentGame = root?.games?.['scrap-factory'];
+  if (!root || !currentGame) return;
+  const current = normalizeProgression(currentGame.progression, currentGame);
+  if (JSON.stringify(current) === JSON.stringify(state.authoritativeProgression)) return;
+  try {
+    const next = structuredClone(root);
+    next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: state.authoritativeProgression };
+    next.revision = Math.max(1, Number(next.revision || 0) + 1);
+    next.updatedAt = new Date().toISOString();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(next));
+  } catch (error) {
+    console.warn('Progression merge retry failed', error);
   }
 }
 
@@ -294,6 +306,14 @@ function bindGuards() {
     event.stopImmediatePropagation();
   }, true);
 
+  document.querySelector('#reset-save')?.addEventListener('click', () => {
+    state.resetRequested = true;
+    window.setTimeout(() => { state.resetRequested = false; }, 0);
+  });
+
+  window.addEventListener('beforeunload', enforceAuthoritativeProgression);
+  window.addEventListener('pagehide', enforceAuthoritativeProgression);
+
   const observer = new MutationObserver(() => {
     applyProgressionGates();
     renderHud();
@@ -311,10 +331,11 @@ function boot() {
   applyProgressionGates();
   renderHud();
   window.setInterval(() => {
+    enforceAuthoritativeProgression();
     renderHud();
     applyProgressionGates();
     if (!state.panel?.hidden) renderPanel();
-  }, 1000);
+  }, 750);
 }
 
 boot();
