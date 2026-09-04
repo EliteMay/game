@@ -92,3 +92,28 @@ User playtestで次を確認。
 - 旧SaveのConveyor rotationは以前Gameplayへ影響しなかったため、Directional化後に既存Lineが止まる可能性がある。Save破壊ではないがBehavior migrationとして案内が必要。
 - 現在のConveyorは1出力方向のみ。Splitter / Mergerを追加するときは暗黙の多方向探索へ戻さず、明示的なLogistics nodeとして設計する。
 - Dismantle / RotateはStatic CIだけではRaycast targetや操作感を検証できない。公開BrowserでUser validationを続ける。
+
+## 2026-09-05 / Progression Rank & Legacy Compatibility
+
+### Problem
+
+- 既存MVPではSmelter / Storage / Iron Plate Craftが最初から利用可能だったため、後からRank / Researchを追加すると既存Saveの利用機能を突然LockするRiskがある。
+- Achievement解除数から作った旧`FACTORY RANK`称号と、本来の`progressionRank` 1〜7を同じ名前で扱うと進行Dataを誤って結び付けやすい。
+- Rank必須条件を売上だけにすると、探索・加工・自動化を飛ばして進行できてしまう。
+
+### Keep
+
+- 新Progressionは既存Achievementと別Dataにし、旧表示は`FACTORY TITLE`として扱う。
+- Legacy Migrationは「旧Saveだから全部最大Unlock」にせず、実際の使用Evidenceから必要最低限だけ補完する。
+- Smelter / Storage / Craft等、既に使用した機能だけは`legacyUnlocks` / Research完了扱いで維持する。
+- Rank必須Line判定は新しい近似ロジックを作らず、既存Directional Conveyor helperをそのままSource of Truthに使う。
+- RevenueはOptional Goalの1つに留め、Mandatory Automation + 複数OptionalをRank Up条件にする。
+- Rank / Research判定はDOMから分離したPure Functionにし、Migration / Blueprint GateまでRegression Testする。
+- 大規模な`game.js`改修を避けられる場合は、既存の正常なProduction / Conveyor Runtimeを残したまま独立Moduleとして追加する。
+
+### Watch
+
+- Progression UIは既存`game.js`のRuntime stateを直接所有していないため、Rank Up / Research確定時はReload前の最後のSave順序を意識する必要がある。現在は`beforeunload` / `pagehide`で確定Progressionを最後に再Mergeする。
+- UI側のBuild / Craft Guardは通常操作を防げるが、将来ProgressionがGame Coreの主要機能になった段階では`game.js`側のCore validationへ移す方が堅牢。
+- MutationObserverでHUD自身を更新するとSelf-trigger loopを起こしうる。今回のProgression UIではDOM全体Observerを使わず、Capture Guard + 定期表示更新にした。
+- Static TestではPointer Lock復帰、HUD位置、実Save Reload操作、実Legacy Saveの見た目を確認できない。Browser Validationを別Gateとして残す。
