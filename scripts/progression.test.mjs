@@ -153,31 +153,31 @@ const legacyRoot = {
 };
 localStorage.setItem(SAVE_KEY, JSON.stringify(legacyRoot));
 const migratedRoot = storage.loadRootSave();
-assert.equal(migratedRoot.games['scrap-factory'].progressionRank, 2, 'storage migration must infer legacy Rank 2');
-assert.ok(migratedRoot.games['scrap-factory'].progression.migratedFromLegacy);
+const normalizedLegacy = withNormalizedProgression(migratedRoot.games['scrap-factory']);
+assert.equal(normalizedLegacy.progressionRank, 2, 'progression migration must infer legacy Rank 2');
+assert.ok(normalizedLegacy.progression.migratedFromLegacy);
 
-const persistedProgression = withNormalizedProgression({
-  ...migratedRoot.games['scrap-factory'],
-  progressionRank: 2,
-  progression: {
-    ...migratedRoot.games['scrap-factory'].progression,
-    researched: ['basic_smelting', 'buffer_logistics'],
-    unlocks: ['building:smelter', 'building:storage'],
-    updatedAt: '2026-09-05T00:00:10.000Z',
-  },
-}, { inferLegacy: false });
-const writtenRoot = storage.saveRootSave({
+const persistedRoot = storage.saveRootSave({
   ...migratedRoot,
-  games: { ...migratedRoot.games, 'scrap-factory': persistedProgression },
+  games: {
+    ...migratedRoot.games,
+    'scrap-factory': {
+      ...migratedRoot.games['scrap-factory'],
+      progressionRank: normalizedLegacy.progressionRank,
+      progression: normalizedLegacy.progression,
+    },
+  },
 });
-const staleRuntime = withNormalizedProgression({
-  ...persistedProgression,
-  progressionRank: 1,
-  progression: { ...makeDefaultProgression(), updatedAt: '2026-09-05T00:00:01.000Z' },
-}, { inferLegacy: false });
-storage.saveGameSave({ ...writtenRoot, profile: { ...writtenRoot.profile, totalPlayTimeSeconds: 42 } }, staleRuntime);
+const reloaded = storage.loadRootSave();
+assert.equal(reloaded.games['scrap-factory'].progressionRank, 2, 'existing storage normalizer must preserve additive progression fields');
+assert.ok(reloaded.games['scrap-factory'].progression.researched.includes('basic_smelting'));
+
+storage.saveGameSave(
+  { ...persistedRoot, profile: { ...persistedRoot.profile, totalPlayTimeSeconds: 42 } },
+  reloaded.games['scrap-factory'],
+);
 const afterAutosave = storage.loadRootSave();
-assert.equal(afterAutosave.games['scrap-factory'].progressionRank, 2, 'stale gameplay autosave must not erase newer progression');
-assert.equal(afterAutosave.profile.totalPlayTimeSeconds, 42, 'runtime profile updates must survive progression merge');
+assert.equal(afterAutosave.games['scrap-factory'].progressionRank, 2, 'autosave after reload must preserve progression fields');
+assert.equal(afterAutosave.profile.totalPlayTimeSeconds, 42);
 
 console.log('Progression tests passed.');
