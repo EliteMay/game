@@ -62,8 +62,8 @@ export const BUILDINGS = {
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
-    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Rank 4以降は3 Powerを使用する。',
-    color: 0x52616c, accepts: ['raw', 'processed', 'product'], powerUse: 3,
+    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Eで手動投入・回収もできる。',
+    color: 0x52616c, accepts: ['raw', 'processed', 'product'],
   },
   generator: {
     id: 'generator', name: 'スクラップ発電機', cost: 260, category: 'power', buildable: true,
