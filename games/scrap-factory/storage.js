@@ -95,6 +95,7 @@ function normalizeGame(candidate) {
       input: isObject(b.input) ? b.input : {},
       output: isObject(b.output) ? b.output : {},
       progress: Number.isFinite(Number(b.progress)) ? Math.max(0, Number(b.progress)) : 0,
+      powerFuelSeconds: Number.isFinite(Number(b.powerFuelSeconds)) ? Math.max(0, Number(b.powerFuelSeconds)) : 0,
       permanent: Boolean(b.permanent),
     })) : structuredClone(base.buildings),
     tutorialStats: { ...base.tutorialStats, ...(isObject(candidate.tutorialStats) ? candidate.tutorialStats : {}) },
