@@ -6,6 +6,7 @@
     "validate": "node scripts/validate.mjs",
     "test:logistics": "node scripts/logistics.test.mjs",
     "test:management": "node scripts/factory-management.test.mjs",
-    "test:progression": "node scripts/progression.test.mjs"
+    "test:progression": "node scripts/progression.test.mjs",
+    "test:power": "node scripts/power.test.mjs"
   }
 }
