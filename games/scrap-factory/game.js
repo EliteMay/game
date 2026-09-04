@@ -13,6 +13,21 @@ import {
   reverseRotation,
   rotateQuarter,
 } from './logistics.js';
+import {
+  isBuildingUnlocked,
+  isHandCraftUnlocked,
+  requiredBuildingRank,
+} from './progression.js';
+import {
+  GENERATOR_FUEL_SECONDS,
+  computePowerSnapshot,
+  generatorActive,
+  isBuildingPowered,
+  powerEnabled,
+  powerReason,
+  powerSummary,
+  tickGeneratorFuel,
+} from './power.js';
 import { loadGameSave, saveGameSave, resetGameSave, exportSaveText } from './storage.js';
 import { ScrapWorld } from './world.js';
 
@@ -90,6 +105,8 @@ const ui = {
 let { root, game } = loadGameSave();
 game.sessionCount += 1;
 game.lastPlayedAt = new Date().toISOString();
+let powerSnapshot = computePowerSnapshot(game);
+let previousPowerStatus = powerSnapshot.status;
 let started = false;
 let currentPanel = 'boot';
 let selectedMachineId = null;
@@ -145,6 +162,7 @@ function initializeUi() {
     ensureAudio();
     world.lockPointer();
     toast('探索開始。黄色いゲートの先でスクラップを集めよう。Oでガイド。', 'info');
+    if (powerEnabled(game)) toast(powerSummary(powerSnapshot), powerSnapshot.status === 'shortage' ? 'warn' : 'info');
   });
 
   ui.resume.addEventListener('click', closePanelAndResume);
@@ -516,6 +534,11 @@ function getBuilding(id) {
 function handleBuildPlacement({ type, x, z, rotation }) {
   const def = BUILDINGS[type];
   if (!def?.buildable) return false;
+  if (!isBuildingUnlocked(game, type)) {
+    toast(`${def.name}は Rank ${requiredBuildingRank(type)} で解放されます`, 'warn');
+    sound('error');
+    return false;
+  }
   if (game.money < def.cost) {
     toast(`資金不足：${def.name} は $${def.cost}`, 'warn');
     sound('error');
@@ -531,9 +554,12 @@ function handleBuildPlacement({ type, x, z, rotation }) {
     input: {},
     output: {},
     progress: 0,
+    powerFuelSeconds: 0,
     permanent: false,
   };
   game.buildings.push(building);
+  powerSnapshot = computePowerSnapshot(game);
+  previousPowerStatus = powerSnapshot.status;
   world.addBuilding(building);
   sound('build');
   const d = directionFromRotation(rotation);
@@ -557,16 +583,18 @@ function renderBuildMenu() {
   ui.buildList.replaceChildren();
   for (const type of BUILD_MENU_ORDER) {
     const def = BUILDINGS[type];
+    const unlocked = isBuildingUnlocked(game, type);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'build-option';
-    button.disabled = game.money < def.cost;
+    button.disabled = !unlocked || game.money < def.cost;
     const extra = type === 'conveyor' ? '矢印の方向へ1方向搬送。設置後もEで変更可能。' : '';
     button.innerHTML = `
       <span class="build-option__main"><strong>${def.name}</strong><small>${def.description}${extra ? `<br>${extra}` : ''}</small></span>
-      <span class="build-option__cost">$${def.cost}</span>
+      <span class="build-option__cost">${unlocked ? `$${def.cost}` : `RANK ${requiredBuildingRank(type)}`}</span>
     `;
     button.addEventListener('click', () => {
+      if (!isBuildingUnlocked(game, type)) return;
       currentPanel = null;
       hidePanels();
       world.startBuild(type);
@@ -644,6 +672,10 @@ function renderMachinePanel() {
   const def = BUILDINGS[building.type];
   const recipe = def.recipe ? RECIPES[def.recipe] : null;
   const isConveyor = building.type === 'conveyor';
+  const isGenerator = Number(def.powerGeneration || 0) > 0;
+  const isPowerPole = building.type === 'power_pole';
+  const powered = isBuildingPowered(game, building, powerSnapshot);
+  const reason = powerReason(building, powerSnapshot);
   const d = directionFromRotation(building.rotation);
 
   ui.machineTitle.textContent = def.name;
@@ -651,9 +683,27 @@ function renderMachinePanel() {
   if (isConveyor) {
     ui.machineFlow.innerHTML = `<span>現在の搬送方向</span><strong>${d.name} ${d.symbol}</strong><span>黄色い矢印と同じ方向へ1個ずつ送ります</span>`;
     ui.machineStatus.textContent = '前のコンベア・機械から受け取り、矢印方向の次マスへ搬送';
+  } else if (isGenerator) {
+    ui.machineFlow.innerHTML = `<span>鉄くず ×1</span><span class="flow-arrow">→</span><strong>${def.powerGeneration} Power</strong><span>${GENERATOR_FUEL_SECONDS}秒</span>`;
+    ui.machineStatus.textContent = generatorActive(building)
+      ? `発電中 / 燃料残り ${Math.ceil(Number(building.powerFuelSeconds || 0))}秒 / ${powerSummary(powerSnapshot)}`
+      : `燃料待ち / 鉄くずを投入すると自動始動 / ${powerSummary(powerSnapshot)}`;
+  } else if (isPowerPole) {
+    const connected = powerSnapshot.connectedPoleIds?.has(building.id);
+    ui.machineFlow.innerHTML = '<span>POWER GRID</span><span class="flow-arrow">→</span><strong>10m給電範囲</strong>';
+    ui.machineStatus.textContent = connected
+      ? `電力網へ接続済み / ${powerSummary(powerSnapshot)}`
+      : '未接続 / Starter Grid・Generator・接続済みPoleから12.5m以内へ設置してください';
   } else if (recipe) {
     ui.machineFlow.innerHTML = recipeFlowHtml(recipe);
-    ui.machineStatus.textContent = `${building.progress > 0 ? '稼働中' : '待機中'} / ${recipe.seconds.toFixed(1)}秒サイクル`;
+    if (powerEnabled(game) && !powered) {
+      ui.machineStatus.textContent = reason === 'coverage'
+        ? `POWER STOP / 給電範囲外 / ${def.powerUse || 0} Power必要`
+        : `POWER STOP / 発電不足 / ${def.powerUse || 0} Power必要`;
+    } else {
+      const powerNote = powerEnabled(game) && Number(def.powerUse || 0) > 0 ? ` / ${def.powerUse} Power` : '';
+      ui.machineStatus.textContent = `${building.progress > 0 ? '稼働中' : '待機中'} / ${recipe.seconds.toFixed(1)}秒サイクル${powerNote}`;
+    }
   } else if (building.type === 'storage') {
     ui.machineFlow.innerHTML = '<span>受取</span><span class="flow-arrow">→</span><strong>一時保管</strong><span class="flow-arrow">→</span><span>次のライン</span>';
     ui.machineStatus.textContent = '自動ラインの中間バッファ';
@@ -662,14 +712,14 @@ function renderMachinePanel() {
     ui.machineStatus.textContent = '設備';
   }
 
-  ui.machineBuffers.hidden = isConveyor;
+  ui.machineBuffers.hidden = isConveyor || isPowerPole;
   ui.machineInput.textContent = bufferText(building.input);
   ui.machineOutput.textContent = bufferText(building.output);
-  ui.machineDeposit.hidden = isConveyor;
-  ui.machineCollect.hidden = isConveyor;
+  ui.machineDeposit.hidden = isConveyor || isPowerPole || !(def.accepts || []).length;
+  ui.machineCollect.hidden = isConveyor || isPowerPole || isGenerator;
   ui.machineRotate.hidden = !isConveyor;
   ui.machineReverse.hidden = !isConveyor;
-  ui.machineDeposit.textContent = building.type === 'storage' ? '持ち物を保管' : '対応素材を投入';
+  ui.machineDeposit.textContent = building.type === 'storage' ? '持ち物を保管' : isGenerator ? '鉄くずを燃料投入' : '対応素材を投入';
   ui.machineDeposit.disabled = !Object.entries(game.inventory).some(([itemId, amount]) => amount > 0 && acceptsItem(building, itemId));
   ui.machineCollect.disabled = !Object.values(building.output || {}).some((amount) => amount > 0);
   ui.machineRemove.hidden = Boolean(building.permanent);
@@ -728,6 +778,8 @@ function removeBuildingSafely(building, { resumeAfter = false } = {}) {
   const refund = BUILDINGS[building.type]?.cost || 0;
   game.money += refund;
   game.buildings = game.buildings.filter((entry) => entry.id !== building.id);
+  powerSnapshot = computePowerSnapshot(game);
+  previousPowerStatus = powerSnapshot.status;
   world.removeBuilding(building.id);
   selectedMachineId = null;
   game.tutorialStats.automationComplete = detectAutomationComplete();
@@ -753,12 +805,24 @@ function processMachines(delta) {
   for (const building of game.buildings) {
     const def = BUILDINGS[building.type];
     const recipe = def?.recipe ? RECIPES[def.recipe] : null;
+    if (Number(def?.powerGeneration || 0) > 0) {
+      const active = generatorActive(building);
+      world.updateBuildingState(building.id, {
+        active,
+        progress: active ? Number(building.powerFuelSeconds || 0) / GENERATOR_FUEL_SECONDS : 0,
+      });
+      continue;
+    }
     if (!recipe) {
       world.updateBuildingState(building.id, { active: false, progress: 0 });
       continue;
     }
     building.input ??= {};
     building.output ??= {};
+    if (!isBuildingPowered(game, building, powerSnapshot)) {
+      world.updateBuildingState(building.id, { active: false, progress: Number(building.progress || 0) / recipe.seconds });
+      continue;
+    }
     const ready = Object.entries(recipe.input).every(([itemId, amount]) => Number(building.input[itemId] || 0) >= amount);
     if (!ready) {
       building.progress = 0;
@@ -926,6 +990,7 @@ function renderInventory() {
 }
 
 function canCraft(craft) {
+  if (!isHandCraftUnlocked(game, craft.id)) return false;
   const enough = Object.entries(craft.input).every(([itemId, amount]) => Number(game.inventory[itemId] || 0) >= amount);
   if (!enough) return false;
   const simulated = { ...game.inventory };
@@ -1004,7 +1069,19 @@ function persist(reason = 'autosave') {
   }
 }
 
+function updatePower(delta) {
+  if (started) tickGeneratorFuel(game.buildings, delta);
+  const next = computePowerSnapshot(game);
+  if (started && powerEnabled(game) && next.status !== previousPowerStatus) {
+    if (next.status === 'shortage') toast(powerSummary(next), 'warn');
+    else if (previousPowerStatus === 'shortage') toast(`POWER RESTORED: ${next.generation}供給 / ${next.demand}需要`, 'success');
+  }
+  powerSnapshot = next;
+  previousPowerStatus = next.status;
+}
+
 function update(delta) {
+  updatePower(delta);
   processMachines(delta);
   if (!started) return;
   unsavedPlaySeconds += delta;
