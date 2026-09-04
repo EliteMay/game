@@ -117,3 +117,32 @@ User playtestで次を確認。
 - UI側のBuild / Craft Guardは通常操作を防げるが、将来ProgressionがGame Coreの主要機能になった段階では`game.js`側のCore validationへ移す方が堅牢。
 - MutationObserverでHUD自身を更新するとSelf-trigger loopを起こしうる。今回のProgression UIではDOM全体Observerを使わず、Capture Guard + 定期表示更新にした。
 - Static TestではPointer Lock復帰、HUD位置、実Save Reload操作、実Legacy Saveの見た目を確認できない。Browser Validationを別Gateとして残す。
+
+## 2026-09-05 / Phase 2-A Power Core
+
+### Problem
+
+- PowerをRank 4で一括導入すると、それ以前から動いていた小規模FactoryがRank Up直後に全停止する可能性がある。
+- Power shortageをMachine処理の途中で雑に扱うと、Input消費済みItemや途中Progressを失うRiskがある。
+- 発電量・需要・CoverageをSaveへ丸ごと保存すると、Building配置と二重のSource of Truthになりやすい。
+- Phase 1のUnlock GuardがUI中心だったため、Power Building追加でCore validationの必要性が高くなった。
+
+### Keep
+
+- Rank 1〜3ではPowerを無効にし、既存FactoryのBehaviorをそのまま保つ。
+- Rank 4にはStarter Gridを用意し、Crusher 1 + Smelter 1程度の既存小型Lineを追加作業なしで維持できる容量を持たせる。
+- Power snapshotは`buildings[]`とProgressionから導出し、Saveへ重複保存しない。
+- Generatorで永続化が必要なのは燃焼途中の`powerFuelSeconds`だけにする。
+- Shortage中はMachineのInput / Output /途中Progressを保持し、Power復旧時にそのまま再開する。
+- ConveyorをPhase 2-AではPassiveに保ち、停電中もGeneratorへ燃料を届けられるようにする。Recovery loopをPower自身が塞がない。
+- Power allocationはPriority + Building IDでdeterministicにする。Reloadや配列順で給電対象が揺れないようにする。
+- Build / Craft Unlockを`game.js` Coreでも再検証し、DOM guardだけに依存しない。
+- Power計算はPure Functionへ切り出し、Starter Grid / Shortage / Fuel / Recovery / Pole coverage / Buffer非破壊をRegression Testする。
+
+### Watch
+
+- 現在のPower計算はPhase 2-AのStarter Grid向け基盤。複数の独立Power NetworkやBatteryを導入するときは、Generationを単純な全体Poolとして扱わずNetwork component単位へ拡張する必要がある。
+- Scrap Generator / Power PoleはCore追加時点では既存Generic Machine fallback visualを使う。専用SilhouetteはVisual passで追加し、Generic Boxのまま完成扱いしない。
+- Factory ManagementのPower専用Dashboard / persistent Alertは次Sliceで追加する。現状はRuntime ToastとMachine Panelで原因を表示する。
+- Rank 4への通常到達条件はまだ探索Progressionへ接続されていない。Power Coreの存在とPlayable progression capを混同しない。
+- BrowserでGenerator燃料投入 → Shortage → Recovery、Pole coverage、Pointer Lock、専用Machine Panelを実操作確認する必要がある。
