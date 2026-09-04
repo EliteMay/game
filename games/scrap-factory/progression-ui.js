@@ -186,7 +186,7 @@ function renderPanel() {
   ` : `
     <section class="progression-section progression-section--cap">
       <div class="progression-section__head"><div><span>PHASE 1 CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>ACTIVE</strong></div>
-      <p>Phase 1の縦進行はここまで実装済みです。Rank 4以降のPower / Logisticsは次Phaseで追加します。</p>
+      <p>通常GameplayのRank Upは現在ここまでです。Phase 2-AのPower CoreはRank 4状態向けに実装済みで、自然なRank 4到達条件は探索Phaseで接続します。Splitter / Merger / Mk.2は次のPhase 2 sliceで追加します。</p>
     </section>
   `;
 
