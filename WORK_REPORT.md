@@ -1,6 +1,6 @@
 # Work Report
 
-Date: 2026-09-04
+Date: 2026-09-05
 
 ## Scope
 
@@ -13,6 +13,7 @@ Date: 2026-09-04
 3. Runtime visual regression fix
 4. Directional logistics / 操作説明改善
 5. Factory Management Pack
+6. Phase 1 Progression Rank / Research
 
 ## Current Gameplay
 
@@ -30,6 +31,8 @@ Date: 2026-09-04
 - Hand crafting
 - Cash / Revenue
 - Tutorial contract / free-play transition
+- Progression Rank 1 → 2 → 3
+- Research Data / Research unlock
 - Autosave / recovery / reset / JSON export
 - Graphics / sensitivity / volume / FPS / shortcut settings
 - In-game Field Manual / Codex
@@ -85,7 +88,7 @@ Factory-game management conventions were researched from current official Satisf
   - conveyor dead-end
 - 8 challenges / achievements
 - Challenge HUD pinning
-- Factory rank derived from achievements
+- Factory Title derived from achievements
 - Production Planner:
   - choose recipe output
   - set target units/minute
@@ -97,8 +100,6 @@ Factory-game management conventions were researched from current official Satisf
 - HUD alert-count badge
 
 ### Architecture
-
-New files:
 
 ```text
 games/scrap-factory/
@@ -112,21 +113,94 @@ scripts/
 
 The pack intentionally does not replace `game.js` production/economy logic.
 
+## Phase 1 Progression Rank / Research — 2026-09-05
+
+### Added
+
+- `progressionRank` 1〜7を保存できるProgression Data構造
+- Phase 1のPlayable Rank Up:
+  - Rank 1 → 2
+  - Rank 2 → 3
+- 必須目標 + 選択目標2つ方式
+- Directional Conveyor Routeを使った必須Line判定
+- Rank 2 Unlock:
+  - Smelter
+  - Storage
+  - Research Tier 2
+  - Research Data +1
+- Rank 3 Reward:
+  - Research Data +2
+  - Exploration Research入口
+- Research:
+  - `Basic Fabrication` — Rank 2 / Data 1 / Iron Plate Hand Craft unlock
+  - `Scrap Yard Survey` — Rank 3 / Blueprint必須のSpecial Research入口
+- Blueprint未発見Researchの拒否
+- HUD右上`RANK`表示
+- Rank Goal / Research専用Panel
+- Rank未到達Build option / Quick BuildのGuard
+- Research未完了Iron Plate CraftのGuard
+- Achievement由来`FACTORY RANK`表示をUI上`FACTORY TITLE`へ分離
+
+### Legacy Save Compatibility
+
+旧Saveに`progression`がない場合は現在Dataから最低進行を推定する。
+
+- Smelter使用Evidence → Rank 2相当 / Smelter Legacy Unlock
+- Storage使用Evidence → Rank 2相当 / Storage Legacy Unlock
+- Directional Iron Line成立 → Rank 3相当
+- Iron Plate / Tool Kit Craft使用Evidence → `Basic Fabrication`完了扱い
+- Existing Achievementは削除せず、Progression Rankとは分離
+- Existing Factory Layout / Building ID / Economy / Inventoryを初期化しない
+
+Root Save Schema Versionは`1`を維持し、Scrap Factory内部へ`progression.version: 1`を追加した。
+
+### Runtime Integration
+
+既存`game.js`のProduction / Conveyor Loopへ大規模変更を入れないため、Progressionは独立Moduleとして追加した。
+
+```text
+games/scrap-factory/
+├─ progression.js       : Pure Rank / Research / Legacy logic
+├─ progression-ui.js    : HUD / Panel / Build-Craft unlock guards
+└─ progression.css      : UI styles
+
+scripts/
+└─ progression.test.mjs
+```
+
+Rank Up / Research確定時はProgressionだけRoot Saveへ書き込み、Page Reload前に既存`game.js`の最後のSave後へProgressionを再Mergeする。Reload後は通常Saveとして読み込む。
+
+### Regression Coverage
+
+`scripts/progression.test.mjs`:
+
+- Rank 1 Directional Line判定
+- RevenueだけではRank Up不可
+- Mandatory + Optional 2件でRank 2
+- Full Iron LineでRank 3
+- Research Data Reward
+- Basic Fabrication Research
+- Blueprint Gate
+- Legacy Smelter / Storage / Craft migration
+
+`npm run validate`にもProgression Testを追加した。
+
 ## Save / Compatibility
 
-Core game save remains:
+Core game save:
 
 - Root key: `elitemay-game-hub-v1`
-- Schema Version: `1`
+- Root Schema Version: `1`
+- Progression internal Version: `1`
 
-Factory Management preferences are stored separately:
+Factory Management preferences:
 
 - key: `scrap-factory-management-v1`
 - challenge unlock IDs
 - pinned challenge ID
 - planner target/rate
 
-No existing factory layout, building ID, inventory, economy or player data is migrated for this pack.
+Phase 1ではRoot Schema Versionを上げず、旧SaveをNormalizeして不足Progressionを補完する。
 
 ## Validation
 
@@ -138,27 +212,28 @@ No existing factory layout, building ID, inventory, economy or player data is mi
 - Required project files
 - Directional logistics regression tests
 - Factory management regression tests
-  - challenge completion
-  - dead-end conveyor alert
-  - blocked machine-output alert
-  - production-plan back calculation
+- Progression regression tests
 
-PR #4 CI:
-
-- `project-contract`: Pass
-- reusable `baseline / baseline`: Pass
+PR / CI結果は最終Merge前に確認する。
 
 ### Browser / Visual
 
-- Existing published game has prior user playtest evidence.
-- Factory Management Pack browser/pointer-lock/layout confirmation is pending the merged GitHub Pages build.
-- Static CI success is not treated as browser validation.
+未確認:
+
+- Progression HUDの実ブラウザ位置
+- Rank / Research PanelのPointer Lock復帰
+- Rank Locked Build optionの実クリック
+- Research後Reloadを含む一連の操作
+- Legacy Save実データでのMigration
+
+Static CI成功をBrowser Validationへ読み替えない。
 
 ## Known Limits / Next Large Features
 
 Not yet implemented:
 
-- Research / technology tree with gameplay unlocks
+- Rank 4以降のProgression
+- Blueprint取得元になる独立探索Area
 - Power generation / power demand
 - Splitter / merger
 - Conveyor throughput tiers
@@ -167,13 +242,13 @@ Not yet implemented:
 - Combat / weapons / enemies
 - Authored external 3D assets
 
-Next large gameplay phase should prioritize **Research + Power + new production chain**, while preserving the current save and directional-logistics contracts.
+次の大規模Gameplay Phaseは **Phase 2: Power / Logistics / Production Expansion**。現在のSave / Directional Conveyor / Progression Rank Contractを維持して進める。
 
 ## Requirements Planning Update — 2026-09-05
 
 `Scrap Factory` の長期要件を詳細化し、`REQUIREMENTS.md` をゲーム内容・進行・探索・自動化に関する正本として拡張した。
 
-今回確定 / 詳細化した主な内容:
+主な確定内容:
 
 - Rank 1〜7を必須目標 + 選択目標方式で進行
 - Rank / Research / Explorationの役割分担
@@ -195,6 +270,4 @@ Next large gameplay phase should prioritize **Research + Power + new production 
 - Mega Factory / Main Clear / Clear後Optimization
 - Browser向けPerformance / Scale Target
 
-この更新は**要件定義のみ**であり、上記の長期機能が実装済みになったことを意味しない。
-
-現行実装のPlayable MVP、Save Schema Version 1、Directional Conveyor Contract、2.5m Grid、Factory座標系は変更していない。
+現行実装のPlayable MVP、Root Save Schema Version 1、Directional Conveyor Contract、2.5m Grid、Factory座標系は変更していない。
