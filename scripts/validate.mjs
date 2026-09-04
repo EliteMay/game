@@ -16,6 +16,7 @@ const required = [
   'games/scrap-factory/progression.css',
   'games/scrap-factory/config.js',
   'games/scrap-factory/logistics.js',
+  'games/scrap-factory/power.js',
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
   'games/scrap-factory/progression.js',
@@ -27,6 +28,7 @@ const required = [
   'scripts/logistics.test.mjs',
   'scripts/factory-management.test.mjs',
   'scripts/progression.test.mjs',
+  'scripts/power.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -62,6 +64,7 @@ for (const [name, script] of [
   ['Directional logistics', 'scripts/logistics.test.mjs'],
   ['Factory management', 'scripts/factory-management.test.mjs'],
   ['Progression', 'scripts/progression.test.mjs'],
+  ['Power', 'scripts/power.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -102,6 +105,11 @@ if (!scrapHtml.includes('src="./feature-pack.js"')) failures.push('Scrap Factory
 const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/factory-management.js'), 'utf8');
 if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push('Factory management must load progression-ui.js in browser runtime');
 
+const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
+for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
+  if (!gameRuntime.includes(marker)) failures.push(`Scrap Factory runtime missing core integration: ${marker}`);
+}
+
 const textFiles = [];
 function collectText(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -129,4 +137,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power tests.`);

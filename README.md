@@ -6,18 +6,24 @@
 
 現在のPlayable Game:
 
-- **Scrap Factory** — 一人称3D / スクラップ回収 / 加工 / 販売 / 自由配置 / 方向付きコンベア自動化 / 工場管理 / Progression Rank / Research
+- **Scrap Factory** — 一人称3D / スクラップ回収 / 加工 / 販売 / 自由配置 / 方向付きコンベア自動化 / 工場管理 / Progression Rank / Research / Power Core
 
 ## 現在の状態
 
 `Scrap Factory` のPlayable MVPを、Steam掲載相当を目標に継続改善しています。
 
-現在は長期ロードマップの **Phase 1: Progression Rank / Research** を実装し、Rank 1 → 2 → 3 の縦進行をPlayable MVPへ接続しています。
+現在は長期ロードマップの **Phase 2-A: Power Core** まで実装しています。Phase 1のRank 1 → 2 → 3進行を維持したまま、将来のRank 4 Factory向けにStarter Grid / Scrap Generator / Power Pole / Power Shortage・Recoveryのcoreを追加しました。
 
 主要ループ:
 
 ```text
 探索 → スクラップ回収 → 拠点へ帰還 → 加工 → 販売 → 設備購入 → コンベア自動化 → Rank Up / Research → 工場管理 → セーブ
+```
+
+Rank 4以降では次のループが加わります。
+
+```text
+Starter Grid → 電力需要増加 → 発電不足 → Scrap Generatorへ燃料供給 → Power Poleで給電範囲拡張 → Machine復旧
 ```
 
 Hubではゲームごとの進行、所持金、累計売上、プレイ時間を表示します。未完成ゲームは起動導線を出さず `PLANNED` として扱います。
@@ -34,9 +40,24 @@ HUD右上の `RANK` から進行画面を開けます。
 - Research Dataを消費して技術を研究する。
 - `Basic Fabrication`研究で鉄板の手作業Recipeを解放。
 - Blueprint必須Researchは、Blueprint未発見では研究不可。
-- Phase 1の実装上限はRank 3。Rank 4以降のPower / Splitter / Merger等は次Phase。
+- 通常GameplayのRank Up上限は現在Rank 3。Rank 4への自然な到達条件は探索Phaseで接続予定。
+- Rank 4状態ではPhase 2-AのPower Coreが有効になり、Generator / Power Poleが解放される。
 
 Legacy Saveでは既に使っていたSmelter / Storage / 鉄板Craftを検出し、必要な最低Rank / Unlockを補完します。既存Factory LayoutやAchievementは削除しません。
+
+## Phase 2-A: Power Core
+
+PowerはRank 4から有効化されます。Rank 3以前の既存Factoryはこれまで通り電力不要で動作するため、旧Saveや現在のRank 1〜3進行を突然停止させません。
+
+- **Starter Grid** — Factory Base中心から17.5m以内へ55 Powerを無償供給。Crusher 1台 + Smelter 1台の小規模工場はそのまま維持可能。
+- **Scrap Generator** — Rank 4 / `$260`。鉄くず1個で24秒稼働し80 Powerを追加供給。
+- **Power Pole** — Rank 4 / `$45`。Starter Grid / Generator / 接続済みPoleから12.5m以内で電力網へ接続し、周囲10mのMachineへ給電。
+- **Machine需要** — Crusher 18 Power / Smelter 30 Power。Conveyor / Storage / SellerはPhase 2-AではPassive。
+- **Power Shortage** — 供給不足または給電範囲外のMachineだけ停止。Input / Output / 処理途中Progressは破壊しない。
+- **Recovery** — Generatorへ燃料が入り供給が戻ると停止Machineは自動復旧。
+- **Deterministic Allocation** — 不足時の供給対象を安定した順序で決め、Reloadごとに挙動が揺れないようにする。
+
+Phase 2の残りでSplitter / Merger / Conveyor Mk.2 / Throughput / Battery基盤 / Storage拡張 / 新Recipeを追加します。
 
 ## Scrap Factory 操作
 
@@ -94,6 +115,7 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - Build Mode中は配置 / 回転 / 終了操作を動的表示。
 - `O`でゲーム内ガイドを開き、基本ループ / 操作 / コンベア / 加工 / 解体を確認可能。
 - Machine Panelには用途、Recipe、Input / Output、処理時間を表示。
+- Rank 4 Power Machineでは発電量 / 消費量 / 給電範囲外 / 発電不足 / Generator残燃料を表示。
 - Tutorial Contractは単語だけでなく「次に何をどう操作するか」を表示。
 - `P`の管理コンソールでは、工場が大きくなった後の問題発見・計画を補助する。
 - `RANK` HUDから現在Rankの必須 / 選択目標とResearch状態を確認可能。
@@ -103,12 +125,13 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - 保存先: `localStorage`
 - Root key: `elitemay-game-hub-v1`
 - Root Schema Version: `1`
-- Scrap Factory内に `progression.version: 1` を追加
+- Scrap Factory内に `progression.version: 1` を保持
+- Generatorの燃焼途中はBuilding単位の`powerFuelSeconds`として保存
 - 30秒ごとのオートセーブ
 - 画面非表示・主要変更時にも保存
 - Hub / ゲーム設定からJSON Export可能
 - Import前に現在セーブのRecovery Backupを作成
-- Root Schema Versionは変更せず、旧SaveはNormalize時にProgression Dataを補完
+- Root Schema Versionは変更せず、旧SaveはNormalize時にProgression / Power追加Fieldを安全に補完
 - Directional Conveyor / Guide / Factory Managementの既存Contractを維持
 
 詳細は [`SPEC.md`](SPEC.md) を正本とします。
@@ -135,11 +158,13 @@ npm run validate
 npm run test:logistics
 npm run test:management
 npm run test:progression
+npm run test:power
 ```
 
 - `test:logistics` — Conveyor rotationと逆流Regression
 - `test:management` — Factory alert / Challenge / Production plannerのPure Function Regression
 - `test:progression` — Rank条件 / Directional Line / Research / Blueprint Gate / Legacy Migration Regression
+- `test:power` — Starter Grid / Shortage / Generator燃料 / Recovery / Pole Coverage / Buffer非破壊 / Deterministic allocation Regression
 
 加えてAccount共通のReusable Web Baselineを固定Commit SHAで利用します。
 

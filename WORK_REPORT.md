@@ -14,6 +14,7 @@ Date: 2026-09-05
 4. Directional logistics / 操作説明改善
 5. Factory Management Pack
 6. Phase 1 Progression Rank / Research
+7. Phase 2-A Power Core
 
 ## Current Gameplay
 
@@ -24,6 +25,7 @@ Date: 2026-09-05
 - Direct selling
 - Free building on 2.5m grid
 - Hopper / Seller / Crusher / Smelter / Conveyor / Storage
+- Rank 4 Power definitions: Scrap Generator / Power Pole
 - Directional conveyor transport
 - Conveyor rotation / reverse after placement
 - Safe dismantle mode with full build-cost refund
@@ -33,6 +35,7 @@ Date: 2026-09-05
 - Tutorial contract / free-play transition
 - Progression Rank 1 → 2 → 3
 - Research Data / Research unlock
+- Rank 4 Power Core for future progression connection
 - Autosave / recovery / reset / JSON export
 - Graphics / sensitivity / volume / FPS / shortcut settings
 - In-game Field Manual / Codex
@@ -46,9 +49,11 @@ Date: 2026-09-05
 - Scrap-yard props: container / tire / barrel / spool / vehicle / crane / piles
 - Distant silo / chimney / pipe bridge / industrial silhouette
 - Dedicated collectible shapes
-- Purpose-specific machine silhouettes
+- Purpose-specific machine silhouettes for existing Phase 1 machines
 - Interaction marker / head bob / sprint FOV
 - Static scenery collision with build placement
+
+Phase 2-AのScrap Generator / Power PoleはCore先行で、専用Silhouetteは後続Visual pass。Generic fallback geometryのまま完成扱いしない。
 
 ## Directional Logistics / QoL
 
@@ -89,13 +94,8 @@ Factory-game management conventions were researched from current official Satisf
 - 8 challenges / achievements
 - Challenge HUD pinning
 - Factory Title derived from achievements
-- Production Planner:
-  - choose recipe output
-  - set target units/minute
-  - back-calculate machine count and raw-material rate
-- Searchable Codex:
-  - item value / stack / category
-  - building price / purpose / recipe
+- Production Planner
+- Searchable Codex
 - Session event log from game toasts
 - HUD alert-count badge
 
@@ -118,22 +118,12 @@ The pack intentionally does not replace `game.js` production/economy logic.
 ### Added
 
 - `progressionRank` 1〜7を保存できるProgression Data構造
-- Phase 1のPlayable Rank Up:
-  - Rank 1 → 2
-  - Rank 2 → 3
+- Phase 1のPlayable Rank Up: Rank 1 → 2 / Rank 2 → 3
 - 必須目標 + 選択目標2つ方式
 - Directional Conveyor Routeを使った必須Line判定
-- Rank 2 Unlock:
-  - Smelter
-  - Storage
-  - Research Tier 2
-  - Research Data +1
-- Rank 3 Reward:
-  - Research Data +2
-  - Exploration Research入口
-- Research:
-  - `Basic Fabrication` — Rank 2 / Data 1 / Iron Plate Hand Craft unlock
-  - `Scrap Yard Survey` — Rank 3 / Blueprint必須のSpecial Research入口
+- Rank 2 Unlock: Smelter / Storage / Research Tier 2 / Research Data +1
+- Rank 3 Reward: Research Data +2 / Exploration Research入口
+- Research: `Basic Fabrication` / `Scrap Yard Survey`
 - Blueprint未発見Researchの拒否
 - HUD右上`RANK`表示
 - Rank Goal / Research専用Panel
@@ -143,8 +133,6 @@ The pack intentionally does not replace `game.js` production/economy logic.
 
 ### Legacy Save Compatibility
 
-旧Saveに`progression`がない場合は現在Dataから最低進行を推定する。
-
 - Smelter使用Evidence → Rank 2相当 / Smelter Legacy Unlock
 - Storage使用Evidence → Rank 2相当 / Storage Legacy Unlock
 - Directional Iron Line成立 → Rank 3相当
@@ -153,22 +141,6 @@ The pack intentionally does not replace `game.js` production/economy logic.
 - Existing Factory Layout / Building ID / Economy / Inventoryを初期化しない
 
 Root Save Schema Versionは`1`を維持し、Scrap Factory内部へ`progression.version: 1`を追加した。
-
-### Runtime Integration
-
-既存`game.js`のProduction / Conveyor Loopへ大規模変更を入れないため、Progressionは独立Moduleとして追加した。
-
-```text
-games/scrap-factory/
-├─ progression.js       : Pure Rank / Research / Legacy logic
-├─ progression-ui.js    : HUD / Panel / Build-Craft unlock guards
-└─ progression.css      : UI styles
-
-scripts/
-└─ progression.test.mjs
-```
-
-Rank Up / Research確定時はProgressionだけRoot Saveへ書き込み、Page Reload前に既存`game.js`の最後のSave後へProgressionを再Mergeする。Reload後は通常Saveとして読み込む。
 
 ### Regression Coverage
 
@@ -183,7 +155,73 @@ Rank Up / Research確定時はProgressionだけRoot Saveへ書き込み、Page R
 - Blueprint Gate
 - Legacy Smelter / Storage / Craft migration
 
-`npm run validate`にもProgression Testを追加した。
+## Phase 2-A Power Core — 2026-09-05
+
+### Added
+
+- `games/scrap-factory/power.js`
+- Power activation: `progressionRank >= 4`
+- Rank 1〜3 legacy no-power compatibility
+- Starter Grid:
+  - 55 Power
+  - Factory中心から17.5m coverage
+- Scrap Generator:
+  - Rank 4 unlock
+  - `$260`
+  - 鉄くず1個 / 24秒
+  - +80 Power
+- Power Pole:
+  - Rank 4 unlock
+  - `$45`
+  - 12.5m link range
+  - 10m consumer coverage
+- Crusher 18 Power / Smelter 30 Power
+- Shortage時は給電不足Machineだけ停止
+- 停止中もInput / Output / processing progressを保持
+- Fuel供給でPower回復後に自動再開
+- Machine PanelでGeneration / Demand / Fuel / Coverage / Shortage reasonを表示
+- Power status transition toast
+- Generator燃焼途中を`building.powerFuelSeconds`へ保存
+- Build / Craft unlockを`game.js` coreでも再検証
+- GeneratorへManual deposit / Directional Conveyor fuel supplyの両方を許可
+
+### Compatibility
+
+- Root Save key: `elitemay-game-hub-v1`
+- Root Schema Version: `1`
+- 旧Buildingに`powerFuelSeconds`がなくても`0`へNormalize
+- Power snapshot自体はSaveしない
+- Rank 1〜3の既存ProductionはPower導入前と同じ挙動
+- Conveyor / Storage / SellerはPhase 2-AではPassive
+
+### Regression Coverage
+
+`scripts/power.test.mjs`:
+
+- Rank 3以前はPower無効
+- Rank 4 small factoryはStarter Gridで維持
+- Demand超過でShortage
+- FuelなしGeneratorは発電なし
+- Generator fuel consumption / Recovery
+- 遠隔Machine coverage判定
+- Pole chain coverage extension
+- Power calculationによるBuffer非破壊
+- Deterministic allocation
+
+`npm run validate`へPower testとRuntime integration markerを追加。
+
+### Phase 2-A Remaining Browser / Visual Validation
+
+未確認:
+
+- Rank 4 SaveでGenerator / Power Poleを実際に建築する操作
+- Generatorへ鉄くず投入 → 発電 → Fuel消費 → 自動再給油
+- Power shortage → Machine停止 → Recoveryの実時間挙動
+- Power Poleの配置距離とMachine Panel表示の理解しやすさ
+- Pointer Lock復帰
+- Generator / Power Pole専用Visual（まだ未実装）
+
+Static CI成功をBrowser ValidationやVisual完成へ読み替えない。
 
 ## Save / Compatibility
 
@@ -192,6 +230,7 @@ Core game save:
 - Root key: `elitemay-game-hub-v1`
 - Root Schema Version: `1`
 - Progression internal Version: `1`
+- Optional building field: `powerFuelSeconds`
 
 Factory Management preferences:
 
@@ -200,7 +239,7 @@ Factory Management preferences:
 - pinned challenge ID
 - planner target/rate
 
-Phase 1ではRoot Schema Versionを上げず、旧SaveをNormalizeして不足Progressionを補完する。
+Phase 1 / Phase 2-AではRoot Schema Versionを上げず、旧SaveをNormalizeして不足Fieldを補完する。
 
 ## Validation
 
@@ -213,36 +252,39 @@ Phase 1ではRoot Schema Versionを上げず、旧SaveをNormalizeして不足Pr
 - Directional logistics regression tests
 - Factory management regression tests
 - Progression regression tests
+- Power regression tests
 
 PR / CI結果は最終Merge前に確認する。
 
 ### Browser / Visual
 
-未確認:
+継続未確認:
 
 - Progression HUDの実ブラウザ位置
 - Rank / Research PanelのPointer Lock復帰
 - Rank Locked Build optionの実クリック
 - Research後Reloadを含む一連の操作
 - Legacy Save実データでのMigration
-
-Static CI成功をBrowser Validationへ読み替えない。
+- Power Coreの実時間操作項目
 
 ## Known Limits / Next Large Features
 
 Not yet implemented:
 
-- Rank 4以降のProgression
+- Rank 4への自然なProgression path
 - Blueprint取得元になる独立探索Area
-- Power generation / power demand
-- Splitter / merger
-- Conveyor throughput tiers
-- More automated recipes / assembler
+- Splitter / Merger
+- Conveyor Mk.2 / throughput tiers
+- Battery基盤
+- Storage拡張
+- Phase 2新Recipe / Assembler
+- Factory Management Power専用Dashboard / persistent Alert
+- Scrap Generator / Power Pole dedicated visual
 - New exploration areas
 - Combat / weapons / enemies
 - Authored external 3D assets
 
-次の大規模Gameplay Phaseは **Phase 2: Power / Logistics / Production Expansion**。現在のSave / Directional Conveyor / Progression Rank Contractを維持して進める。
+次の実装Sliceは **Phase 2-B: Logistics Expansion** を基本とし、Splitter / Merger / Conveyor Mk.2 / Throughputを既存Directional Conveyor Contractの上へ追加する。
 
 ## Requirements Planning Update — 2026-09-05
 
