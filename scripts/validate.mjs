@@ -12,13 +12,17 @@ const required = [
   'games/scrap-factory/index.html',
   'games/scrap-factory/game.css',
   'games/scrap-factory/game-ux.css',
+  'games/scrap-factory/factory-management.css',
   'games/scrap-factory/config.js',
   'games/scrap-factory/logistics.js',
+  'games/scrap-factory/factory-management.js',
+  'games/scrap-factory/feature-pack.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
   'games/scrap-factory/world-runtime.js',
   'games/scrap-factory/game.js',
   'scripts/logistics.test.mjs',
+  'scripts/factory-management.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -50,10 +54,15 @@ for (const file of jsFiles) {
   catch (error) { failures.push(`JavaScript syntax: ${path.relative(root, file)}\n${error.stderr?.toString() || error.message}`); }
 }
 
-try {
-  execFileSync(process.execPath, [path.join(root, 'scripts/logistics.test.mjs')], { stdio: 'pipe' });
-} catch (error) {
-  failures.push(`Directional logistics tests failed:\n${error.stderr?.toString() || error.stdout?.toString() || error.message}`);
+for (const [name, script] of [
+  ['Directional logistics', 'scripts/logistics.test.mjs'],
+  ['Factory management', 'scripts/factory-management.test.mjs'],
+]) {
+  try {
+    execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
+  } catch (error) {
+    failures.push(`${name} tests failed:\n${error.stderr?.toString() || error.stdout?.toString() || error.message}`);
+  }
 }
 
 const htmlFiles = ['index.html', '404.html', 'games/scrap-factory/index.html'];
@@ -83,6 +92,7 @@ for (const id of ['open-guide-hud', 'guide-panel', 'machine-rotate', 'machine-re
   if (!scrapHtml.includes(`id="${id}"`)) failures.push(`Scrap Factory missing UX control: ${id}`);
 }
 if (!scrapHtml.includes('"./world.js": "./world-runtime.js"')) failures.push('Scrap Factory import map must route world.js through world-runtime.js');
+if (!scrapHtml.includes('src="./feature-pack.js"')) failures.push('Scrap Factory must load feature-pack.js');
 
 const textFiles = [];
 function collectText(dir) {
@@ -111,4 +121,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, directional logistics tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management tests.`);

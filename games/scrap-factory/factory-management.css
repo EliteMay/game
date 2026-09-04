@@ -1,0 +1,172 @@
+.factory-management-hud {
+  position: absolute;
+  right: 20px;
+  top: 182px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  border: 1px solid rgb(255 255 255 / 0.15);
+  background: rgb(20 24 25 / 0.82);
+  color: #d7dbd5;
+  font: inherit;
+  font-size: 0.66rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+
+.factory-management-hud:hover { border-color: rgb(255 255 255 / 0.32); background: rgb(31 36 37 / 0.92); }
+.factory-management-hud strong { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; background: #a54d42; color: #fff; font-size: 0.62rem; }
+.factory-management-hud strong[hidden] { display: none; }
+
+.factory-challenge-pin {
+  position: absolute;
+  right: 20px;
+  top: 228px;
+  width: 280px;
+  padding: 10px 12px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgb(20 24 25 / 0.8);
+  backdrop-filter: blur(8px);
+}
+.factory-challenge-pin span { display: block; color: var(--accent); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.13em; }
+.factory-challenge-pin strong { display: block; margin-top: 3px; font-size: 0.78rem; }
+.factory-challenge-pin small { display: block; margin-top: 3px; color: #aeb5af; font-size: 0.65rem; }
+.factory-challenge-pin i { display: block; width: 100%; height: 3px; margin-top: 8px; background: linear-gradient(90deg, var(--accent) 0 var(--progress), #444a4b var(--progress) 100%); }
+
+.factory-management-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 28px;
+  background: rgb(11 14 15 / 0.78);
+  backdrop-filter: blur(6px);
+}
+
+.factory-management-card {
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  border: 1px solid #444b4c;
+  border-top: 4px solid var(--accent);
+  background: #202526;
+  box-shadow: var(--shadow);
+}
+
+.factory-management-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.factory-management-header h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.6rem); letter-spacing: -0.035em; }
+.factory-management-header p:last-child { max-width: 700px; margin: 8px 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.55; }
+
+.factory-tabs { display: flex; gap: 0; padding: 0 24px; border-bottom: 1px solid var(--line); background: #1a1f20; overflow-x: auto; }
+.factory-tabs button { min-height: 48px; padding: 0 18px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #9fa7a1; font: inherit; font-weight: 780; cursor: pointer; white-space: nowrap; }
+.factory-tabs button:hover { color: #eef0e9; }
+.factory-tabs button.is-active { border-bottom-color: var(--accent); color: #fff; background: rgb(212 183 79 / 0.07); }
+
+.factory-management-content { padding: 22px 24px 26px; }
+.management-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.management-stat { min-height: 102px; padding: 14px 15px; border: 1px solid #3d4445; background: #272d2e; }
+.management-stat span { display: block; color: #959d97; font-size: 0.64rem; font-weight: 850; letter-spacing: 0.09em; }
+.management-stat strong { display: block; margin-top: 8px; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.management-stat small { display: block; margin-top: 5px; color: #aab1ab; font-size: 0.68rem; }
+
+.management-two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.management-section { padding: 16px; border: 1px solid #3d4445; background: #272d2e; }
+.management-section__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 11px; border-bottom: 1px solid #3a4142; }
+.management-section__head span { color: var(--accent); font-size: 0.59rem; font-weight: 900; letter-spacing: 0.12em; }
+.management-section__head h3 { margin: 3px 0 0; font-size: 1rem; }
+.management-section__head > strong { color: #d9ddd7; font-variant-numeric: tabular-nums; }
+.management-help { margin: 11px 0; color: #9fa7a1; font-size: 0.75rem; line-height: 1.55; }
+.management-empty { margin: 16px 0; color: #89918b; font-size: 0.78rem; }
+
+.factory-alert-list { display: grid; gap: 6px; max-height: 320px; overflow: auto; }
+.factory-alert { display: grid; gap: 3px; padding: 10px 11px; border-left: 3px solid #697071; background: #222829; }
+.factory-alert--warn { border-left-color: #c3685f; }
+.factory-alert--info { border-left-color: #8b9b92; }
+.factory-alert strong { font-size: 0.78rem; }
+.factory-alert span { color: #a7afa9; font-size: 0.68rem; line-height: 1.45; }
+
+.factory-count-list { display: grid; }
+.factory-count-list > div { display: flex; justify-content: space-between; gap: 16px; min-height: 40px; align-items: center; padding: 8px 0; border-bottom: 1px solid #373e3f; }
+.factory-count-list span { color: #bbc1bb; font-size: 0.78rem; }
+.factory-count-list strong { color: #f0f1e9; font-variant-numeric: tabular-nums; }
+.management-tip { display: grid; gap: 5px; margin-top: 14px; padding: 11px; border-left: 3px solid var(--accent); background: rgb(212 183 79 / 0.07); }
+.management-tip strong { font-size: 0.76rem; }
+.management-tip span { color: #acb3ad; font-size: 0.7rem; line-height: 1.6; }
+
+.management-rank { display: flex; align-items: baseline; gap: 14px; padding: 16px 18px; border-left: 4px solid var(--accent); background: #272d2e; }
+.management-rank span { color: var(--accent); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.12em; }
+.management-rank strong { font-size: 1.15rem; }
+.management-rank small { color: #969e98; margin-left: auto; }
+.challenge-list { display: grid; gap: 7px; margin-top: 12px; }
+.challenge-row { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px; border: 1px solid #3b4243; background: #272d2e; }
+.challenge-row.is-complete { border-color: #526b57; background: #253027; }
+.challenge-row__state { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid #596061; color: var(--accent); font-size: 0.72rem; font-weight: 900; }
+.challenge-row.is-complete .challenge-row__state { border-color: #6a8b70; color: #8fd098; }
+.challenge-row__body { min-width: 0; display: grid; gap: 3px; }
+.challenge-row__body strong { font-size: 0.86rem; }
+.challenge-row__body span { color: #a4aca6; font-size: 0.72rem; }
+.challenge-row__body small { color: #8f9791; font-size: 0.66rem; }
+.challenge-progress { height: 3px; margin-top: 4px; background: #42494a; }
+.challenge-progress i { display: block; height: 100%; background: var(--accent); }
+.challenge-row .secondary-action { min-width: 104px; padding: 9px 10px; font-size: 0.7rem; }
+
+.planner-controls { display: grid; grid-template-columns: 1fr 180px; gap: 8px; margin: 14px 0; }
+.planner-controls label { display: grid; gap: 6px; }
+.planner-controls label span { color: #9fa7a1; font-size: 0.67rem; font-weight: 800; }
+.planner-controls select, .planner-controls input, .codex-toolbar input { min-height: 44px; padding: 8px 10px; border: 1px solid #4a5253; background: #1d2223; color: #edf0e9; font: inherit; }
+.planner-result { display: grid; gap: 5px; }
+.planner-line { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 48px; padding: 8px 10px 8px calc(10px + var(--depth) * 18px); border-bottom: 1px solid #363d3e; }
+.planner-line span { color: var(--accent); font-size: 0.59rem; font-weight: 900; letter-spacing: 0.09em; }
+.planner-line strong { font-size: 0.8rem; }
+.planner-line em { color: #aab2ac; font-size: 0.7rem; font-style: normal; font-variant-numeric: tabular-nums; }
+
+.codex-toolbar { margin-bottom: 12px; }
+.codex-toolbar input { width: 100%; }
+.codex-list { display: grid; gap: 5px; max-height: 480px; overflow: auto; }
+.codex-item { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; gap: 10px; align-items: stretch; min-height: 60px; border-bottom: 1px solid #373e3f; }
+.codex-item > i { background: var(--item-color); }
+.codex-item > div { display: grid; align-content: center; gap: 2px; padding: 7px 0; }
+.codex-item span, .codex-building span { color: #929a94; font-size: 0.56rem; font-weight: 900; letter-spacing: 0.1em; }
+.codex-item strong, .codex-building strong { font-size: 0.8rem; }
+.codex-item small, .codex-building small { color: #8e9690; font-size: 0.64rem; }
+.codex-item em, .codex-building em { align-self: center; color: var(--accent); font-style: normal; font-weight: 900; }
+.codex-building { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 9px 0; border-bottom: 1px solid #373e3f; }
+.codex-building > div { display: grid; gap: 3px; }
+.codex-building p { margin: 2px 0; color: #a2aaa4; font-size: 0.68rem; line-height: 1.45; }
+
+.session-log { max-height: 500px; overflow: auto; }
+.session-log-row { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-bottom: 1px solid #353c3d; }
+.session-log-row time { color: #7f8881; font-size: 0.66rem; font-variant-numeric: tabular-nums; }
+.session-log-row span { color: #c6cbc6; font-size: 0.75rem; }
+
+@media (max-width: 900px) {
+  .management-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .management-two-column { grid-template-columns: 1fr; }
+  .challenge-row { grid-template-columns: 50px minmax(0, 1fr); }
+  .challenge-row .secondary-action { grid-column: 2; justify-self: start; }
+}
+
+@media (max-width: 620px) {
+  .factory-management-panel { padding: 10px; }
+  .factory-management-card { max-height: calc(100vh - 20px); }
+  .factory-management-header, .factory-management-content { padding-left: 14px; padding-right: 14px; }
+  .factory-tabs { padding: 0 10px; }
+  .management-stat-grid { grid-template-columns: 1fr 1fr; }
+  .planner-controls { grid-template-columns: 1fr; }
+  .planner-line { grid-template-columns: 60px 1fr; }
+  .planner-line em { grid-column: 2; }
+  .factory-management-hud, .factory-challenge-pin { display: none; }
+}

@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "validate": "node scripts/validate.mjs",
-    "test:logistics": "node scripts/logistics.test.mjs"
+    "test:logistics": "node scripts/logistics.test.mjs",
+    "test:management": "node scripts/factory-management.test.mjs"
   }
 }
