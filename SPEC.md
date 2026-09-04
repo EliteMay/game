@@ -8,17 +8,24 @@ Hub UI
    └─ localStorage: elitemay-game-hub-v1
 
 Game: Scrap Factory
-├─ config.js          : Item / Recipe / Building / Tutorial definitions
-├─ logistics.js       : Directional conveyor routing / rotation helpers
-├─ storage.js         : Save parse / normalize / backup / export-import
-├─ visual-kit.js      : Procedural texture / material / primitive helpers
-├─ industrial-art.js  : Environment art / machine visual composition
-├─ world.js           : Three.js scene / FPS movement / raycast / build placement
-├─ world-runtime.js   : Runtime visual corrections + live building rotation
-└─ game.js            : Economy / inventory / machine process / transport / UI controller
+├─ config.js             : Item / Recipe / Building / Tutorial definitions
+├─ logistics.js          : Directional conveyor routing / rotation helpers
+├─ progression.js        : Progression Rank / Research / Legacy inference pure logic
+├─ progression-ui.js     : Rank HUD / Research panel / unlock guards
+├─ progression.css       : Progression UI styles
+├─ storage.js            : Save parse / normalize / backup / export-import
+├─ factory-management.js : Factory analysis / challenge / planner logic + progression UI entry
+├─ feature-pack.js       : Factory Management browser integration / quick-build
+├─ visual-kit.js         : Procedural texture / material / primitive helpers
+├─ industrial-art.js     : Environment art / machine visual composition
+├─ world.js              : Three.js scene / FPS movement / raycast / build placement
+├─ world-runtime.js      : Runtime visual corrections + live building rotation
+└─ game.js               : Economy / inventory / machine process / transport / UI controller
 ```
 
 `index.html`のImport Mapで`./world.js`を`./world-runtime.js`へ解決する。`world-runtime.js`は既存Worldを継承し、Save / Economy / Production contractを変更せずRuntime visual correctionと設置済みConveyorのVisual rotationを担当する。
+
+Progression UIは`factory-management.js`から読み込む。既存`game.js`の生産・物流Loopを置換せず、Rank / ResearchのPure LogicとUIを別Moduleに分離する。
 
 ## 2. Save Contract
 
@@ -44,14 +51,39 @@ Scrap Factory主要Data:
 - `buildings[]`
 - `tutorialStep`
 - `tutorialStats`
+- `progression`
 - `player`
 - `settings`
 - `discoveredItems`
 - `playTimeSeconds`
 
-Building IDは表示名や配列Indexから分離した永続ID。
+Progression Data:
 
-Visual Foundation V2 / Runtime Visual Fix / Directional Conveyor & UX UpdateではSave Schemaを変更しない。旧Saveはそのままnormalizeし、新しい`settings.showShortcuts`は既定値`true`で補完する。
+```json
+{
+  "version": 1,
+  "progressionRank": 1,
+  "researchData": 0,
+  "blueprints": [],
+  "completedResearch": [],
+  "unlocks": [],
+  "legacyUnlocks": [],
+  "legacyMigrated": false,
+  "history": []
+}
+```
+
+- Root Save Schema Versionは`1`のまま維持する。
+- `progression.version`をProgression内部のVersionとして持つ。
+- `progressionRank`は1〜7を保存可能にし、Phase 1で実動作するRank Upは1→2→3まで。
+- Building IDは表示名や配列Indexから分離した永続ID。
+- 旧Saveに`progression`がない場合は現行Factoryの使用Evidenceから最低Rank / Legacy Unlockを推定する。
+- Legacy Saveで既にSmelter / Storageを使用していればRank 2相当を補完する。
+- Directional Iron Lineが既に成立しているLegacy SaveはRank 3相当まで推定可能。
+- 既に鉄板 / 工具セットCraftを使用したEvidenceがあれば`basic_fabrication`を完了扱いにし、旧機能を失わせない。
+- Existing AchievementはProgression Rankへ変換せず保持する。
+
+Visual Foundation V2 / Runtime Visual Fix / Directional Conveyor & UX UpdateではSave Schemaを変更しない。旧Saveはnormalizeし、新しい`settings.showShortcuts`は既定値`true`で補完する。Phase 1 ProgressionでもRoot Schema Versionは変更しない。
 
 ## 3. World
 
@@ -120,6 +152,8 @@ Products:
 
 Machine Panelでは用途説明、Recipe Input / Output、処理時間、Bufferを表示する。
 
+Phase 1では新規Saveの鉄板Hand Craftを`Basic Fabrication` Researchで解放する。Legacy Saveで既に鉄板 / 工具セットCraftを使用したEvidenceがある場合は互換性のためResearch済み扱いにする。
+
 ## 6. Directional Conveyor Contract
 
 ### Core
@@ -156,6 +190,8 @@ Machine Panelでは用途説明、Recipe Input / Output、処理時間、Buffer�
 - 直進→曲がりのDirectional Path。
 - Sourceへ向いた逆向きConveyorからItemを引き出さない。
 
+Progression Rankの必須自動Line判定も同じDirectional Route helperを利用し、Visual-onlyなLineを達成扱いしない。
+
 ## 7. Interaction / Controls
 
 - Center Raycast
@@ -167,6 +203,8 @@ Machine Panelでは用途説明、Recipe Input / Output、処理時間、Buffer�
 - Dismantle中: Player-built設備を狙ってLeft Clickで撤去
 - `Tab`: Backpack + Hand Craft
 - `O`: Field Manual / Codex
+- `P`: Factory Management
+- HUD `RANK`: Progression / Research Panel
 - `Esc`: Pause / mode cancel
 - Walk時は軽いHead Bob、Sprint時は小さいFOV変化を付ける
 
@@ -190,7 +228,7 @@ Machine Panelでは用途説明、Recipe Input / Output、処理時間、Buffer�
 
 各Stepは「何をするか」だけでなく「どのKeyを使うか / 何が成功条件か」まで表示する。
 
-達成後はFree Playへ移る。
+達成後はFree Playへ移る。Progression RankはTutorialを削除せず、その後の中長期目標として追加する。
 
 ## 9. Visual Direction
 
@@ -333,6 +371,10 @@ Far
 3. **Field Manual / Codex**
    - `O`でいつでも開く
    - Game loop / Controls / Conveyor / Production / Dismantle / Starter lineを掲載
+4. **Progression HUD**
+   - 右上に現在Rank / Research Data状態を表示
+   - クリックでRank Goal / Research Panel
+   - Detailed factory statisticsはFactory Managementへ残す
 
 ### Machine Panel
 
@@ -350,8 +392,121 @@ CDN障害時は3D Gameは起動できない。HubとSave DataはThree.jsに依�
 ## 14. Known Limits
 
 - Mobile Touch FPS操作なし（Desktop primary）
+- Phase 1 ProgressionはRank 1 → 2 → 3まで。Rank 4以降は未実装
+- Blueprint必須Researchの取得元となる独立探索AreaはPhase 3以降
 - Conveyor Splitter / Merger専用設備は未実装。現状は1 Conveyor = 1 output direction
 - Conveyor speed tier / throughput bottleneckは未実装
 - Enemy / Weapon / HealthはMVP後
 - 外部3D Model / Image Textureなし。現状はProcedural Geometry / Runtime Canvas Texture中心
-- Visual / Pointer Lock / Dismantle hit targetは実ブラウザReviewを継続する
+- Visual / Pointer Lock / Progression Panel / Build unlock guardは実ブラウザReviewを継続する
+
+## 15. Phase 1 Progression Contract
+
+### Rank Data
+
+`progressionRank`はAchievement解除数から作る旧Factory称号と分離する。
+
+- Achievement由来表示は`FACTORY TITLE`として扱う。
+- Achievementは削除しない。
+- Achievement数から`progressionRank`を直接決めない。
+- Progression Dataは1〜7を保存可能。
+- Phase 1でRank Up可能なのは1→2→3。
+
+### Rank 1 → 2
+
+Mandatory:
+
+- Directional `Hopper → Crusher → Seller` lineが成立。
+
+Optionalから2つ:
+
+- Lifetime Revenue $250
+- Scrap collected 10
+- Crusher processing 5
+- Crusher 2台
+- Item discovery 4種類
+
+Reward:
+
+- Smelter
+- Storage
+- Research Tier 2
+- Research Data +1
+
+RevenueだけではRank Up不可。
+
+### Rank 2 → 3
+
+Mandatory:
+
+- Directional `Hopper → Crusher → Smelter → Seller`の鉄インゴット完全自動Lineが成立。
+
+Optionalから2つ:
+
+- Lifetime Revenue $750
+- Iron Ingot discovery
+- Player-built equipment 8台
+- Crusher processing 10
+- Smelter 2台
+
+Reward:
+
+- Rank 3
+- Research Data +2
+- Exploration Researchへの入口
+
+### Research
+
+Phase 1実装:
+
+- `basic_fabrication`
+  - Category: Production
+  - Rank 2
+  - Research Data 1
+  - Blueprint不要
+  - Iron Plate Hand Craft unlock
+- `scrap_yard_survey`
+  - Category: Exploration
+  - Rank 3
+  - Research Data 1
+  - `scrap_yard_survey_blueprint`必須
+  - Blueprint未発見ならResearch不可
+  - Blueprint取得Gameplayは後続Exploration Phaseで実装
+
+### Unlock Guard
+
+新規Save:
+
+- Smelter / StorageはRank 2未満でBuild UI / Quick Buildから選択不可。
+- Iron Plate Hand Craftは`basic_fabrication`未研究では選択不可。
+
+Legacy Save:
+
+- 使用済みSmelter / Storageは`legacyUnlocks`で維持。
+- 使用済みIron Plate / Tool Kit Craft Evidenceがあれば`basic_fabrication`を完了扱い。
+
+### Persistence Bridge
+
+Progression UIは既存`game.js`のRuntime stateを直接置換しない。
+
+Rank Up / Research確定時:
+
+1. ProgressionだけRoot Saveへ書込。
+2. UI Moduleが確定Progressionを一時的にAuthoritativeとして保持。
+3. Page Reload時の`beforeunload` / `pagehide`で、既存`game.js`の最後のSave後にProgressionを再Merge。
+4. Reload後は通常の`storage.js` normalize結果としてGame Runtimeへ入る。
+
+これにより、Phase 1追加のために既存Production / Conveyor Runtimeを大規模変更しない。
+
+### Regression
+
+`scripts/progression.test.mjs`で最低限次を確認する。
+
+- Rank 1必須Directional Line。
+- RevenueだけではRank Up不可。
+- 必須 + Optional 2つでRank 2へ進行。
+- Rank 2の完全Iron LineでRank 3へ進行可能。
+- Rank Up時のResearch Data付与。
+- `Basic Fabrication` ResearchとIron Plate unlock。
+- Blueprint未発見Researchの拒否。
+- Legacy Smelter / Storage / Craft unlock migration。
