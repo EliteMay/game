@@ -1,4 +1,4 @@
-import './progression-ui.js';
+import './progression-loader.js';
 import { BUILDINGS, ITEMS, RECIPES } from './config.js';
 import { conveyorOutputKey, findDirectionalRoute } from './logistics.js';
 
