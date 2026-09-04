@@ -7,6 +7,7 @@
   <meta name="description" content="廃墟でスクラップを回収し、加工・販売・自動化して巨大工場へ育てる一人称3Dゲーム。">
   <title>Scrap Factory | Game Hub</title>
   <link rel="stylesheet" href="./game.css">
+  <link rel="stylesheet" href="./game-ux.css">
   <script type="importmap">
     {
       "imports": {
@@ -32,14 +33,16 @@
         </div>
         <div class="control-strip" aria-label="主要操作">
           <span><kbd>WASD</kbd> 移動</span>
-          <span><kbd>E</kbd> 操作</span>
+          <span><kbd>E</kbd> 拾う / 設備</span>
           <span><kbd>B</kbd> 建築</span>
+          <span><kbd>F</kbd> 解体</span>
           <span><kbd>Tab</kbd> 持ち物</span>
+          <span><kbd>O</kbd> ガイド</span>
           <span><kbd>Shift</kbd> ダッシュ</span>
         </div>
         <button id="start-game" class="primary-action" type="button" disabled>工場へ入る</button>
         <p id="boot-status" class="boot-status" aria-live="polite">LOADING SYSTEM…</p>
-        <p class="boot-note">PC / キーボード・マウス推奨。クリック後はマウスカーソルがゲーム画面に固定されます。</p>
+        <p class="boot-note">PC / キーボード・マウス推奨。迷ったら <kbd>O</kbd> でゲーム内ガイドを開けます。</p>
       </div>
     </section>
 
@@ -71,13 +74,30 @@
       <div class="hud__bottom-left">
         <button id="open-build-menu" class="hud-key" type="button"><kbd>B</kbd><span>BUILD</span></button>
         <span class="hud-key"><kbd>Tab</kbd><span>PACK</span></span>
+        <span class="hud-key"><kbd>F</kbd><span>DISMANTLE</span></span>
+        <button id="open-guide-hud" class="hud-key" type="button"><kbd>O</kbd><span>GUIDE</span></button>
         <span class="hud-key"><kbd>Esc</kbd><span>MENU</span></span>
+      </div>
+
+      <div id="shortcut-bar" class="shortcut-bar" aria-label="操作ショートカット">
+        <span><kbd>WASD</kbd> 移動</span>
+        <span><kbd>Shift</kbd> ダッシュ</span>
+        <span><kbd>E</kbd> 操作</span>
+        <span><kbd>F</kbd> 解体</span>
+        <span><kbd>O</kbd> ガイド</span>
       </div>
 
       <div id="build-hint" class="build-hint" hidden>
         <span>BUILD MODE</span>
         <strong id="build-mode-name">粉砕機</strong>
-        <small>左クリック: 設置 / R: 回転 / 右クリック・Esc: 終了</small>
+        <small id="build-direction">向き: 東 →</small>
+        <small>左クリック: 設置 / R: 90°回転 / 右クリック・Esc: 終了</small>
+      </div>
+
+      <div id="dismantle-hint" class="dismantle-hint" hidden>
+        <span>DISMANTLE MODE</span>
+        <strong>設備を狙って左クリックで撤去</strong>
+        <small>建築費は100%返金 / 中身もバックパックへ返却 / F・Escで終了</small>
       </div>
 
       <div id="fps-counter" class="fps-counter" hidden>0 FPS</div>
@@ -91,6 +111,7 @@
         <h2>PAUSED</h2>
         <div class="menu-stack">
           <button id="resume-game" class="primary-action" type="button">ゲームに戻る</button>
+          <button id="open-guide-pause" class="secondary-action" type="button">操作・ゲームガイド</button>
           <button id="save-now" class="secondary-action" type="button">今すぐセーブ</button>
           <button id="open-settings-pause" class="secondary-action" type="button">設定</button>
           <a class="text-action" href="../../index.html">Game Hubへ戻る</a>
@@ -104,7 +125,10 @@
           <div><p class="panel-kicker">FACTORY CONSTRUCTION</p><h2>設備を選択</h2></div>
           <button id="close-build" class="icon-button" type="button" aria-label="建築メニューを閉じる">×</button>
         </header>
-        <p class="panel-description">すべて2.5mグリッドに設置。コンベアで機械同士をつなぐと自動搬送が始まります。</p>
+        <div class="explain-callout">
+          <strong>基本</strong>
+          <span>設備を選択 → 半透明プレビューを置く → <kbd>R</kbd> で向きを変更。コンベアは黄色い矢印の方向へだけ運びます。</span>
+        </div>
         <div id="build-list" class="build-list"></div>
       </div>
     </section>
@@ -122,7 +146,7 @@
           </section>
           <section>
             <h3>簡易クラフト</h3>
-            <p class="section-note">精錬済み素材や回収品を組み合わせて、より高価な製品へ。</p>
+            <p class="section-note">素材をそのまま売るより、加工して製品にすると価値が上がります。</p>
             <div id="craft-list" class="craft-list"></div>
           </section>
         </div>
@@ -135,15 +159,48 @@
           <div><p class="panel-kicker">MACHINE CONTROL</p><h2 id="machine-title">粉砕機</h2></div>
           <button id="close-machine" class="icon-button" type="button" aria-label="設備画面を閉じる">×</button>
         </header>
+        <p id="machine-description" class="machine-description"></p>
+        <div id="machine-flow" class="machine-flow"></div>
         <p id="machine-status" class="machine-status">待機中</p>
-        <div class="buffer-grid">
+        <div id="machine-buffers" class="buffer-grid">
           <div><span>INPUT</span><strong id="machine-input">空</strong></div>
           <div><span>OUTPUT</span><strong id="machine-output">空</strong></div>
         </div>
         <div class="machine-actions">
           <button id="machine-deposit" class="primary-action" type="button">対応素材を投入</button>
           <button id="machine-collect" class="secondary-action" type="button">出力を回収</button>
+          <button id="machine-rotate" class="secondary-action" type="button">右へ90°回転</button>
+          <button id="machine-reverse" class="secondary-action" type="button">向きを反転</button>
           <button id="machine-remove" class="danger-action" type="button">撤去</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="guide-panel" class="overlay-panel" hidden aria-label="ゲームガイド">
+      <div class="panel-card panel-card--guide">
+        <header class="panel-header">
+          <div><p class="panel-kicker">FIELD MANUAL / CODEX</p><h2>Scrap Factory ガイド</h2></div>
+          <button id="close-guide" class="icon-button" type="button" aria-label="ガイドを閉じる">×</button>
+        </header>
+        <div class="guide-layout">
+          <section class="guide-section guide-section--wide">
+            <span class="guide-number">01</span><div><h3>ゲームの基本</h3><p><strong>探索 → 回収 → 加工 → 販売 → 設備購入 → 自動化</strong>が基本ループです。最初は黄色いゲートの先でスクラップを拾い、販売ターミナルで売って資金を作ります。</p></div>
+          </section>
+          <section class="guide-section">
+            <span class="guide-number">02</span><div><h3>主要操作</h3><dl class="control-list"><div><dt><kbd>WASD</kbd></dt><dd>移動</dd></div><div><dt><kbd>E</kbd></dt><dd>拾う / 設備を開く</dd></div><div><dt><kbd>B</kbd></dt><dd>建築メニュー</dd></div><div><dt><kbd>R</kbd></dt><dd>建築中に90°回転</dd></div><div><dt><kbd>F</kbd></dt><dd>解体モード</dd></div><div><dt><kbd>Tab</kbd></dt><dd>バッグ / 手作業</dd></div><div><dt><kbd>O</kbd></dt><dd>このガイド</dd></div><div><dt><kbd>Esc</kbd></dt><dd>戻る / メニュー</dd></div></dl></div>
+          </section>
+          <section class="guide-section">
+            <span class="guide-number">03</span><div><h3>コンベア</h3><p><strong>黄色い矢印が搬送方向</strong>です。機械の隣に置く最初のコンベアは、機械から離れる向きにしてください。途中のコンベアは曲げたい方向へ向けます。</p><p>置いた後でもコンベアを見て <kbd>E</kbd> →「90°回転 / 反転」で修正できます。</p></div>
+          </section>
+          <section class="guide-section">
+            <span class="guide-number">04</span><div><h3>加工ライン</h3><p>鉄くず → <strong>粉砕機</strong> → 破砕金属 → <strong>精錬炉</strong> → 鉄インゴット。鉄インゴットは <kbd>Tab</kbd> の簡易クラフトから鉄板や工具へ加工できます。</p></div>
+          </section>
+          <section class="guide-section">
+            <span class="guide-number">05</span><div><h3>解体と作り直し</h3><p><kbd>F</kbd> で解体モード。設備を狙って左クリックすると撤去できます。現在は建築費を100%返金し、設備内のアイテムもバッグへ戻します。バッグに入らない場合は安全のため撤去しません。</p></div>
+          </section>
+          <section class="guide-section guide-section--wide">
+            <span class="guide-number">06</span><div><h3>最初のおすすめライン</h3><p class="flow-example">投入ホッパー <b>→</b> コンベア <b>→</b> 粉砕機 <b>→</b> コンベア <b>→</b> 販売ターミナル</p><p>アイテムが逆走する・止まる場合は、各コンベアの黄色い矢印を順番に確認してください。</p></div>
+          </section>
         </div>
       </div>
     </section>
@@ -158,6 +215,7 @@
           <label class="setting-row"><span><strong>マウス感度</strong><small>一人称視点の回転速度</small></span><span class="range-control"><input id="setting-sensitivity" type="range" min="0.001" max="0.005" step="0.0001"><output id="sensitivity-value">0.0022</output></span></label>
           <label class="setting-row"><span><strong>音量</strong><small>効果音・環境音</small></span><span class="range-control"><input id="setting-volume" type="range" min="0" max="1" step="0.05"><output id="volume-value">55%</output></span></label>
           <label class="setting-row"><span><strong>描画品質</strong><small>重い場合はMedium / Low</small></span><select id="setting-quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+          <label class="setting-row setting-row--check"><span><strong>操作ショートカット表示</strong><small>画面下に主要キーを常時表示</small></span><input id="setting-shortcuts" type="checkbox"></label>
           <label class="setting-row setting-row--check"><span><strong>FPS表示</strong><small>右上に現在FPSを表示</small></span><input id="setting-fps" type="checkbox"></label>
         </div>
         <div class="settings-danger-zone">

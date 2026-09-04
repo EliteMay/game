@@ -1,0 +1,134 @@
+/* Gameplay usability additions: guide, dynamic controls, dismantle mode, conveyor direction. */
+.objective-panel p { white-space: pre-line; }
+
+.shortcut-bar {
+  position: absolute;
+  right: 20px;
+  bottom: 18px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 12px;
+  max-width: min(620px, calc(100vw - 380px));
+  padding: 8px 10px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(20 24 25 / 0.74);
+  color: #bfc5bf;
+  font-size: 0.68rem;
+  font-weight: 760;
+  backdrop-filter: blur(7px);
+}
+.shortcut-bar span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.shortcut-bar kbd { padding: 2px 5px; min-width: 24px; font-size: 0.62rem; }
+
+.explain-callout {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 14px;
+  align-items: start;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: rgb(212 183 79 / 0.07);
+  color: #c7cdc7;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.explain-callout strong { color: var(--accent); }
+
+.machine-description {
+  margin: 16px 0 10px;
+  color: #c7cdc7;
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+.machine-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #3c4445;
+  background: #262c2d;
+  color: #dfe2dc;
+  font-size: 0.78rem;
+}
+.machine-flow strong { color: var(--accent); }
+.machine-flow .flow-arrow { color: var(--accent); font-weight: 900; }
+.machine-status { margin-bottom: 12px; }
+
+.dismantle-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 2px;
+  min-width: min(520px, calc(100% - 36px));
+  padding: 10px 13px;
+  border: 1px solid #9d4f49;
+  border-left: 4px solid var(--danger);
+  background: rgb(48 27 26 / 0.9);
+  box-shadow: 0 0 0 1px rgb(195 104 95 / 0.12), 0 14px 34px rgb(0 0 0 / 0.3);
+  text-align: center;
+}
+.dismantle-hint span { color: #e69b92; font-size: 0.61rem; font-weight: 900; letter-spacing: 0.13em; }
+.dismantle-hint strong { font-size: 0.9rem; }
+.dismantle-hint small { color: #cbb0ad; font-size: 0.69rem; }
+body.is-dismantling .game-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border: 3px solid rgb(195 104 95 / 0.45);
+  box-shadow: inset 0 0 80px rgb(140 42 35 / 0.12);
+}
+
+.panel-card--guide { width: min(980px, 100%); }
+.guide-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 18px;
+  border: 1px solid var(--line);
+  background: var(--line);
+}
+.guide-section {
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  gap: 13px;
+  min-height: 170px;
+  padding: 17px;
+  background: #252b2c;
+}
+.guide-section--wide { grid-column: 1 / -1; min-height: auto; }
+.guide-number {
+  color: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+.guide-section h3 { margin: 0 0 8px; font-size: 1rem; }
+.guide-section p { margin: 0 0 9px; color: #b8c0b9; font-size: 0.82rem; line-height: 1.62; }
+.guide-section p:last-child { margin-bottom: 0; }
+.control-list { display: grid; gap: 5px; margin: 0; }
+.control-list > div { display: grid; grid-template-columns: 74px 1fr; align-items: center; min-height: 30px; border-bottom: 1px solid #343b3c; }
+.control-list dt, .control-list dd { margin: 0; }
+.control-list dd { color: #bdc4be; font-size: 0.78rem; }
+.flow-example { color: #e8e6d9 !important; font-weight: 760; }
+.flow-example b { margin: 0 5px; color: var(--accent); }
+
+.machine-actions .secondary-action[hidden],
+.machine-actions .primary-action[hidden] { display: none !important; }
+
+@media (max-width: 900px) {
+  .shortcut-bar { display: none; }
+  .guide-layout { grid-template-columns: 1fr; }
+  .guide-section--wide { grid-column: auto; }
+}
+
+@media (max-height: 680px) {
+  .shortcut-bar { bottom: 8px; }
+  .dismantle-hint { bottom: 8px; }
+}

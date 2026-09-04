@@ -37,32 +37,32 @@ export const RECIPES = {
 export const BUILDINGS = {
   hopper: {
     id: 'hopper', name: '投入ホッパー', cost: 0, category: 'logistics', buildable: false,
-    description: '探索で集めた素材をここへ投入すると、自動ラインへ流せる。',
+    description: '探索で集めた素材をまとめて投入する、工場ラインのスタート地点。Eでバッグの中身を移せる。',
     color: 0x6f7a63, accepts: ['raw', 'processed', 'product'],
   },
   seller: {
     id: 'seller', name: '販売ターミナル', cost: 90, category: 'sales', buildable: true,
-    description: '届いたアイテムを自動で売却する。直接持ち込んで売ることもできる。',
+    description: '届いたアイテムを自動で現金化する。Eでバッグの中身を直接売ることもできる。',
     color: 0xb98a3d, accepts: ['raw', 'processed', 'product'],
   },
   crusher: {
     id: 'crusher', name: '粉砕機', cost: 80, category: 'production', buildable: true,
-    description: '鉄くずを破砕金属へ加工する。',
+    description: '鉄くず1個を2.2秒で破砕金属1個へ加工する。出力は隣接する正しい向きのコンベアへ送れる。',
     color: 0x8a6b4d, accepts: ['metal_scrap'], recipe: 'crusher_metal',
   },
   smelter: {
     id: 'smelter', name: '簡易精錬炉', cost: 140, category: 'production', buildable: true,
-    description: '破砕金属を鉄インゴットへ精錬する。',
+    description: '破砕金属1個を3.0秒で鉄インゴット1個へ精錬する。鉄インゴットは手作業クラフトにも使う。',
     color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron',
   },
   conveyor: {
     id: 'conveyor', name: 'コンベア', cost: 12, category: 'logistics', buildable: true,
-    description: '機械同士をつなぐ。方向はRで回転。',
+    description: '黄色い矢印の方向へだけアイテムを送る物流設備。Rで設置方向を変更し、設置後もEで90°回転・反転できる。',
     color: 0x4a555a, accepts: [],
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
-    description: '自動ラインの中間バッファ。',
+    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Eで手動投入・回収もできる。',
     color: 0x52616c, accepts: ['raw', 'processed', 'product'],
   },
 };
@@ -83,14 +83,14 @@ export const SCRAP_SPAWNS = [
 ];
 
 export const TUTORIAL = [
-  { id: 'move', title: '廃材置き場へ向かう', body: 'WASDで移動。黄色いゲートの先が探索エリア。', target: 1 },
-  { id: 'collect', title: 'スクラップを5個回収', body: '中央の照準をアイテムに合わせて E。', target: 5 },
-  { id: 'return', title: '拠点へ戻る', body: '工場区画の投入ホッパーまで戻る。', target: 1 },
-  { id: 'sell', title: 'まず $80 稼ぐ', body: '販売ターミナルを見て E。持ち物を直接売却できる。', target: 80 },
-  { id: 'crusher', title: '粉砕機を建てる', body: 'Bで建築モード。粉砕機を選んで拠点内に設置。', target: 1 },
-  { id: 'process', title: '破砕金属を作る', body: '粉砕機を見て E。鉄くずを直接加工できる。', target: 1 },
-  { id: 'automation', title: '最初の自動ラインを作る', body: 'ホッパー → コンベア → 粉砕機 → コンベア → 販売ターミナルをつなぐ。', target: 1 },
-  { id: 'revenue', title: '累計売上 $250', body: '探索と自動化を組み合わせて工場を成長させよう。', target: 250 },
+  { id: 'move', title: '廃材置き場へ向かう', body: 'WASDで移動 / Shiftでダッシュ。黄色いゲートの先がSCRAP YARDです。\n迷ったら O でガイドを開けます。', target: 1 },
+  { id: 'collect', title: 'スクラップを5個回収', body: '画面中央の照準を落ちているスクラップに合わせて E。\nバッグは12枠。Tabで中身と売値を確認できます。', target: 5 },
+  { id: 'return', title: '拠点へ戻る', body: '黄色いゲートを戻ってFACTORY BASEへ。\nまずは販売ターミナルに直接持ち込み、建築資金を作ります。', target: 1 },
+  { id: 'sell', title: 'まず $80 稼ぐ', body: '販売ターミナルを見て E。バッグ内のアイテムをまとめて売却できます。\n加工品ほど高く売れるので、後ほど自動化すると利益が伸びます。', target: 80 },
+  { id: 'crusher', title: '粉砕機を建てる', body: 'B → 粉砕機を選択。半透明プレビューを拠点内へ置き、左クリックで設置。\nRで向きを90°ずつ変更できます。', target: 1 },
+  { id: 'process', title: '破砕金属を作る', body: '粉砕機を見て E →「対応素材を投入」。鉄くず1個が2.2秒で破砕金属になります。\n完成後は「出力を回収」もできます。', target: 1 },
+  { id: 'automation', title: '最初の自動ラインを作る', body: '投入ホッパー → コンベア → 粉砕機 → コンベア → 販売ターミナル。\n重要：コンベアの黄色い矢印が搬送方向です。置いた後も E で回転・反転できます。Fは解体モード。', target: 1 },
+  { id: 'revenue', title: '累計売上 $250', body: '探索・加工・自動化を組み合わせて売上を伸ばします。\nTabで鉄板や工具セットも作れます。Oのガイドでラインの作り方をいつでも確認できます。', target: 250 },
 ];
 
 export function snapToGrid(value) {

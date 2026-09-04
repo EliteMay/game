@@ -1,24 +1,25 @@
 import {
   BUILDINGS,
   BUILD_MENU_ORDER,
-  GRID_SIZE,
   HAND_CRAFTS,
   ITEMS,
   RECIPES,
   TUTORIAL,
-  itemCount,
-  positionKey,
   usedSlots,
 } from './config.js';
+import {
+  directionFromRotation,
+  findDirectionalRoute,
+  reverseRotation,
+  rotateQuarter,
+} from './logistics.js';
 import { loadGameSave, saveGameSave, resetGameSave, exportSaveText } from './storage.js';
 import { ScrapWorld } from './world.js';
 
 const MAX_SLOTS = 12;
 const TRANSPORT_INTERVAL = 0.65;
 const AUTOSAVE_INTERVAL = 30;
-
 const $ = (selector) => document.querySelector(selector);
-const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 const ui = {
   canvas: $('#game-canvas'),
@@ -37,11 +38,16 @@ const ui = {
   toastStack: $('#toast-stack'),
   buildHint: $('#build-hint'),
   buildModeName: $('#build-mode-name'),
+  buildDirection: $('#build-direction'),
+  dismantleHint: $('#dismantle-hint'),
+  shortcutBar: $('#shortcut-bar'),
   fps: $('#fps-counter'),
   pause: $('#pause-panel'),
   resume: $('#resume-game'),
   saveNow: $('#save-now'),
   openSettingsFromPause: $('#open-settings-pause'),
+  openGuidePause: $('#open-guide-pause'),
+  openGuideHud: $('#open-guide-hud'),
   openBuild: $('#open-build-menu'),
   buildPanel: $('#build-panel'),
   buildList: $('#build-list'),
@@ -52,13 +58,20 @@ const ui = {
   closeInventory: $('#close-inventory'),
   machinePanel: $('#machine-panel'),
   machineTitle: $('#machine-title'),
+  machineDescription: $('#machine-description'),
+  machineFlow: $('#machine-flow'),
   machineStatus: $('#machine-status'),
+  machineBuffers: $('#machine-buffers'),
   machineInput: $('#machine-input'),
   machineOutput: $('#machine-output'),
   machineDeposit: $('#machine-deposit'),
   machineCollect: $('#machine-collect'),
+  machineRotate: $('#machine-rotate'),
+  machineReverse: $('#machine-reverse'),
   machineRemove: $('#machine-remove'),
   closeMachine: $('#close-machine'),
+  guidePanel: $('#guide-panel'),
+  closeGuide: $('#close-guide'),
   settingsPanel: $('#settings-panel'),
   closeSettings: $('#close-settings'),
   settingSensitivity: $('#setting-sensitivity'),
@@ -66,6 +79,7 @@ const ui = {
   settingVolume: $('#setting-volume'),
   volumeValue: $('#volume-value'),
   settingQuality: $('#setting-quality'),
+  settingShortcuts: $('#setting-shortcuts'),
   settingFps: $('#setting-fps'),
   objectiveDone: $('#objective-done'),
   objectiveDoneClose: $('#objective-done-close'),
@@ -79,6 +93,7 @@ game.lastPlayedAt = new Date().toISOString();
 let started = false;
 let currentPanel = 'boot';
 let selectedMachineId = null;
+let dismantleMode = false;
 let transportAccumulator = 0;
 let autosaveAccumulator = 0;
 let unsavedPlaySeconds = 0;
@@ -101,7 +116,9 @@ const world = new ScrapWorld(ui.canvas, {
   onBuildModeChange: (type) => {
     ui.buildHint.hidden = !type;
     ui.buildModeName.textContent = type ? BUILDINGS[type]?.name ?? type : '';
+    ui.shortcutBar.hidden = Boolean(type) || dismantleMode || game.settings.showShortcuts === false;
   },
+  onBuildPreview: ({ type, rotation }) => renderBuildDirection(type, rotation),
   onAreaChange: handleAreaChange,
   onPointerLockChange: handlePointerLockChange,
   onKeyDown: handleWorldKey,
@@ -127,21 +144,24 @@ function initializeUi() {
     ui.hud.hidden = false;
     ensureAudio();
     world.lockPointer();
-    toast('探索開始。黄色いゲートの先でスクラップを集めよう。', 'info');
+    toast('探索開始。黄色いゲートの先でスクラップを集めよう。Oでガイド。', 'info');
   });
 
-  ui.resume.addEventListener('click', () => closePanelAndResume());
+  ui.resume.addEventListener('click', closePanelAndResume);
   ui.saveNow.addEventListener('click', () => {
     persist('手動保存');
     toast('セーブしました', 'success');
     closePanelAndResume();
   });
   ui.openSettingsFromPause.addEventListener('click', () => openPanel('settings'));
+  ui.openGuidePause.addEventListener('click', () => openPanel('guide'));
+  ui.openGuideHud.addEventListener('click', () => openPanel('guide'));
   ui.openBuild.addEventListener('click', () => openPanel('build'));
-  ui.closeBuild.addEventListener('click', () => closePanelAndResume());
-  ui.closeInventory.addEventListener('click', () => closePanelAndResume());
-  ui.closeMachine.addEventListener('click', () => closePanelAndResume());
-  ui.closeSettings.addEventListener('click', () => closePanelAndResume());
+  ui.closeBuild.addEventListener('click', closePanelAndResume);
+  ui.closeInventory.addEventListener('click', closePanelAndResume);
+  ui.closeMachine.addEventListener('click', closePanelAndResume);
+  ui.closeGuide.addEventListener('click', closePanelAndResume);
+  ui.closeSettings.addEventListener('click', closePanelAndResume);
   ui.objectiveDoneClose.addEventListener('click', () => {
     ui.objectiveDone.hidden = true;
     currentPanel = null;
@@ -156,18 +176,17 @@ function initializeUi() {
     const building = getBuilding(selectedMachineId);
     if (building) collectFromBuilding(building);
   });
+  ui.machineRotate.addEventListener('click', () => rotateSelectedConveyor(false));
+  ui.machineReverse.addEventListener('click', () => rotateSelectedConveyor(true));
   ui.machineRemove.addEventListener('click', () => {
     const building = getBuilding(selectedMachineId);
-    if (!building || building.permanent) return;
-    const refund = Math.floor((BUILDINGS[building.type]?.cost || 0) * 0.7);
-    game.money += refund;
-    game.buildings = game.buildings.filter((entry) => entry.id !== building.id);
-    world.removeBuilding(building.id);
-    toast(`${BUILDINGS[building.type]?.name ?? '設備'}を撤去 +$${refund}`, 'info');
-    selectedMachineId = null;
-    persist('設備撤去');
-    renderAll();
-    closePanelAndResume();
+    if (building) removeBuildingSafely(building, { resumeAfter: true });
+  });
+
+  ui.canvas.addEventListener('mousedown', (event) => {
+    if (event.button !== 0 || !dismantleMode || currentPanel || world.buildMode) return;
+    if (document.pointerLockElement !== ui.canvas) return;
+    dismantleCurrentTarget();
   });
 
   ui.settingSensitivity.addEventListener('input', () => {
@@ -186,9 +205,14 @@ function initializeUi() {
     world.setQuality(game.settings.quality);
     persist('画質設定');
   });
+  ui.settingShortcuts.addEventListener('change', () => {
+    game.settings.showShortcuts = ui.settingShortcuts.checked;
+    renderHud();
+    persist('操作表示設定');
+  });
   ui.settingFps.addEventListener('change', () => {
     game.settings.showFps = ui.settingFps.checked;
-    ui.fps.hidden = !game.settings.showFps;
+    renderHud();
     persist('FPS表示設定');
   });
 
@@ -215,7 +239,6 @@ function initializeUi() {
     beforeUnloadSaved = true;
     try { persist('ページ終了'); } catch { /* browser shutdown best effort */ }
   });
-
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden' && started) persist('バックグラウンド移行');
   });
@@ -235,9 +258,8 @@ function ensureAudio() {
   if (!AudioContext) return;
   const context = new AudioContext();
   const master = context.createGain();
-  master.gain.value = Number(game.settings.masterVolume || 0.55);
+  master.gain.value = Number(game.settings.masterVolume ?? 0.55);
   master.connect(context.destination);
-
   const humGain = context.createGain();
   humGain.gain.value = 0.018;
   humGain.connect(master);
@@ -272,6 +294,7 @@ function sound(kind = 'click') {
     craft: [420, 640, 0.10, 'triangle'],
     error: [170, 120, 0.16, 'sawtooth'],
     click: [280, 320, 0.05, 'sine'],
+    dismantle: [260, 110, 0.12, 'square'],
   };
   const [from, to, duration, type] = presets[kind] || presets.click;
   oscillator.type = type;
@@ -292,13 +315,31 @@ function handlePointerLockChange(locked) {
 
 function handleWorldKey(code) {
   if (!started) return;
-  if (code === 'KeyE' && !currentPanel && !world.buildMode) world.interact();
-  if (code === 'KeyB' && !currentPanel) openPanel('build');
-  if (code === 'Tab' && !currentPanel) openPanel('inventory');
+  if (code === 'KeyO' && !currentPanel && !world.buildMode) {
+    openPanel('guide');
+    return;
+  }
+  if (code === 'KeyF' && !currentPanel && !world.buildMode) {
+    setDismantleMode(!dismantleMode);
+    return;
+  }
+  if (code === 'KeyE' && !currentPanel && !world.buildMode && !dismantleMode) world.interact();
+  if (code === 'KeyB' && !currentPanel && !dismantleMode) openPanel('build');
+  if (code === 'Tab' && !currentPanel && !dismantleMode) openPanel('inventory');
+}
+
+function setDismantleMode(enabled) {
+  dismantleMode = Boolean(enabled);
+  document.body.classList.toggle('is-dismantling', dismantleMode);
+  ui.dismantleHint.hidden = !dismantleMode;
+  ui.shortcutBar.hidden = dismantleMode || game.settings.showShortcuts === false;
+  if (dismantleMode) toast('解体モード：設備を狙って左クリック。Fで終了。', 'info');
+  renderInteractionPrompt(world.currentTarget);
 }
 
 function openPanel(name, data = null) {
   if (!started && name !== 'settings') return;
+  if (dismantleMode) setDismantleMode(false);
   world.unlockPointer();
   currentPanel = name;
   hidePanels();
@@ -316,6 +357,7 @@ function openPanel(name, data = null) {
     renderMachinePanel();
     ui.machinePanel.hidden = false;
   }
+  if (name === 'guide') ui.guidePanel.hidden = false;
   if (name === 'settings') {
     renderSettings();
     ui.settingsPanel.hidden = false;
@@ -323,7 +365,7 @@ function openPanel(name, data = null) {
 }
 
 function hidePanels() {
-  for (const panel of [ui.pause, ui.buildPanel, ui.inventoryPanel, ui.machinePanel, ui.settingsPanel]) panel.hidden = true;
+  for (const panel of [ui.pause, ui.buildPanel, ui.inventoryPanel, ui.machinePanel, ui.guidePanel, ui.settingsPanel]) panel.hidden = true;
 }
 
 function closePanelAndResume() {
@@ -338,14 +380,23 @@ function renderInteractionPrompt(entity) {
     return;
   }
   let label = '';
-  if (entity.kind === 'scrap') label = `[E] ${ITEMS[entity.itemId]?.name ?? 'スクラップ'}を拾う`;
-  if (entity.kind === 'building') {
+  if (dismantleMode) {
+    if (entity.kind === 'building') {
+      const building = getBuilding(entity.id);
+      const name = BUILDINGS[entity.type]?.name ?? entity.type;
+      label = building?.permanent ? `${name} — 固定設備のため撤去不可` : `[左クリック] ${name}を撤去 / 建築費100%返金`;
+    }
+  } else if (entity.kind === 'scrap') {
+    label = `[E] ${ITEMS[entity.itemId]?.name ?? 'スクラップ'}を拾う`;
+  } else if (entity.kind === 'building') {
     const building = getBuilding(entity.id);
     const name = BUILDINGS[entity.type]?.name ?? entity.type;
     if (entity.type === 'hopper') label = `[E] ${name}へ持ち物を投入`;
     else if (entity.type === 'seller') label = `[E] ${name}で持ち物を売却`;
-    else if (entity.type === 'conveyor') label = `${name} — 自動搬送中`;
-    else label = `[E] ${name}を開く${building?.progress > 0 ? ' — 稼働中' : ''}`;
+    else if (entity.type === 'conveyor') {
+      const d = directionFromRotation(building?.rotation);
+      label = `[E] ${name}を設定 — 搬送方向 ${d.name} ${d.symbol}`;
+    } else label = `[E] ${name}を開く${building?.progress > 0 ? ' — 稼働中' : ''}`;
   }
   ui.interact.textContent = label;
   ui.interact.hidden = !label;
@@ -394,7 +445,6 @@ function handleInteraction(entity) {
     renderAll();
     return;
   }
-  if (building.type === 'conveyor') return;
   openPanel('machine', { id: building.id });
 }
 
@@ -486,12 +536,21 @@ function handleBuildPlacement({ type, x, z, rotation }) {
   game.buildings.push(building);
   world.addBuilding(building);
   sound('build');
-  toast(`${def.name}を設置 -$${def.cost}`, 'success');
+  const d = directionFromRotation(rotation);
+  toast(`${def.name}を設置 -$${def.cost}${type === 'conveyor' ? ` / ${d.name} ${d.symbol}` : ''}`, 'success');
   game.tutorialStats.automationComplete = detectAutomationComplete();
   advanceTutorial();
   persist('設備設置');
   renderAll();
   return true;
+}
+
+function renderBuildDirection(type, rotation) {
+  if (!ui.buildDirection) return;
+  const d = directionFromRotation(rotation);
+  ui.buildDirection.textContent = type === 'conveyor'
+    ? `搬送方向: ${d.name} ${d.symbol}（黄色い矢印）`
+    : `設置向き: ${d.name} ${d.symbol}`;
 }
 
 function renderBuildMenu() {
@@ -502,8 +561,9 @@ function renderBuildMenu() {
     button.type = 'button';
     button.className = 'build-option';
     button.disabled = game.money < def.cost;
+    const extra = type === 'conveyor' ? '矢印の方向へ1方向搬送。設置後もEで変更可能。' : '';
     button.innerHTML = `
-      <span class="build-option__main"><strong>${def.name}</strong><small>${def.description}</small></span>
+      <span class="build-option__main"><strong>${def.name}</strong><small>${def.description}${extra ? `<br>${extra}` : ''}</small></span>
       <span class="build-option__cost">$${def.cost}</span>
     `;
     button.addEventListener('click', () => {
@@ -532,9 +592,7 @@ function depositIntoBuilding(building) {
     toast(`${def.name}へ ${moved}個投入`, 'success');
     sound('click');
     persist('設備投入');
-  } else {
-    toast(accepts.length ? '対応する素材を持っていません' : '投入できません', 'info');
-  }
+  } else toast(accepts.length ? '対応する素材を持っていません' : '投入できません', 'info');
   renderMachinePanel();
   renderAll();
 }
@@ -573,22 +631,122 @@ function bufferText(buffer) {
   return entries.map(([itemId, amount]) => `${ITEMS[itemId]?.name ?? itemId} × ${amount}`).join(' / ');
 }
 
+function recipeFlowHtml(recipe) {
+  if (!recipe) return '';
+  const input = Object.entries(recipe.input).map(([id, n]) => `${ITEMS[id]?.name ?? id} ×${n}`).join(' + ');
+  const output = Object.entries(recipe.output).map(([id, n]) => `${ITEMS[id]?.name ?? id} ×${n}`).join(' + ');
+  return `<span>${input}</span><span class="flow-arrow">→</span><strong>${output}</strong><span>${recipe.seconds.toFixed(1)}秒</span>`;
+}
+
 function renderMachinePanel() {
   const building = getBuilding(selectedMachineId);
   if (!building) return;
   const def = BUILDINGS[building.type];
-  ui.machineTitle.textContent = def.name;
   const recipe = def.recipe ? RECIPES[def.recipe] : null;
-  ui.machineStatus.textContent = recipe
-    ? `${building.progress > 0 ? '稼働中' : '待機中'} / ${recipe.seconds.toFixed(1)}秒サイクル`
-    : building.type === 'storage' ? '中間バッファ' : '設備';
+  const isConveyor = building.type === 'conveyor';
+  const d = directionFromRotation(building.rotation);
+
+  ui.machineTitle.textContent = def.name;
+  ui.machineDescription.textContent = def.description;
+  if (isConveyor) {
+    ui.machineFlow.innerHTML = `<span>現在の搬送方向</span><strong>${d.name} ${d.symbol}</strong><span>黄色い矢印と同じ方向へ1個ずつ送ります</span>`;
+    ui.machineStatus.textContent = '前のコンベア・機械から受け取り、矢印方向の次マスへ搬送';
+  } else if (recipe) {
+    ui.machineFlow.innerHTML = recipeFlowHtml(recipe);
+    ui.machineStatus.textContent = `${building.progress > 0 ? '稼働中' : '待機中'} / ${recipe.seconds.toFixed(1)}秒サイクル`;
+  } else if (building.type === 'storage') {
+    ui.machineFlow.innerHTML = '<span>受取</span><span class="flow-arrow">→</span><strong>一時保管</strong><span class="flow-arrow">→</span><span>次のライン</span>';
+    ui.machineStatus.textContent = '自動ラインの中間バッファ';
+  } else {
+    ui.machineFlow.textContent = '設備';
+    ui.machineStatus.textContent = '設備';
+  }
+
+  ui.machineBuffers.hidden = isConveyor;
   ui.machineInput.textContent = bufferText(building.input);
   ui.machineOutput.textContent = bufferText(building.output);
+  ui.machineDeposit.hidden = isConveyor;
+  ui.machineCollect.hidden = isConveyor;
+  ui.machineRotate.hidden = !isConveyor;
+  ui.machineReverse.hidden = !isConveyor;
   ui.machineDeposit.textContent = building.type === 'storage' ? '持ち物を保管' : '対応素材を投入';
   ui.machineDeposit.disabled = !Object.entries(game.inventory).some(([itemId, amount]) => amount > 0 && acceptsItem(building, itemId));
   ui.machineCollect.disabled = !Object.values(building.output || {}).some((amount) => amount > 0);
   ui.machineRemove.hidden = Boolean(building.permanent);
-  if (!building.permanent) ui.machineRemove.textContent = `撤去 +$${Math.floor((def.cost || 0) * 0.7)}`;
+  if (!building.permanent) ui.machineRemove.textContent = `撤去 +$${def.cost || 0}（100%返金）`;
+}
+
+function rotateSelectedConveyor(reverse = false) {
+  const building = getBuilding(selectedMachineId);
+  if (!building || building.type !== 'conveyor') return;
+  building.rotation = reverse ? reverseRotation(building.rotation) : rotateQuarter(building.rotation);
+  world.setBuildingRotation?.(building.id, building.rotation);
+  const d = directionFromRotation(building.rotation);
+  game.tutorialStats.automationComplete = detectAutomationComplete();
+  persist(reverse ? 'コンベア反転' : 'コンベア回転');
+  sound('click');
+  toast(`コンベア方向：${d.name} ${d.symbol}`, 'success');
+  renderMachinePanel();
+  renderInteractionPrompt(world.currentTarget);
+}
+
+function combinedBuildingContents(building) {
+  const contents = {};
+  for (const buffer of [building.input, building.output]) {
+    for (const [itemId, amount] of Object.entries(buffer || {})) {
+      if (!ITEMS[itemId] || Number(amount) <= 0) continue;
+      contents[itemId] = Number(contents[itemId] || 0) + Number(amount);
+    }
+  }
+  return contents;
+}
+
+function inventoryCanFit(contents) {
+  const simulated = { ...game.inventory };
+  for (const [itemId, amount] of Object.entries(contents)) {
+    for (let i = 0; i < amount; i += 1) {
+      if (!canAddInventory(itemId, simulated)) return false;
+      simulated[itemId] = Number(simulated[itemId] || 0) + 1;
+    }
+  }
+  return true;
+}
+
+function removeBuildingSafely(building, { resumeAfter = false } = {}) {
+  if (!building || building.permanent) {
+    toast('この設備は固定設備のため撤去できません', 'warn');
+    sound('error');
+    return false;
+  }
+  const contents = combinedBuildingContents(building);
+  if (!inventoryCanFit(contents)) {
+    toast('設備内のアイテムがバッグに収まりません。先にバッグを空けてください。', 'warn');
+    sound('error');
+    return false;
+  }
+  for (const [itemId, amount] of Object.entries(contents)) addInventory(itemId, amount);
+  const refund = BUILDINGS[building.type]?.cost || 0;
+  game.money += refund;
+  game.buildings = game.buildings.filter((entry) => entry.id !== building.id);
+  world.removeBuilding(building.id);
+  selectedMachineId = null;
+  game.tutorialStats.automationComplete = detectAutomationComplete();
+  persist('設備撤去');
+  sound('dismantle');
+  toast(`${BUILDINGS[building.type]?.name ?? '設備'}を撤去 +$${refund}`, 'info');
+  renderAll();
+  if (resumeAfter) closePanelAndResume();
+  return true;
+}
+
+function dismantleCurrentTarget() {
+  const target = world.currentTarget;
+  if (!target || target.kind !== 'building') {
+    toast('撤去する設備を照準に合わせてください', 'info');
+    return;
+  }
+  const building = getBuilding(target.id);
+  if (removeBuildingSafely(building)) renderInteractionPrompt(null);
 }
 
 function processMachines(delta) {
@@ -623,77 +781,12 @@ function processMachines(delta) {
   }
 }
 
-function gridNeighbors(key) {
-  const [gx, gz] = key.split(',').map(Number);
-  return [
-    `${gx + 1},${gz}`,
-    `${gx - 1},${gz}`,
-    `${gx},${gz + 1}`,
-    `${gx},${gz - 1}`,
-  ];
-}
-
-function buildGridIndex() {
-  const byCell = new Map();
-  for (const building of game.buildings) byCell.set(positionKey(building.x, building.z), building);
-  return byCell;
-}
-
 function findRoute(source, itemId, specificTargetId = null) {
-  const byCell = buildGridIndex();
-  const sourceKey = positionKey(source.x, source.z);
-  const queue = [];
-  const visited = new Set();
-  const parent = new Map();
-
-  for (const neighbor of gridNeighbors(sourceKey)) {
-    const entry = byCell.get(neighbor);
-    if (entry?.type === 'conveyor') {
-      queue.push(neighbor);
-      visited.add(neighbor);
-      parent.set(neighbor, null);
-    }
-  }
-
-  while (queue.length) {
-    const cell = queue.shift();
-    for (const neighbor of gridNeighbors(cell)) {
-      const entry = byCell.get(neighbor);
-      if (entry && entry.id !== source.id && entry.type !== 'conveyor') {
-        const matchesSpecific = !specificTargetId || entry.id === specificTargetId;
-        if (matchesSpecific && (specificTargetId || acceptsItem(entry, itemId))) {
-          const conveyorPath = [];
-          let cursor = cell;
-          while (cursor) {
-            conveyorPath.push(cursor);
-            cursor = parent.get(cursor) || null;
-          }
-          conveyorPath.reverse();
-          return {
-            target: entry,
-            path: [
-              { x: source.x, z: source.z },
-              ...conveyorPath.map((key) => {
-                const [gx, gz] = key.split(',').map(Number);
-                return { x: gx * GRID_SIZE, z: gz * GRID_SIZE };
-              }),
-              { x: entry.x, z: entry.z },
-            ],
-          };
-        }
-      }
-      if (entry?.type === 'conveyor' && !visited.has(neighbor)) {
-        visited.add(neighbor);
-        parent.set(neighbor, cell);
-        queue.push(neighbor);
-      }
-    }
-  }
-  return null;
+  return findDirectionalRoute(game.buildings, source, itemId, acceptsItem, specificTargetId);
 }
 
-function hasConveyorPath(source, target) {
-  return Boolean(findRoute(source, 'metal_scrap', target.id));
+function hasConveyorPath(source, target, itemId) {
+  return Boolean(findRoute(source, itemId, target.id));
 }
 
 function detectAutomationComplete() {
@@ -701,7 +794,10 @@ function detectAutomationComplete() {
   const crushers = game.buildings.filter((b) => b.type === 'crusher');
   const sellers = game.buildings.filter((b) => b.type === 'seller');
   if (!hopper || !crushers.length || !sellers.length) return false;
-  return crushers.some((crusher) => hasConveyorPath(hopper, crusher) && sellers.some((seller) => hasConveyorPath(crusher, seller)));
+  return crushers.some((crusher) => (
+    hasConveyorPath(hopper, crusher, 'metal_scrap')
+    && sellers.some((seller) => hasConveyorPath(crusher, seller, 'crushed_metal'))
+  ));
 }
 
 function transportTick() {
@@ -726,7 +822,7 @@ function transportTick() {
     }
     world.animateTransfer(route.path, itemId);
   }
-  game.tutorialStats.automationComplete ||= detectAutomationComplete();
+  game.tutorialStats.automationComplete = detectAutomationComplete();
   advanceTutorial();
   renderHud();
   if (currentPanel === 'machine') renderMachinePanel();
@@ -751,9 +847,7 @@ function advanceTutorial() {
   while (game.tutorialStep < TUTORIAL.length && tutorialSatisfied(game.tutorialStep)) {
     game.tutorialStep += 1;
     advanced = true;
-    if (game.tutorialStep < TUTORIAL.length) {
-      toast(`次の目標：${TUTORIAL[game.tutorialStep].title}`, 'objective');
-    }
+    if (game.tutorialStep < TUTORIAL.length) toast(`次の目標：${TUTORIAL[game.tutorialStep].title}`, 'objective');
   }
   if (advanced) {
     persist('目標進行');
@@ -784,7 +878,7 @@ function tutorialProgressValue(step) {
 function renderTutorial() {
   if (game.tutorialStep >= TUTORIAL.length) {
     ui.tutorialTitle.textContent = '工場オーナー — 自由開発';
-    ui.tutorialBody.textContent = '初期目標達成。探索・自動化・製品クラフトを自由に伸ばせます。';
+    ui.tutorialBody.textContent = '初期目標達成。Oでガイドを確認しながら、探索・自動化・製品クラフトを自由に伸ばせます。';
     ui.tutorialProgress.textContent = 'MVP CLEAR';
     return;
   }
@@ -799,18 +893,18 @@ function renderHud() {
   ui.revenue.textContent = `$${Math.floor(game.lifetimeRevenue).toLocaleString('ja-JP')}`;
   ui.inventorySlots.textContent = `${usedSlots(game.inventory)} / ${MAX_SLOTS}`;
   ui.fps.hidden = !game.settings.showFps;
+  ui.shortcutBar.hidden = dismantleMode || game.settings.showShortcuts === false;
 }
 
 function renderInventory() {
   ui.inventoryGrid.replaceChildren();
-  const ordered = Object.values(ITEMS);
-  for (const item of ordered) {
+  for (const item of Object.values(ITEMS)) {
     const amount = Number(game.inventory[item.id] || 0);
     const row = document.createElement('div');
     row.className = `inventory-row${amount === 0 ? ' is-empty' : ''}`;
     row.innerHTML = `
       <span class="inventory-row__swatch" style="--item-color:#${item.color.toString(16).padStart(6, '0')}"></span>
-      <span class="inventory-row__name">${item.name}<small>$${item.value}/個</small></span>
+      <span class="inventory-row__name">${item.name}<small>$${item.value}/個 / 1枠${item.stack}個</small></span>
       <strong>× ${amount}</strong>
     `;
     ui.inventoryGrid.append(row);
@@ -822,7 +916,9 @@ function renderInventory() {
     button.type = 'button';
     button.className = 'craft-option';
     const requirements = Object.entries(craft.input).map(([itemId, amount]) => `${ITEMS[itemId]?.short ?? itemId}×${amount}`).join(' + ');
-    button.innerHTML = `<span><strong>${craft.name}</strong><small>${requirements}</small></span><span>作る</span>`;
+    const outputEntry = Object.entries(craft.output)[0];
+    const value = outputEntry ? (ITEMS[outputEntry[0]]?.value || 0) * outputEntry[1] : 0;
+    button.innerHTML = `<span><strong>${craft.name}</strong><small>${requirements} / 売値 $${value}</small></span><span>作る</span>`;
     button.disabled = !canCraft(craft);
     button.addEventListener('click', () => craftItem(craft));
     ui.craftList.append(button);
@@ -836,11 +932,8 @@ function canCraft(craft) {
   for (const [itemId, amount] of Object.entries(craft.input)) simulated[itemId] -= amount;
   for (const [itemId, amount] of Object.entries(craft.output)) {
     for (let i = 0; i < amount; i += 1) {
-      const def = ITEMS[itemId];
-      const current = Number(simulated[itemId] || 0);
-      const needsSlot = current === 0 || current % def.stack === 0;
-      if (needsSlot && usedSlots(simulated) >= MAX_SLOTS) return false;
-      simulated[itemId] = current + 1;
+      if (!canAddInventory(itemId, simulated)) return false;
+      simulated[itemId] = Number(simulated[itemId] || 0) + 1;
     }
   }
   return true;
@@ -861,6 +954,7 @@ function renderSettings() {
   ui.settingSensitivity.value = String(game.settings.mouseSensitivity);
   ui.settingVolume.value = String(game.settings.masterVolume);
   ui.settingQuality.value = game.settings.quality;
+  ui.settingShortcuts.checked = game.settings.showShortcuts !== false;
   ui.settingFps.checked = Boolean(game.settings.showFps);
   renderSettingsValues();
 }
@@ -887,7 +981,7 @@ function toast(message, tone = 'info') {
   window.setTimeout(() => {
     item.classList.remove('is-visible');
     window.setTimeout(() => item.remove(), 220);
-  }, 2300);
+  }, 2600);
 }
 
 function persist(reason = 'autosave') {
