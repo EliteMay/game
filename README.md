@@ -6,7 +6,7 @@
 
 現在のPlayable Game:
 
-- **Scrap Factory** — 一人称3D / スクラップ回収 / 加工 / 販売 / 自由配置 / 方向付きコンベア自動化
+- **Scrap Factory** — 一人称3D / スクラップ回収 / 加工 / 販売 / 自由配置 / 方向付きコンベア自動化 / 工場管理
 
 ## 現在の状態
 
@@ -15,7 +15,7 @@
 主要ループ:
 
 ```text
-探索 → スクラップ回収 → 拠点へ帰還 → 加工 → 販売 → 設備購入 → コンベア自動化 → セーブ
+探索 → スクラップ回収 → 拠点へ帰還 → 加工 → 販売 → 設備購入 → コンベア自動化 → 工場管理 → セーブ
 ```
 
 Hubではゲームごとの進行、所持金、累計売上、プレイ時間を表示します。未完成ゲームは起動導線を出さず `PLANNED` として扱います。
@@ -32,8 +32,10 @@ Hubではゲームごとの進行、所持金、累計売上、プレイ時間�
 | R | 建築中の90°回転 |
 | F | 解体モード ON / OFF |
 | Tab | インベントリ / 簡易クラフト |
-| O | ゲーム内ガイド / Codex |
-| Esc | ポーズ / 建築終了 |
+| O | ゲーム内ガイド |
+| P | Factory Management / 工場管理コンソール |
+| 1〜5 | 粉砕機 / 精錬炉 / コンベア / 倉庫 / 販売機をクイック建築 |
+| Esc | ポーズ / 建築終了 / 管理画面を閉じる |
 
 ### コンベア
 
@@ -52,6 +54,21 @@ Hubではゲームごとの進行、所持金、累計売上、プレイ時間�
 - バッグに収まらない場合はアイテム消失防止のため撤去しない。
 - Starter Hopper / Starter Sellerは固定設備で撤去不可。
 
+## Factory Management Pack
+
+`P`で工場管理コンソールを開きます。
+
+- **コンソール** — 資金 / 売上 / セッション売上毎分 / 設備数 / 稼働可能機械 / Buffer量 / 発見数 / Play時間
+- **Factory Alerts** — 素材待ち、Machine出力滞留、Conveyor行き止まりを検出
+- **チャレンジ / 実績** — 回収、加工、自動化、建築、売上、発見、Play時間の8項目
+- **HUD追跡** — 任意のChallengeを画面上へ固定
+- **生産計画** — 欲しい毎分生産量から必要なCrusher / Smelter / Raw素材量を逆算
+- **Codex** — Item価格 / Stack / Category、設備価格 / 用途 / Recipeを検索
+- **Session Log** — 拾う、売る、建てる、撤去する等のGame通知をSession内で記録
+- **Quick Build** — `1〜5`でBuild Menuを経由せず主要設備を選択
+
+Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` として別の軽量`localStorage`へ保存し、Game Save Schemaを変更しません。
+
 ## ゲーム内説明
 
 - HUD下部に主要Shortcutを常時表示（設定で非表示可能）。
@@ -59,6 +76,7 @@ Hubではゲームごとの進行、所持金、累計売上、プレイ時間�
 - `O`でゲーム内ガイドを開き、基本ループ / 操作 / コンベア / 加工 / 解体を確認可能。
 - Machine Panelには用途、Recipe、Input / Output、処理時間を表示。
 - Tutorial Contractは単語だけでなく「次に何をどう操作するか」を表示。
+- `P`の管理コンソールでは、工場が大きくなった後の問題発見・計画を補助する。
 
 ## 保存
 
@@ -69,7 +87,7 @@ Hubではゲームごとの進行、所持金、累計売上、プレイ時間�
 - 画面非表示・主要変更時にも保存
 - Hub / ゲーム設定からJSON Export可能
 - Import前に現在セーブのRecovery Backupを作成
-- Directional Conveyor / Guide追加ではSchema Versionを変更していない
+- Directional Conveyor / Guide / Factory Management追加ではGame Save Schema Versionを変更していない
 
 詳細は [`SPEC.md`](SPEC.md) を正本とします。
 
@@ -93,9 +111,11 @@ Workflow: [`.github/workflows/pages.yml`](.github/workflows/pages.yml)
 ```bash
 npm run validate
 npm run test:logistics
+npm run test:management
 ```
 
-`test:logistics`では、コンベアの回転方向と「逆向きのベルトへ機械出力が流れない」Regressionを確認します。
+- `test:logistics` — Conveyor rotationと逆流Regression
+- `test:management` — Factory alert / Challenge / Production plannerのPure Function Regression
 
 加えてAccount共通のReusable Web Baselineを固定Commit SHAで利用します。
 
