@@ -51,6 +51,7 @@ export function makeDefaultGameSave() {
       mouseSensitivity: 0.0022,
       masterVolume: 0.55,
       quality: 'high',
+      showShortcuts: true,
       showFps: false,
     },
     discoveredItems: ['metal_scrap'],
