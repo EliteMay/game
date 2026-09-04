@@ -13,8 +13,11 @@ Game: Scrap Factory
 ├─ visual-kit.js      : Procedural texture / material / primitive helpers
 ├─ industrial-art.js  : Environment art / machine visual composition
 ├─ world.js           : Three.js scene / FPS movement / raycast / build placement
+├─ world-runtime.js   : Runtime visual corrections (fence alignment / scrap grounding)
 └─ game.js            : Economy / inventory / machine process / transport / UI controller
 ```
+
+`index.html`のImport Mapで`./world.js`を`./world-runtime.js`へ解決する。`world-runtime.js`は既存Worldを継承し、Save / Economy / Production contractを変更せずRuntime visual regressionのみ補正する。
 
 ## 2. Save Contract
 
@@ -47,7 +50,7 @@ Scrap Factory主要Data:
 
 Building IDは表示名や配列Indexから分離した永続ID。
 
-Visual Foundation V2ではSave Schemaを変更しない。旧MVPのSaveをそのまま利用する。
+Visual Foundation V2およびRuntime Visual FixではSave Schemaを変更しない。旧MVPのSaveをそのまま利用する。
 
 ## 3. World
 
@@ -60,6 +63,7 @@ Visual Foundation V2ではSave Schemaを変更しない。旧MVPのSaveをその
 - Starter Seller: `(7.5, 0)`
 - 周辺にFence / Workshop / Awning / Floodlight / Gateを配置
 - Static sceneryと重なる位置はBuild PreviewをInvalidにする
+- Chain-link visual panelは支柱と同じ基準線へ揃える。ColliderとVisualの向きを一致させる
 
 ### Scrap Yard
 
@@ -68,6 +72,7 @@ Visual Foundation V2ではSave Schemaを変更しない。旧MVPのSaveをその
 - 回収後22〜38秒で同地点へRespawn
 - Container / Scrap pile / Tire / Barrel / Cable spool / Crushed car / CraneをEnvironment Propとして配置
 - Collectible ScrapはStatic Collider内を避けてSpawn
+- Collectibleは実GeometryのBounding Box最低点を基準に地面へ接地する
 
 ### Distant Background
 
@@ -245,16 +250,24 @@ Far
 
 同じ`BUILDINGS` / Save ID / Collision Gridを維持し、見た目だけを差し替え可能にする。
 
-## 11. Dependencies
+## 11. Runtime Visual Fix Contract
+
+- Fence panel visualは既存Colliderと同じFence segmentへ整列させる
+- Fence mesh texture repeatは実長に合わせて密度を保つ
+- Alpha-tested Fence panelはShadow castを無効化し、支柱Shadowのみ残す
+- Collectible ScrapはSpawn / Respawnごとに`THREE.Box3`で最低Yを算出し地面へ接地する
+- Save Schema / Building placement / Economy / Tutorial contractは変更しない
+
+## 12. Dependencies
 
 Three.js `0.185.0`をjsDelivrからES Moduleとして読み込む。
 
 CDN障害時は3D Gameは起動できない。HubとSave DataはThree.jsに依存しない。
 
-## 12. Known Limits
+## 13. Known Limits
 
 - Mobile Touch FPS操作なし（Desktop primary）
 - Directional Conveyorは未実装
 - Enemy / Weapon / HealthはMVP後
 - 外部3D Model / Image Textureなし。現状はProcedural Geometry / Runtime Canvas Texture中心
-- Visual Foundation V2は実ブラウザでのGameplay / FPS / Screenshot Reviewが必要
+- Visual Foundationは実ブラウザでのGameplay / FPS / Screenshot Reviewを継続する

@@ -57,9 +57,21 @@ Date: 2026-09-04
 - Static sceneryとBuild placementのCollisionを連携
 - Graphics LowではDust FXを無効化
 
+### Runtime Visual Bug Fix
+
+User screenshotをRuntime Evidenceとして次を修正。
+
+- Chain-link visual panelが支柱から90°ずれて拠点内部を横切る問題を補正
+- Fence visualと既存Colliderを同じ向きへ一致
+- Chain-link textureの実長に応じたRepeat調整
+- Alpha-tested Fence panelのShadowを無効化し、巨大な格子影を抑制
+- Collectible Scrapを固定Y配置からBounding Box接地へ変更
+- Initial Spawn / Respawnの両方で接地処理を適用
+- Runtime fix moduleをValidatorのRequired fileへ追加
+
 ## Save / Compatibility
 
-Visual Foundation V2ではSave Schemaを変更していない。
+Visual Foundation V2およびRuntime Visual FixではSave Schemaを変更していない。
 
 - Root key: `elitemay-game-hub-v1`
 - Schema Version: `1`
@@ -84,19 +96,23 @@ Initial MVP:
 
 Visual Foundation V2:
 
-- `visual-kit.js`: `node --check` Pass
-- `industrial-art.js`: `node --check` Pass
-- 新`world.js`と同内容のCandidate: `node --check` Pass
-- GitHub Pull RequestでRepository validatorを実行予定
+- Pull Request CI Pass
+- Main push CI Pass
+- GitHub Pages Deploy Pass
+
+Runtime Visual Fix:
+
+- `world-runtime.js`をProject validator対象へ追加
+- Import Map routeをProject validatorで確認
+- Pull Request CI / Pages Deployを最終確認する
 
 ## Verification State
 
 - Implemented: Yes
-- Static Validated: Visual V2 local syntax Pass / GitHub CI Pending
-- Browser Validated: Pending
-- Visual Reviewed: Pending final browser screenshot / live Pages
-- GitHub Pages Deploy: main merge後に確認
-- User Validated: Pending
+- Static Validated: Runtime fix PR CI待ち
+- Browser Evidence: User screenshotでV2 regression確認済み
+- Browser Fix Validation: 公開後User確認待ち
+- Save Compatibility: Schema変更なし
 
 ## Known Limits
 
@@ -108,9 +124,9 @@ Visual Foundation V2:
 
 ## Next Validation
 
-1. Pull Request CIでJavaScript / JSON / Project Contract確認
+1. Runtime fix Pull Request CI確認
 2. Merge後Pages Deploy確認
-3. 公開URLでHub → Game → collect → sell → build → automate → reloadを確認
-4. Chromium / FirefoxでPointer LockとFPSを確認
-5. Gameplay ScreenshotでNear / Mid / Farの密度、Machine silhouette、Ground、SkyをVisual Review
-6. User feedbackをもとにVisual V2をPromote / Fixする
+3. 公開URLでFenceが支柱に沿っていることを確認
+4. Fenceを通過できないこと / Gateは通過できることを確認
+5. 鉄くず・銅線・廃プラスチック・電子ジャンクが地面へ接地していることを確認
+6. その後Visual polishを継続
