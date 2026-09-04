@@ -31,6 +31,8 @@ export const RESEARCH = {
 const BUILDING_UNLOCK_RANK = {
   smelter: 2,
   storage: 2,
+  generator: 4,
+  power_pole: 4,
 };
 
 const RANK_REWARDS = {
