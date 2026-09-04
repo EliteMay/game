@@ -100,7 +100,7 @@ if (!scrapHtml.includes('"./world.js": "./world-runtime.js"')) failures.push('Sc
 if (!scrapHtml.includes('src="./feature-pack.js"')) failures.push('Scrap Factory must load feature-pack.js');
 
 const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/factory-management.js'), 'utf8');
-if (!factoryManagement.includes("import './progression-ui.js';")) failures.push('Factory management must load progression-ui.js');
+if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push('Factory management must load progression-ui.js in browser runtime');
 
 const textFiles = [];
 function collectText(dir) {
