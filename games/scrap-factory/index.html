@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#181c1d">
+  <meta name="description" content="廃墟でスクラップを回収し、加工・販売・自動化して巨大工場へ育てる一人称3Dゲーム。">
+  <title>Scrap Factory | Game Hub</title>
+  <link rel="stylesheet" href="./game.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="game-shell" aria-label="Scrap Factory">
+    <canvas id="game-canvas" aria-label="Scrap Factory 3Dゲーム画面"></canvas>
+
+    <section id="boot-screen" class="boot-screen">
+      <div class="boot-screen__stripe" aria-hidden="true"></div>
+      <div class="boot-screen__content">
+        <p class="eyebrow">GAME 01 / INDUSTRIAL SALVAGE</p>
+        <h1>SCRAP<br>FACTORY</h1>
+        <p class="boot-screen__lead">拾う。砕く。流す。売る。<br>手作業の廃材回収から、自動工場を立ち上げる。</p>
+        <div class="boot-screen__mission">
+          <span>INITIAL CONTRACT</span>
+          <strong>最初の自動生産ラインを完成させる</strong>
+        </div>
+        <div class="control-strip" aria-label="主要操作">
+          <span><kbd>WASD</kbd> 移動</span>
+          <span><kbd>E</kbd> 操作</span>
+          <span><kbd>B</kbd> 建築</span>
+          <span><kbd>Tab</kbd> 持ち物</span>
+          <span><kbd>Shift</kbd> ダッシュ</span>
+        </div>
+        <button id="start-game" class="primary-action" type="button" disabled>工場へ入る</button>
+        <p id="boot-status" class="boot-status" aria-live="polite">LOADING SYSTEM…</p>
+        <p class="boot-note">PC / キーボード・マウス推奨。クリック後はマウスカーソルがゲーム画面に固定されます。</p>
+      </div>
+    </section>
+
+    <section id="hud" class="hud" hidden aria-label="ゲームHUD">
+      <div class="hud__top-left">
+        <div class="area-plate">
+          <span>ZONE</span>
+          <strong id="area-label">FACTORY BASE</strong>
+        </div>
+        <div class="economy-strip">
+          <div><span>CASH</span><strong id="money-value">$0</strong></div>
+          <div><span>REVENUE</span><strong id="revenue-value">$0</strong></div>
+          <div><span>PACK</span><strong id="inventory-slots">0 / 12</strong></div>
+        </div>
+      </div>
+
+      <div class="crosshair" aria-hidden="true"><span></span><span></span></div>
+      <div id="interaction-prompt" class="interaction-prompt" hidden></div>
+
+      <aside class="objective-panel" aria-label="現在の目標">
+        <div class="objective-panel__header">
+          <span>CONTRACT</span>
+          <strong id="tutorial-progress">0 / 1</strong>
+        </div>
+        <h2 id="tutorial-title">廃材置き場へ向かう</h2>
+        <p id="tutorial-body">WASDで移動。</p>
+      </aside>
+
+      <div class="hud__bottom-left">
+        <button id="open-build-menu" class="hud-key" type="button"><kbd>B</kbd><span>BUILD</span></button>
+        <span class="hud-key"><kbd>Tab</kbd><span>PACK</span></span>
+        <span class="hud-key"><kbd>Esc</kbd><span>MENU</span></span>
+      </div>
+
+      <div id="build-hint" class="build-hint" hidden>
+        <span>BUILD MODE</span>
+        <strong id="build-mode-name">粉砕機</strong>
+        <small>左クリック: 設置 / R: 回転 / 右クリック・Esc: 終了</small>
+      </div>
+
+      <div id="fps-counter" class="fps-counter" hidden>0 FPS</div>
+    </section>
+
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+    <section id="pause-panel" class="overlay-panel pause-panel" hidden aria-label="ポーズメニュー">
+      <div class="panel-card panel-card--compact">
+        <p class="panel-kicker">SCRAP FACTORY</p>
+        <h2>PAUSED</h2>
+        <div class="menu-stack">
+          <button id="resume-game" class="primary-action" type="button">ゲームに戻る</button>
+          <button id="save-now" class="secondary-action" type="button">今すぐセーブ</button>
+          <button id="open-settings-pause" class="secondary-action" type="button">設定</button>
+          <a class="text-action" href="../../index.html">Game Hubへ戻る</a>
+        </div>
+      </div>
+    </section>
+
+    <section id="build-panel" class="overlay-panel" hidden aria-label="建築メニュー">
+      <div class="panel-card panel-card--wide">
+        <header class="panel-header">
+          <div><p class="panel-kicker">FACTORY CONSTRUCTION</p><h2>設備を選択</h2></div>
+          <button id="close-build" class="icon-button" type="button" aria-label="建築メニューを閉じる">×</button>
+        </header>
+        <p class="panel-description">すべて2.5mグリッドに設置。コンベアで機械同士をつなぐと自動搬送が始まります。</p>
+        <div id="build-list" class="build-list"></div>
+      </div>
+    </section>
+
+    <section id="inventory-panel" class="overlay-panel" hidden aria-label="インベントリ">
+      <div class="panel-card panel-card--inventory">
+        <header class="panel-header">
+          <div><p class="panel-kicker">BACKPACK / 12 SLOTS</p><h2>持ち物・手作業</h2></div>
+          <button id="close-inventory" class="icon-button" type="button" aria-label="インベントリを閉じる">×</button>
+        </header>
+        <div class="inventory-layout">
+          <section>
+            <h3>所持アイテム</h3>
+            <div id="inventory-grid" class="inventory-grid"></div>
+          </section>
+          <section>
+            <h3>簡易クラフト</h3>
+            <p class="section-note">精錬済み素材や回収品を組み合わせて、より高価な製品へ。</p>
+            <div id="craft-list" class="craft-list"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section id="machine-panel" class="overlay-panel" hidden aria-label="設備操作">
+      <div class="panel-card panel-card--machine">
+        <header class="panel-header">
+          <div><p class="panel-kicker">MACHINE CONTROL</p><h2 id="machine-title">粉砕機</h2></div>
+          <button id="close-machine" class="icon-button" type="button" aria-label="設備画面を閉じる">×</button>
+        </header>
+        <p id="machine-status" class="machine-status">待機中</p>
+        <div class="buffer-grid">
+          <div><span>INPUT</span><strong id="machine-input">空</strong></div>
+          <div><span>OUTPUT</span><strong id="machine-output">空</strong></div>
+        </div>
+        <div class="machine-actions">
+          <button id="machine-deposit" class="primary-action" type="button">対応素材を投入</button>
+          <button id="machine-collect" class="secondary-action" type="button">出力を回収</button>
+          <button id="machine-remove" class="danger-action" type="button">撤去</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="settings-panel" class="overlay-panel" hidden aria-label="設定">
+      <div class="panel-card panel-card--settings">
+        <header class="panel-header">
+          <div><p class="panel-kicker">SYSTEM SETTINGS</p><h2>設定</h2></div>
+          <button id="close-settings" class="icon-button" type="button" aria-label="設定を閉じる">×</button>
+        </header>
+        <div class="settings-list">
+          <label class="setting-row"><span><strong>マウス感度</strong><small>一人称視点の回転速度</small></span><span class="range-control"><input id="setting-sensitivity" type="range" min="0.001" max="0.005" step="0.0001"><output id="sensitivity-value">0.0022</output></span></label>
+          <label class="setting-row"><span><strong>音量</strong><small>効果音・環境音</small></span><span class="range-control"><input id="setting-volume" type="range" min="0" max="1" step="0.05"><output id="volume-value">55%</output></span></label>
+          <label class="setting-row"><span><strong>描画品質</strong><small>重い場合はMedium / Low</small></span><select id="setting-quality"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label>
+          <label class="setting-row setting-row--check"><span><strong>FPS表示</strong><small>右上に現在FPSを表示</small></span><input id="setting-fps" type="checkbox"></label>
+        </div>
+        <div class="settings-danger-zone">
+          <button id="export-save" class="secondary-action" type="button">セーブJSONを書き出す</button>
+          <button id="reset-save" class="danger-action" type="button">Scrap Factoryを初期化</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="objective-done" class="overlay-panel" hidden aria-label="初期目標達成">
+      <div class="panel-card panel-card--compact completion-card">
+        <p class="panel-kicker">CONTRACT COMPLETE</p>
+        <h2>自動工場、稼働。</h2>
+        <p>初期目標をすべて達成しました。ここからはラインを増やし、精錬・クラフト・売上の最大化を自由に進められます。</p>
+        <button id="objective-done-close" class="primary-action" type="button">工場開発を続ける</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    window.__scrapFactoryBooted = false;
+    window.setTimeout(() => {
+      if (window.__scrapFactoryBooted) return;
+      const status = document.getElementById('boot-status');
+      if (status) status.textContent = '3D ENGINE LOAD FAILED — 再読み込みしてください';
+    }, 12000);
+  </script>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
