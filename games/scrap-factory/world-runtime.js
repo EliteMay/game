@@ -19,10 +19,6 @@ function isFencePanel(node) {
 function repairFencePanels(scene) {
   scene.traverse((node) => {
     if (!isFencePanel(node)) return;
-
-    // V2 originally rotated the chain-link PlaneGeometry 90° away from its posts.
-    // The collider followed the posts, so the visual panel crossed playable space
-    // while the player could walk straight through it.
     node.rotation.y -= Math.PI / 2;
 
     const { width, height } = node.geometry.parameters;
@@ -34,8 +30,6 @@ function repairFencePanels(scene) {
       map.needsUpdate = true;
     }
 
-    // Dense alpha-tested mesh shadows created large moiré-like bands on the floor.
-    // Posts still cast normal shadows, so disabling the mesh shadow improves clarity.
     node.castShadow = false;
     node.receiveShadow = false;
   });
@@ -74,5 +68,13 @@ export class ScrapWorld extends BaseScrapWorld {
 
     groundMesh(spawned);
     return result;
+  }
+
+  setBuildingRotation(id, rotation) {
+    const mesh = this.buildingMeshes?.get(id);
+    if (!mesh) return false;
+    mesh.rotation.y = Number(rotation) || 0;
+    mesh.updateMatrixWorld(true);
+    return true;
   }
 }
