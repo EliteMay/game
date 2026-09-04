@@ -1,4 +1,5 @@
 import { SAVE_KEY, SAVE_SCHEMA_VERSION } from './config.js';
+import { makeDefaultProgression, normalizeProgression } from './progression.js';
 
 const DEFAULT_BUILDINGS = [
   { id: 'starter-hopper', type: 'hopper', x: -5, z: 0, rotation: 0, input: {}, output: {}, progress: 0, permanent: true },
@@ -46,6 +47,7 @@ export function makeDefaultGameSave() {
       processed: 0,
       automationComplete: false,
     },
+    progression: makeDefaultProgression(),
     player: { x: 0, y: 1.7, z: 8, yaw: 0 },
     settings: {
       mouseSensitivity: 0.0022,
@@ -78,7 +80,7 @@ function sanitizeInventory(candidate, fallback) {
 function normalizeGame(candidate) {
   const base = makeDefaultGameSave();
   if (!isObject(candidate)) return base;
-  return {
+  const normalized = {
     ...base,
     ...candidate,
     money: Number.isFinite(Number(candidate.money)) ? Math.max(0, Math.floor(Number(candidate.money))) : base.money,
@@ -100,6 +102,8 @@ function normalizeGame(candidate) {
     settings: { ...base.settings, ...(isObject(candidate.settings) ? candidate.settings : {}) },
     discoveredItems: Array.isArray(candidate.discoveredItems) ? [...new Set(candidate.discoveredItems.map(String))] : base.discoveredItems,
   };
+  normalized.progression = normalizeProgression(candidate.progression, normalized);
+  return normalized;
 }
 
 function migrate(parsed) {
