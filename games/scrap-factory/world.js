@@ -9,10 +9,12 @@ import {
   snapToGrid,
   positionKey,
 } from './config.js';
+import { buildIndustrialEnvironment, createIndustrialBuildingMesh } from './industrial-art.js';
+import { addBox, addCylinder, addMesh, makeMaterial } from './visual-kit.js';
 
 const PLAYER_HEIGHT = 1.7;
 const PLAYER_RADIUS = 0.42;
-const WORLD_BOUNDS = { minX: -24, maxX: 92, minZ: -34, maxZ: 34 };
+const WORLD_BOUNDS = { minX: -21.4, maxX: 92, minZ: -30.5, maxZ: 30.5 };
 
 function seededRandom(seed) {
   let value = seed >>> 0;
@@ -35,17 +37,14 @@ function pickWeighted(random) {
   return SCRAP_SPAWNS[0].item;
 }
 
-function makeMaterial(color, roughness = 0.78, metalness = 0.2) {
-  return new THREE.MeshStandardMaterial({ color, roughness, metalness });
-}
-
-function cloneTransparent(root, opacity = 0.48) {
+function cloneTransparent(root, opacity = 0.52) {
   root.traverse((node) => {
     if (!node.isMesh) return;
     node.material = node.material.clone();
     node.material.transparent = true;
     node.material.opacity = opacity;
     node.material.depthWrite = false;
+    if (node.material.color) node.userData.previewColor = node.material.color.getHex();
   });
 }
 
@@ -58,17 +57,25 @@ function findEntity(object) {
   return null;
 }
 
+function disposeRoot(root) {
+  root?.traverse?.((node) => {
+    if (!node.isMesh) return;
+    node.geometry?.dispose?.();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    for (const material of materials) material?.dispose?.();
+  });
+}
+
 export class ScrapWorld {
   constructor(canvas, callbacks = {}) {
     this.canvas = canvas;
     this.callbacks = callbacks;
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color(0xb6c5cc);
-    this.scene.fog = new THREE.Fog(0xb6c5cc, 45, 125);
-
-    this.camera = new THREE.PerspectiveCamera(76, 1, 0.08, 180);
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.camera = new THREE.PerspectiveCamera(76, 1, 0.08, 190);
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance', alpha: false });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.06;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -77,7 +84,7 @@ export class ScrapWorld {
     this.raycaster.far = INTERACT_DISTANCE;
     this.pointer = new THREE.Vector2(0, 0);
 
-    this.player = { x: 0, y: PLAYER_HEIGHT, z: 8, yaw: 0, pitch: 0, vy: 0, grounded: true };
+    this.player = { x: 0, y: PLAYER_HEIGHT, z: 8, yaw: 0, pitch: 0, vy: 0, grounded: true, walkPhase: 0 };
     this.keys = new Set();
     this.staticColliders = [];
     this.buildingColliders = new Map();
@@ -97,9 +104,13 @@ export class ScrapWorld {
     this.frameCounter = 0;
     this.fpsTimer = 0;
     this.started = false;
+    this.elapsed = 0;
+    this.visualFx = {};
 
     this.#bindEvents();
-    this.#buildEnvironment();
+    buildIndustrialEnvironment(this);
+    this.#spawnInitialScrap();
+    this.#createInteractionMarker();
     this.resize();
   }
 
@@ -107,17 +118,13 @@ export class ScrapWorld {
     this.onResize = () => this.resize();
     this.onKeyDown = (event) => {
       if (event.repeat && ['KeyE', 'KeyB', 'KeyR'].includes(event.code)) return;
-      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'Space', 'Tab'].includes(event.code)) {
-        event.preventDefault();
-      }
+      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'Space', 'Tab'].includes(event.code)) event.preventDefault();
       this.keys.add(event.code);
       if (event.code === 'Space' && this.player.grounded && document.pointerLockElement === this.canvas) {
         this.player.vy = 5.8;
         this.player.grounded = false;
       }
-      if (event.code === 'KeyR' && this.buildMode) {
-        this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2);
-      }
+      if (event.code === 'KeyR' && this.buildMode) this.buildRotation = (this.buildRotation + Math.PI / 2) % (Math.PI * 2);
       if (event.code === 'Escape' && this.buildMode) this.cancelBuild();
       this.callbacks.onKeyDown?.(event.code);
     };
@@ -136,9 +143,7 @@ export class ScrapWorld {
           const { x, z } = this.buildPreview.position;
           const placed = this.callbacks.onBuildPlace?.({ type: this.buildMode, x, z, rotation: this.buildRotation });
           if (placed !== false) this.#updateBuildPreview();
-        } else {
-          this.callbacks.onBuildInvalid?.();
-        }
+        } else this.callbacks.onBuildInvalid?.();
         return;
       }
       if (event.button === 2 && this.buildMode) {
@@ -146,13 +151,9 @@ export class ScrapWorld {
         this.cancelBuild();
         return;
       }
-      if (event.button === 0 && document.pointerLockElement !== this.canvas && !this.callbacks.isOverlayOpen?.()) {
-        this.lockPointer();
-      }
+      if (event.button === 0 && document.pointerLockElement !== this.canvas && !this.callbacks.isOverlayOpen?.()) this.lockPointer();
     };
-    this.onContextMenu = (event) => {
-      if (this.buildMode) event.preventDefault();
-    };
+    this.onContextMenu = (event) => { if (this.buildMode) event.preventDefault(); };
 
     window.addEventListener('resize', this.onResize);
     document.addEventListener('keydown', this.onKeyDown);
@@ -170,181 +171,58 @@ export class ScrapWorld {
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('pointerlockchange', this.onPointerLock);
     this.canvas.removeEventListener('mousedown', this.onMouseDown);
+    this.canvas.removeEventListener('contextmenu', this.onContextMenu);
+    this.renderer.setAnimationLoop(null);
     this.renderer.dispose();
   }
 
-  #buildEnvironment() {
-    const hemi = new THREE.HemisphereLight(0xeaf5ff, 0x5f6158, 2.25);
-    this.scene.add(hemi);
-
-    const sun = new THREE.DirectionalLight(0xfff4d8, 3.2);
-    sun.position.set(24, 42, 18);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -55;
-    sun.shadow.camera.right = 55;
-    sun.shadow.camera.top = 55;
-    sun.shadow.camera.bottom = -55;
-    this.scene.add(sun);
-
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(130, 80),
-      new THREE.MeshStandardMaterial({ color: 0x777a70, roughness: 1, metalness: 0 }),
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.x = 34;
-    ground.receiveShadow = true;
-    ground.userData.ground = true;
-    this.scene.add(ground);
-    this.ground = ground;
-
-    const basePad = new THREE.Mesh(
-      new THREE.PlaneGeometry(44, 44),
-      new THREE.MeshStandardMaterial({ color: 0x5e625f, roughness: 0.92 }),
-    );
-    basePad.rotation.x = -Math.PI / 2;
-    basePad.position.set(0, 0.012, 0);
-    basePad.receiveShadow = true;
-    this.scene.add(basePad);
-
-    const grid = new THREE.GridHelper(40, 16, 0xc6b45c, 0x777b76);
-    grid.position.y = 0.03;
-    this.scene.add(grid);
-
-    this.#buildBasePerimeter();
-    this.#buildScrapyard();
-    this.#buildSkyline();
+  #createInteractionMarker() {
+    const material = new THREE.MeshBasicMaterial({ color: 0xf0cc55, transparent: true, opacity: 0.88, depthWrite: false, depthTest: false, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.055, 0.09, 20), material);
+    ring.visible = false;
+    ring.renderOrder = 20;
+    this.scene.add(ring);
+    this.interactionMarker = ring;
   }
 
-  #buildBasePerimeter() {
-    const steel = makeMaterial(0x495057, 0.86, 0.28);
-    const yellow = makeMaterial(0xc6a43d, 0.72, 0.18);
-
-    const wallParts = [
-      [-22, 0, 1, 3, 44],
-      [0, -22, 44, 3, 1],
-      [0, 22, 44, 3, 1],
-      [22, -14, 1, 3, 16],
-      [22, 14, 1, 3, 16],
-    ];
-    for (const [x, z, w, h, d] of wallParts) {
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), steel);
-      wall.position.set(x, h / 2, z);
-      wall.castShadow = true;
-      wall.receiveShadow = true;
-      this.scene.add(wall);
-      this.staticColliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
-    }
-
-    for (const z of [-5.8, 5.8]) {
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.8, 5.2, 0.8), yellow);
-      post.position.set(23, 2.6, z);
-      post.castShadow = true;
-      this.scene.add(post);
-    }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(1, 0.7, 12.4), yellow);
-    beam.position.set(23, 5.0, 0);
-    this.scene.add(beam);
-
-    const signCanvas = document.createElement('canvas');
-    signCanvas.width = 512;
-    signCanvas.height = 128;
-    const ctx = signCanvas.getContext('2d');
-    ctx.fillStyle = '#202426';
-    ctx.fillRect(0, 0, 512, 128);
-    ctx.fillStyle = '#e5c95f';
-    ctx.font = '700 46px system-ui';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('SCRAP YARD →', 256, 64);
-    const texture = new THREE.CanvasTexture(signCanvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    const sign = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.9), new THREE.MeshBasicMaterial({ map: texture }));
-    sign.position.set(22.55, 4.8, 0);
-    sign.rotation.y = -Math.PI / 2;
-    this.scene.add(sign);
-  }
-
-  #buildScrapyard() {
+  #spawnInitialScrap() {
     const random = seededRandom(9152026);
-    const rust = [0x66574b, 0x6c6259, 0x795f4d, 0x4f5759, 0x5c514a];
-    for (let i = 0; i < 48; i += 1) {
-      const x = 30 + random() * 55;
-      const z = -29 + random() * 58;
-      const w = 1.4 + random() * 4.2;
-      const h = 0.6 + random() * 2.2;
-      const d = 1.2 + random() * 3.6;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), makeMaterial(rust[Math.floor(random() * rust.length)], 0.92, 0.34));
-      mesh.position.set(x, h / 2, z);
-      mesh.rotation.y = (random() - 0.5) * 1.2;
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      this.scene.add(mesh);
-      if (i < 26) {
-        this.staticColliders.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
-      }
-    }
-
-    for (let i = 0; i < 6; i += 1) {
-      const x = 38 + i * 8.4;
-      const z = i % 2 === 0 ? -24 : 24;
-      const container = new THREE.Mesh(new THREE.BoxGeometry(6.4, 2.7, 2.5), makeMaterial(i % 2 ? 0x485e61 : 0x76533f, 0.86, 0.32));
-      container.position.set(x, 1.35, z);
-      container.castShadow = true;
-      container.receiveShadow = true;
-      this.scene.add(container);
-      this.staticColliders.push({ minX: x - 3.2, maxX: x + 3.2, minZ: z - 1.25, maxZ: z + 1.25 });
-    }
-
-    for (let i = 0; i < 42; i += 1) {
-      const x = 31 + random() * 55;
-      const z = -28 + random() * 56;
-      this.spawnScrap(pickWeighted(random), x, z, `scrap-${i}`);
-    }
-  }
-
-  #buildSkyline() {
-    const material = makeMaterial(0x59605f, 0.96, 0.12);
-    for (let i = 0; i < 9; i += 1) {
-      const width = 5 + (i % 3) * 2.4;
-      const height = 4 + (i % 4) * 2.2;
-      const depth = 5 + ((i + 1) % 3) * 2;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
-      mesh.position.set(98 + i * 8, height / 2, -25 + (i % 4) * 16);
-      this.scene.add(mesh);
-    }
-    for (const z of [-16, 12]) {
-      const chimney = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.5, 14, 12), makeMaterial(0x53585a, 0.9, 0.24));
-      chimney.position.set(91, 7, z);
-      this.scene.add(chimney);
+    let spawned = 0;
+    let attempts = 0;
+    while (spawned < 48 && attempts < 280) {
+      attempts += 1;
+      const x = 30.5 + random() * 56;
+      const z = -27.5 + random() * 55;
+      if (this.#pointInsideStatic(x, z, 0.55)) continue;
+      this.spawnScrap(pickWeighted(random), x, z, `scrap-${spawned}`);
+      spawned += 1;
     }
   }
 
   setPlayerState(player) {
     if (!player) return;
-    this.player.x = Number.isFinite(Number(player.x)) ? Number(player.x) : this.player.x;
+    const px = Number(player.x);
+    const pz = Number(player.z);
+    const yaw = Number(player.yaw);
+    this.player.x = Number.isFinite(px) ? THREE.MathUtils.clamp(px, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX) : this.player.x;
     this.player.y = PLAYER_HEIGHT;
-    this.player.z = Number.isFinite(Number(player.z)) ? Number(player.z) : this.player.z;
-    this.player.yaw = Number.isFinite(Number(player.yaw)) ? Number(player.yaw) : 0;
+    this.player.z = Number.isFinite(pz) ? THREE.MathUtils.clamp(pz, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ) : this.player.z;
+    this.player.yaw = Number.isFinite(yaw) ? yaw : 0;
   }
 
-  getPlayerState() {
-    return { x: this.player.x, y: PLAYER_HEIGHT, z: this.player.z, yaw: this.player.yaw };
-  }
-
-  lockPointer() {
-    if (this.callbacks.isOverlayOpen?.()) return;
-    this.canvas.requestPointerLock?.();
-  }
-
-  unlockPointer() {
-    if (document.pointerLockElement === this.canvas) document.exitPointerLock?.();
-  }
+  getPlayerState() { return { x: this.player.x, y: PLAYER_HEIGHT, z: this.player.z, yaw: this.player.yaw }; }
+  lockPointer() { if (!this.callbacks.isOverlayOpen?.()) this.canvas.requestPointerLock?.(); }
+  unlockPointer() { if (document.pointerLockElement === this.canvas) document.exitPointerLock?.(); }
 
   setQuality(quality) {
-    const ratio = quality === 'low' ? 1 : quality === 'medium' ? Math.min(window.devicePixelRatio || 1, 1.5) : Math.min(window.devicePixelRatio || 1, 2);
+    const dpr = window.devicePixelRatio || 1;
+    const ratio = quality === 'low' ? 1 : quality === 'medium' ? Math.min(dpr, 1.35) : Math.min(dpr, 1.8);
     this.renderer.setPixelRatio(ratio);
     this.renderer.shadowMap.enabled = quality !== 'low';
+    if (this.visualFx.dust) {
+      this.visualFx.dust.visible = quality !== 'low';
+      this.visualFx.dust.material.opacity = quality === 'high' ? 0.32 : 0.2;
+    }
     this.resize();
   }
 
@@ -357,36 +235,30 @@ export class ScrapWorld {
   }
 
   loadBuildings(buildings) {
-    for (const mesh of this.buildingMeshes.values()) this.scene.remove(mesh);
+    for (const mesh of this.buildingMeshes.values()) {
+      this.scene.remove(mesh);
+      disposeRoot(mesh);
+    }
     this.buildingMeshes.clear();
     this.buildingColliders.clear();
     this.occupied.clear();
     this.interactives = this.interactives.filter((mesh) => findEntity(mesh)?.kind !== 'building');
-    for (const building of buildings) this.addBuilding(building);
+    for (const building of buildings || []) this.addBuilding(building);
   }
 
   addBuilding(building) {
-    const mesh = this.#createBuildingMesh(building.type);
-    mesh.position.set(building.x, 0, building.z);
-    mesh.rotation.y = building.rotation || 0;
+    if (!building || !BUILDINGS[building.type]) return null;
+    const mesh = createIndustrialBuildingMesh(building.type);
+    mesh.position.set(Number(building.x) || 0, 0, Number(building.z) || 0);
+    mesh.rotation.y = Number(building.rotation) || 0;
     mesh.userData.entity = { kind: 'building', id: building.id, type: building.type };
-    mesh.traverse((node) => {
-      if (node.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
-      }
-    });
+    mesh.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
     this.scene.add(mesh);
     this.buildingMeshes.set(building.id, mesh);
     this.interactives.push(mesh);
     this.occupied.add(positionKey(building.x, building.z));
     if (building.type !== 'conveyor') {
-      this.buildingColliders.set(building.id, {
-        minX: building.x - GRID_SIZE * 0.38,
-        maxX: building.x + GRID_SIZE * 0.38,
-        minZ: building.z - GRID_SIZE * 0.38,
-        maxZ: building.z + GRID_SIZE * 0.38,
-      });
+      this.buildingColliders.set(building.id, { minX: building.x - GRID_SIZE * 0.39, maxX: building.x + GRID_SIZE * 0.39, minZ: building.z - GRID_SIZE * 0.39, maxZ: building.z + GRID_SIZE * 0.39 });
     }
     return mesh;
   }
@@ -396,8 +268,8 @@ export class ScrapWorld {
     if (!mesh) return;
     const light = mesh.userData.statusLight;
     if (light?.material?.emissive) {
-      light.material.emissive.setHex(active ? 0x6ecf86 : 0x31383a);
-      light.material.emissiveIntensity = active ? 2.5 : 0.6;
+      light.material.emissive.setHex(active ? 0x61d28a : 0x31383a);
+      light.material.emissiveIntensity = active ? 2.2 : 0.55;
     }
     const spinner = mesh.userData.spinner;
     if (spinner) spinner.userData.active = active;
@@ -413,68 +285,7 @@ export class ScrapWorld {
     this.buildingColliders.delete(id);
     this.occupied.delete(positionKey(mesh.position.x, mesh.position.z));
     this.interactives = this.interactives.filter((item) => item !== mesh);
-  }
-
-  #createBuildingMesh(type) {
-    const def = BUILDINGS[type];
-    const group = new THREE.Group();
-    const dark = makeMaterial(0x2d3437, 0.72, 0.48);
-    const body = makeMaterial(def?.color ?? 0x667077, 0.74, 0.38);
-    const accent = makeMaterial(0xc5a943, 0.64, 0.24);
-
-    const add = (geometry, material, x, y, z) => {
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(x, y, z);
-      group.add(mesh);
-      return mesh;
-    };
-
-    if (type === 'conveyor') {
-      add(new THREE.BoxGeometry(2.35, 0.18, 1.15), dark, 0, 0.34, 0);
-      const belt = add(new THREE.BoxGeometry(2.15, 0.08, 0.82), makeMaterial(0x384044, 0.96, 0.18), 0, 0.49, 0);
-      for (const x of [-0.72, 0, 0.72]) {
-        const arrow = add(new THREE.ConeGeometry(0.16, 0.36, 3), accent, x, 0.57, 0);
-        arrow.rotation.z = -Math.PI / 2;
-      }
-      group.userData.spinner = belt;
-      return group;
-    }
-
-    if (type === 'hopper') {
-      add(new THREE.BoxGeometry(2.05, 0.5, 2.05), dark, 0, 0.25, 0);
-      const hopper = add(new THREE.CylinderGeometry(1.05, 0.45, 1.45, 4, 1, false), body, 0, 1.15, 0);
-      hopper.rotation.y = Math.PI / 4;
-      add(new THREE.BoxGeometry(0.7, 0.25, 0.7), accent, 0, 1.95, 0);
-    } else if (type === 'seller') {
-      add(new THREE.BoxGeometry(2.0, 2.15, 1.45), body, 0, 1.08, 0);
-      add(new THREE.BoxGeometry(1.45, 0.75, 0.08), new THREE.MeshStandardMaterial({ color: 0x182126, emissive: 0x2d7c78, emissiveIntensity: 1.7 }), 0, 1.35, -0.76);
-      add(new THREE.BoxGeometry(1.15, 0.14, 0.7), accent, 0, 0.62, -0.68);
-    } else if (type === 'crusher') {
-      add(new THREE.BoxGeometry(2.1, 0.45, 1.9), dark, 0, 0.23, 0);
-      add(new THREE.BoxGeometry(1.8, 1.1, 1.6), body, 0, 1.0, 0);
-      const spinner = add(new THREE.CylinderGeometry(0.4, 0.4, 1.9, 12), dark, 0, 1.15, -0.86);
-      spinner.rotation.z = Math.PI / 2;
-      group.userData.spinner = spinner;
-    } else if (type === 'smelter') {
-      add(new THREE.CylinderGeometry(0.95, 1.12, 1.7, 14), body, 0, 0.95, 0);
-      add(new THREE.CylinderGeometry(0.36, 0.44, 1.55, 12), dark, 0.48, 2.32, 0.2);
-      add(new THREE.BoxGeometry(0.85, 0.72, 0.08), new THREE.MeshStandardMaterial({ color: 0x42352f, emissive: 0xff7a28, emissiveIntensity: 1.3 }), 0, 0.95, -1.0);
-    } else if (type === 'storage') {
-      add(new THREE.BoxGeometry(2.1, 1.75, 1.9), body, 0, 0.9, 0);
-      add(new THREE.BoxGeometry(1.6, 0.12, 1.94), accent, 0, 1.4, 0);
-      add(new THREE.BoxGeometry(1.6, 0.12, 1.94), accent, 0, 0.55, 0);
-    }
-
-    if (type !== 'hopper') {
-      const light = add(new THREE.BoxGeometry(0.38, 0.16, 0.08), new THREE.MeshStandardMaterial({ color: 0x34403b, emissive: 0x31383a, emissiveIntensity: 0.6 }), 0.72, 1.78, -0.78);
-      group.userData.statusLight = light;
-    }
-    const gauge = add(new THREE.BoxGeometry(1.1, 0.08, 0.08), new THREE.MeshStandardMaterial({ color: 0x8ecb8a, emissive: 0x487148, emissiveIntensity: 0.8 }), -0.28, 0.42, -0.98);
-    gauge.geometry.translate(0.55, 0, 0);
-    gauge.scale.x = 0.02;
-    group.userData.gauge = gauge;
-
-    return group;
+    disposeRoot(mesh);
   }
 
   startBuild(type) {
@@ -482,7 +293,7 @@ export class ScrapWorld {
     this.cancelBuild();
     this.buildMode = type;
     this.buildRotation = 0;
-    this.buildPreview = this.#createBuildingMesh(type);
+    this.buildPreview = createIndustrialBuildingMesh(type);
     cloneTransparent(this.buildPreview);
     this.scene.add(this.buildPreview);
     this.callbacks.onBuildModeChange?.(type);
@@ -491,11 +302,19 @@ export class ScrapWorld {
   }
 
   cancelBuild() {
-    if (this.buildPreview) this.scene.remove(this.buildPreview);
+    if (this.buildPreview) {
+      this.scene.remove(this.buildPreview);
+      disposeRoot(this.buildPreview);
+    }
     this.buildPreview = null;
     this.buildMode = null;
     this.canPlacePreview = false;
     this.callbacks.onBuildModeChange?.(null);
+  }
+
+  #placementHitsStatic(x, z, type) {
+    const half = type === 'conveyor' ? 0.5 : 0.92;
+    return this.staticColliders.some((box) => x + half > box.minX && x - half < box.maxX && z + half > box.minZ && z - half < box.maxZ);
   }
 
   #updateBuildPreview() {
@@ -503,23 +322,20 @@ export class ScrapWorld {
     const direction = new THREE.Vector3();
     this.camera.getWorldDirection(direction);
     const distance = Math.min(8, 5.5 / Math.max(0.2, Math.abs(direction.y) + 0.45));
-    const targetX = this.player.x + direction.x * distance;
-    const targetZ = this.player.z + direction.z * distance;
-    const x = snapToGrid(targetX);
-    const z = snapToGrid(targetZ);
+    const x = snapToGrid(this.player.x + direction.x * distance);
+    const z = snapToGrid(this.player.z + direction.z * distance);
     this.buildPreview.position.set(x, 0, z);
     this.buildPreview.rotation.y = this.buildRotation;
     const inBase = Math.abs(x) <= BASE_LIMIT && Math.abs(z) <= BASE_LIMIT;
     const occupied = this.occupied.has(positionKey(x, z));
-    const notOnPlayer = Math.hypot(x - this.player.x, z - this.player.z) > 1.7;
-    this.canPlacePreview = inBase && !occupied && notOnPlayer;
+    const staticHit = this.#placementHitsStatic(x, z, this.buildMode);
+    const notOnPlayer = Math.hypot(x - this.player.x, z - this.player.z) > 1.8;
+    this.canPlacePreview = inBase && !occupied && !staticHit && notOnPlayer;
     this.buildPreview.traverse((node) => {
-      if (!node.isMesh) return;
-      if (node.material?.color) {
-        const baseColor = node.userData.baseColor ?? node.material.color.getHex();
-        node.userData.baseColor = baseColor;
-        node.material.color.setHex(this.canPlacePreview ? baseColor : 0x8f3e3e);
-      }
+      if (!node.isMesh || !node.material?.color) return;
+      const original = node.userData.previewColor ?? node.material.color.getHex();
+      node.userData.previewColor = original;
+      node.material.color.setHex(original).lerp(new THREE.Color(this.canPlacePreview ? 0x78b985 : 0xb33f3f), this.canPlacePreview ? 0.08 : 0.68);
     });
     this.callbacks.onBuildPreview?.({ type: this.buildMode, x, z, rotation: this.buildRotation, valid: this.canPlacePreview });
   }
@@ -528,25 +344,35 @@ export class ScrapWorld {
     const def = ITEMS[itemId];
     if (!def) return;
     const group = new THREE.Group();
-    const material = makeMaterial(def.color, 0.86, itemId === 'plastic' ? 0.05 : 0.56);
-    const shape = itemId === 'copper_wire'
-      ? new THREE.TorusGeometry(0.28, 0.07, 8, 18)
-      : itemId === 'e_waste'
-        ? new THREE.BoxGeometry(0.58, 0.18, 0.42)
-        : itemId === 'plastic'
-          ? new THREE.CylinderGeometry(0.18, 0.24, 0.55, 8)
-          : new THREE.BoxGeometry(0.55, 0.25, 0.36);
-    const main = new THREE.Mesh(shape, material);
-    main.rotation.set(Math.random(), Math.random(), Math.random());
-    main.castShadow = true;
-    group.add(main);
-    if (itemId === 'e_waste') {
-      const chip = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.06, 0.16), makeMaterial(0x243e31, 0.7, 0.18));
-      chip.position.y = 0.13;
-      group.add(chip);
+    if (itemId === 'metal_scrap') {
+      const metalA = makeMaterial(0x6f7472, 0.88, 0.64);
+      const rust = makeMaterial(0x76513f, 0.94, 0.5);
+      addBox(group, [0.62, 0.12, 0.2], metalA, [0, 0.05, 0], [0.3, 0.4, 0.1]);
+      addBox(group, [0.12, 0.14, 0.64], rust, [0.08, 0.12, 0], [-0.25, -0.2, 0.35]);
+      addCylinder(group, 0.07, 0.07, 0.48, 8, metalA, [-0.18, 0.1, 0.08], [Math.PI / 2, 0.2, 0.2]);
+    } else if (itemId === 'copper_wire') {
+      const copper = makeMaterial(def.color, 0.66, 0.72);
+      for (let i = 0; i < 3; i += 1) addMesh(group, new THREE.TorusGeometry(0.22 + i * 0.035, 0.035, 8, 20), copper, [0, i * 0.055, 0], [Math.PI / 2, 0.15 * i, 0]);
+      addCylinder(group, 0.08, 0.08, 0.42, 8, makeMaterial(0x343a3a, 0.86, 0.4), [0, 0.09, 0], [Math.PI / 2, 0, 0]);
+    } else if (itemId === 'plastic') {
+      const plastic = makeMaterial(def.color, 0.78, 0.04);
+      addBox(group, [0.46, 0.54, 0.28], plastic, [0, 0.22, 0]);
+      addBox(group, [0.22, 0.14, 0.1], plastic, [0, 0.55, 0]);
+      addCylinder(group, 0.08, 0.09, 0.12, 8, makeMaterial(0x30393b, 0.85, 0.1), [0, 0.68, 0]);
+      const handle = addMesh(group, new THREE.TorusGeometry(0.11, 0.035, 6, 12, Math.PI), plastic, [0.12, 0.48, 0], [0, Math.PI / 2, 0]);
+      handle.rotation.z = Math.PI / 2;
+    } else {
+      const board = makeMaterial(0x315844, 0.72, 0.18);
+      const dark = makeMaterial(0x242929, 0.68, 0.5);
+      addBox(group, [0.62, 0.07, 0.42], board, [0, 0.05, 0]);
+      for (const [cx, cz, s] of [[-0.16, -0.08, 0.14], [0.12, 0.08, 0.18], [0.22, -0.1, 0.09]]) addBox(group, [s, 0.09, s], dark, [cx, 0.13, cz]);
+      for (let i = -2; i <= 2; i += 1) addCylinder(group, 0.015, 0.015, 0.17, 6, makeMaterial(0xb98a43, 0.5, 0.8), [i * 0.09, 0.05, 0.25], [Math.PI / 2, 0, 0]);
     }
-    group.position.set(x, 0.38, z);
+    group.rotation.set(0.08 + Math.random() * 0.2, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.2);
+    group.position.set(x, 0.32, z);
+    group.scale.setScalar(1.05);
     group.userData.entity = { kind: 'scrap', id, itemId };
+    group.traverse((node) => { if (node.isMesh) { node.castShadow = true; node.receiveShadow = true; } });
     this.scene.add(group);
     this.scrapMeshes.set(id, group);
     this.interactives.push(group);
@@ -556,52 +382,59 @@ export class ScrapWorld {
     const mesh = this.scrapMeshes.get(id);
     if (!mesh) return null;
     const entity = mesh.userData.entity;
+    const x = mesh.position.x;
+    const z = mesh.position.z;
     this.scene.remove(mesh);
     this.scrapMeshes.delete(id);
     this.interactives = this.interactives.filter((item) => item !== mesh);
-    this.respawnQueue.push({ itemId: entity.itemId, x: mesh.position.x, z: mesh.position.z, at: performance.now() + 22000 + Math.random() * 16000 });
+    disposeRoot(mesh);
+    this.respawnQueue.push({ itemId: entity.itemId, x, z, at: performance.now() + 22000 + Math.random() * 16000 });
     return entity.itemId;
   }
 
   animateTransfer(path, itemId) {
     if (!Array.isArray(path) || path.length < 2) return;
     const def = ITEMS[itemId] ?? ITEMS.metal_scrap;
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), new THREE.MeshStandardMaterial({ color: def.color, roughness: 0.7, metalness: 0.4 }));
-    mesh.castShadow = true;
-    mesh.position.set(path[0].x, 0.88, path[0].z);
-    this.scene.add(mesh);
-    this.packets.push({ mesh, path: path.map((p) => new THREE.Vector3(p.x, 0.88, p.z)), index: 1, speed: 5.8 });
+    const group = new THREE.Group();
+    addBox(group, [0.3, 0.22, 0.34], makeMaterial(def.color, 0.65, itemId === 'plastic' ? 0.08 : 0.5), [0, 0, 0]);
+    addBox(group, [0.16, 0.05, 0.36], makeMaterial(0x262c2d, 0.75, 0.48), [0, 0.14, 0]);
+    group.position.set(path[0].x, 0.82, path[0].z);
+    this.scene.add(group);
+    this.packets.push({ mesh: group, path: path.map((p) => new THREE.Vector3(p.x, 0.82, p.z)), index: 1, speed: 5.8 });
   }
 
-  interact() {
-    if (!this.currentTarget) return;
-    this.callbacks.onInteract?.(this.currentTarget);
-  }
+  interact() { if (this.currentTarget) this.callbacks.onInteract?.(this.currentTarget); }
 
   #updateTarget() {
     if (this.buildMode) {
-      if (this.currentTarget) {
-        this.currentTarget = null;
-        this.callbacks.onTargetChange?.(null);
-      }
+      if (this.currentTarget) { this.currentTarget = null; this.callbacks.onTargetChange?.(null); }
+      if (this.interactionMarker) this.interactionMarker.visible = false;
       return;
     }
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const hits = this.raycaster.intersectObjects(this.interactives, true);
     let entity = null;
+    let chosenHit = null;
     for (const hit of hits) {
       if (hit.distance > INTERACT_DISTANCE) continue;
       const found = findEntity(hit.object);
-      if (found) {
-        entity = found;
-        break;
-      }
+      if (found) { entity = found; chosenHit = hit; break; }
     }
+    if (chosenHit && this.interactionMarker) {
+      this.interactionMarker.visible = true;
+      this.interactionMarker.position.copy(chosenHit.point);
+      const towardCamera = this.camera.position.clone().sub(chosenHit.point).normalize();
+      this.interactionMarker.position.addScaledVector(towardCamera, 0.025);
+      this.interactionMarker.lookAt(this.camera.position);
+      const pulse = 1 + Math.sin(this.elapsed * 5) * 0.08;
+      this.interactionMarker.scale.setScalar(pulse);
+    } else if (this.interactionMarker) this.interactionMarker.visible = false;
     const changed = JSON.stringify(entity) !== JSON.stringify(this.currentTarget);
-    if (changed) {
-      this.currentTarget = entity;
-      this.callbacks.onTargetChange?.(entity);
-    }
+    if (changed) { this.currentTarget = entity; this.callbacks.onTargetChange?.(entity); }
+  }
+
+  #pointInsideStatic(x, z, padding = 0) {
+    return this.staticColliders.some((box) => x + padding > box.minX && x - padding < box.maxX && z + padding > box.minZ && z - padding < box.maxZ);
   }
 
   #collides(x, z) {
@@ -610,12 +443,13 @@ export class ScrapWorld {
   }
 
   #updatePlayer(delta) {
-    if (document.pointerLockElement !== this.canvas || this.callbacks.isOverlayOpen?.()) return;
+    const locked = document.pointerLockElement === this.canvas && !this.callbacks.isOverlayOpen?.();
     const forward = Number(this.keys.has('KeyW')) - Number(this.keys.has('KeyS'));
     const strafe = Number(this.keys.has('KeyD')) - Number(this.keys.has('KeyA'));
-    const sprint = this.keys.has('ShiftLeft') || this.keys.has('ShiftRight');
+    const moving = locked && (forward !== 0 || strafe !== 0);
+    const sprint = moving && (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'));
     const speed = sprint ? 8.0 : 5.2;
-    if (forward !== 0 || strafe !== 0) {
+    if (moving) {
       const len = Math.hypot(forward, strafe) || 1;
       const f = forward / len;
       const s = strafe / len;
@@ -627,32 +461,27 @@ export class ScrapWorld {
       const nextZ = THREE.MathUtils.clamp(this.player.z + dz, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
       if (!this.#collides(nextX, this.player.z)) this.player.x = nextX;
       if (!this.#collides(this.player.x, nextZ)) this.player.z = nextZ;
+      this.player.walkPhase += delta * (sprint ? 12.5 : 9.2);
     }
-
     this.player.vy -= 15.5 * delta;
     this.player.y += this.player.vy * delta;
-    if (this.player.y <= PLAYER_HEIGHT) {
-      this.player.y = PLAYER_HEIGHT;
-      this.player.vy = 0;
-      this.player.grounded = true;
-    }
-
-    this.camera.position.set(this.player.x, this.player.y, this.player.z);
+    if (this.player.y <= PLAYER_HEIGHT) { this.player.y = PLAYER_HEIGHT; this.player.vy = 0; this.player.grounded = true; }
+    const bob = moving && this.player.grounded ? Math.sin(this.player.walkPhase) * (sprint ? 0.035 : 0.022) : 0;
+    const sway = moving && this.player.grounded ? Math.cos(this.player.walkPhase * 0.5) * 0.009 : 0;
+    this.camera.position.set(this.player.x, this.player.y + bob, this.player.z);
     this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.player.yaw;
+    this.camera.rotation.y = this.player.yaw + sway;
     this.camera.rotation.x = this.player.pitch;
-
+    this.camera.fov = THREE.MathUtils.damp(this.camera.fov, sprint ? 80.5 : 76, 9, delta);
+    this.camera.updateProjectionMatrix();
     const nextArea = this.player.x > 28 ? 'scrapyard' : 'base';
-    if (nextArea !== this.currentArea) {
-      this.currentArea = nextArea;
-      this.callbacks.onAreaChange?.(nextArea);
-    }
+    if (nextArea !== this.currentArea) { this.currentArea = nextArea; this.callbacks.onAreaChange?.(nextArea); }
   }
 
   #updateRespawns(now) {
     const ready = this.respawnQueue.filter((entry) => entry.at <= now);
     this.respawnQueue = this.respawnQueue.filter((entry) => entry.at > now);
-    for (const entry of ready) this.spawnScrap(entry.itemId, entry.x, entry.z);
+    for (const entry of ready) if (!this.#pointInsideStatic(entry.x, entry.z, 0.5)) this.spawnScrap(entry.itemId, entry.x, entry.z);
   }
 
   #updatePackets(delta) {
@@ -661,37 +490,48 @@ export class ScrapWorld {
       const target = packet.path[packet.index];
       if (!target) {
         this.scene.remove(packet.mesh);
+        disposeRoot(packet.mesh);
         this.packets.splice(i, 1);
         continue;
       }
       const distance = packet.mesh.position.distanceTo(target);
-      if (distance < 0.12) {
-        packet.index += 1;
-        continue;
-      }
+      if (distance < 0.1) { packet.index += 1; continue; }
       const direction = target.clone().sub(packet.mesh.position).normalize();
       packet.mesh.position.addScaledVector(direction, Math.min(packet.speed * delta, distance));
-      packet.mesh.rotation.y += delta * 4;
+      packet.mesh.rotation.y += delta * 3.3;
     }
   }
 
   #updateMachines(delta) {
     for (const mesh of this.buildingMeshes.values()) {
       const spinner = mesh.userData.spinner;
-      if (spinner?.userData.active) spinner.rotation.x += delta * 3.2;
+      const conveyor = mesh.userData.entity?.type === 'conveyor';
+      if (spinner && (spinner.userData.active || conveyor)) {
+        spinner.rotation.z += delta * 5.2;
+        spinner.rotation.y += delta * 1.2;
+      }
+    }
+  }
+
+  #updateVisualFx(delta) {
+    const dust = this.visualFx.dust;
+    if (dust?.visible) {
+      dust.rotation.y += delta * 0.004;
+      dust.position.x = Math.sin(this.elapsed * 0.07) * 0.8;
     }
   }
 
   step() {
     const delta = Math.min(this.clock.getDelta(), 0.05);
     const now = performance.now();
+    this.elapsed += delta;
     this.#updatePlayer(delta);
     this.#updateTarget();
     if (this.buildMode) this.#updateBuildPreview();
     this.#updateRespawns(now);
     this.#updatePackets(delta);
     this.#updateMachines(delta);
-
+    this.#updateVisualFx(delta);
     this.frameCounter += 1;
     this.fpsTimer += delta;
     if (this.fpsTimer >= 0.5) {
@@ -700,7 +540,6 @@ export class ScrapWorld {
       this.fpsTimer = 0;
       this.callbacks.onFps?.(this.fps);
     }
-
     this.renderer.render(this.scene, this.camera);
     this.callbacks.onFrame?.(delta);
   }
