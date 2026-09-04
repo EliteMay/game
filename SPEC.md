@@ -10,6 +10,7 @@ Hub UI
 Game: Scrap Factory
 ├─ config.js             : Item / Recipe / Building / Tutorial definitions
 ├─ logistics.js          : Directional conveyor routing / rotation helpers
+├─ power.js              : Rank 4 power supply / demand / coverage / fuel pure logic
 ├─ progression.js        : Progression Rank / Research / Legacy inference pure logic
 ├─ progression-ui.js     : Rank HUD / Research panel / unlock guards
 ├─ progression.css       : Progression UI styles
@@ -20,12 +21,12 @@ Game: Scrap Factory
 ├─ industrial-art.js     : Environment art / machine visual composition
 ├─ world.js              : Three.js scene / FPS movement / raycast / build placement
 ├─ world-runtime.js      : Runtime visual corrections + live building rotation
-└─ game.js               : Economy / inventory / machine process / transport / UI controller
+└─ game.js               : Economy / inventory / machine process / power integration / transport / UI controller
 ```
 
 `index.html`のImport Mapで`./world.js`を`./world-runtime.js`へ解決する。`world-runtime.js`は既存Worldを継承し、Save / Economy / Production contractを変更せずRuntime visual correctionと設置済みConveyorのVisual rotationを担当する。
 
-Progression UIは`factory-management.js`から読み込む。既存`game.js`の生産・物流Loopを置換せず、Rank / ResearchのPure LogicとUIを別Moduleに分離する。
+Progression UIは`factory-management.js`から読み込む。Rank / ResearchのPure LogicとUIを別Moduleに分離する。Phase 2-AではPower計算を`power.js`へ分離し、`game.js`は計算結果をMachine processへ適用する。Power gameplayを`world-runtime.js`へ置かない。
 
 ## 2. Save Contract
 
@@ -73,9 +74,18 @@ Progression Data:
 }
 ```
 
+Phase 2-A Power persistence:
+
+- Power generation / demand / coverage / shortage stateはSaveへ重複保存せず、`buildings[]`と`progressionRank`から毎回導出する。
+- Generatorの燃焼途中のみ`building.powerFuelSeconds`へ保存する。
+- `powerFuelSeconds`がない旧Buildingは`0`へNormalizeする。
 - Root Save Schema Versionは`1`のまま維持する。
+- Power導入のためだけに旧Saveを破壊的Migrationしない。
+
+General:
+
 - `progression.version`をProgression内部のVersionとして持つ。
-- `progressionRank`は1〜7を保存可能にし、Phase 1で実動作するRank Upは1→2→3まで。
+- `progressionRank`は1〜7を保存可能にし、現在の通常Gameplayで実動作するRank Upは1→2→3まで。
 - Building IDは表示名や配列Indexから分離した永続ID。
 - 旧Saveに`progression`がない場合は現行Factoryの使用Evidenceから最低Rank / Legacy Unlockを推定する。
 - Legacy Saveで既にSmelter / Storageを使用していればRank 2相当を補完する。
@@ -83,7 +93,7 @@ Progression Data:
 - 既に鉄板 / 工具セットCraftを使用したEvidenceがあれば`basic_fabrication`を完了扱いにし、旧機能を失わせない。
 - Existing AchievementはProgression Rankへ変換せず保持する。
 
-Visual Foundation V2 / Runtime Visual Fix / Directional Conveyor & UX UpdateではSave Schemaを変更しない。旧Saveはnormalizeし、新しい`settings.showShortcuts`は既定値`true`で補完する。Phase 1 ProgressionでもRoot Schema Versionは変更しない。
+Visual Foundation V2 / Runtime Visual Fix / Directional Conveyor & UX Update / Phase 1 Progression / Phase 2-A Power CoreではRoot Save Schemaを変更しない。旧Saveはnormalizeし、新しいOptional fieldを既定値で補完する。
 
 ## 3. World
 
@@ -154,6 +164,15 @@ Machine Panelでは用途説明、Recipe Input / Output、処理時間、Buffer�
 
 Phase 1では新規Saveの鉄板Hand Craftを`Basic Fabrication` Researchで解放する。Legacy Saveで既に鉄板 / 工具セットCraftを使用したEvidenceがある場合は互換性のためResearch済み扱いにする。
 
+Rank 4以降:
+
+- Crusher: 18 Power
+- Smelter: 30 Power
+- Conveyor / Storage / Seller: Phase 2-AではPassive
+- Power不足中のMachineは処理Progressを保持したまま停止する。
+- Power復旧時は保持Progressから処理を再開する。
+- Power停止でInput / Output Itemを削除しない。
+
 ## 6. Directional Conveyor Contract
 
 ### Core
@@ -196,7 +215,7 @@ Progression Rankの必須自動Line判定も同じDirectional Route helperを利
 
 - Center Raycast
 - 対象を見ている間はWorld側に小さいInteraction Markerを表示
-- `E`: Scrap回収 / Machine操作 / Conveyor設定
+- `E`: Scrap回収 / Machine操作 / Conveyor設定 / Generator燃料投入
 - `B`: Build menu
 - Build中: Left Click設置 / `R` 90°回転 / Right Click or `Esc`終了
 - `F`: Dismantle Mode ON / OFF
@@ -346,6 +365,7 @@ Far
 - Smelter: Furnace body + rings + chimney + glowing door + pipe
 - Conveyor: Belt + rollers + side rails + support legs + yellow direction arrows
 - Storage: Corrugated container + frame + door detail
+- Scrap Generator / Power Pole: Phase 2-A core logicは実装済み。専用Silhouetteは後続Visual passで確定する。
 
 同じ`BUILDINGS` / Save ID / Collision Gridを維持し、見た目だけを差し替え可能にする。
 
@@ -381,6 +401,9 @@ Far
 - Descriptionを常時表示
 - RecipeはInput → Output → Secondsとして表示
 - ConveyorはBuffer UIを隠し、Direction + Rotate / Reverseを前面に出す
+- GeneratorはFuel / generation / remaining seconds / current Power summaryを表示
+- Power PoleはGrid connection状態とCoverage guidanceを表示
+- Power停止中のMachineは`POWER STOP / 給電範囲外`または`POWER STOP / 発電不足`を表示
 - Removalは100% refundと安全なBuffer returnを表示
 
 ## 13. Dependencies
@@ -392,13 +415,15 @@ CDN障害時は3D Gameは起動できない。HubとSave DataはThree.jsに依�
 ## 14. Known Limits
 
 - Mobile Touch FPS操作なし（Desktop primary）
-- Phase 1 ProgressionはRank 1 → 2 → 3まで。Rank 4以降は未実装
+- 通常GameplayのProgression Rank UpはRank 1 → 2 → 3まで。Rank 4への自然な到達条件は探索Phaseで未接続
+- Phase 2-A Power CoreはRank 4 Save状態で有効。Generator / Power Pole専用Visualは後続Visual pass
 - Blueprint必須Researchの取得元となる独立探索AreaはPhase 3以降
 - Conveyor Splitter / Merger専用設備は未実装。現状は1 Conveyor = 1 output direction
-- Conveyor speed tier / throughput bottleneckは未実装
+- Conveyor Mk.2 / speed tier / throughput bottleneckは未実装
+- Battery基盤 / Storage拡張 / Phase 2新Recipeは未実装
 - Enemy / Weapon / HealthはMVP後
 - 外部3D Model / Image Textureなし。現状はProcedural Geometry / Runtime Canvas Texture中心
-- Visual / Pointer Lock / Progression Panel / Build unlock guardは実ブラウザReviewを継続する
+- Visual / Pointer Lock / Progression Panel / Power Machine browser flowは実ブラウザReviewを継続する
 
 ## 15. Phase 1 Progression Contract
 
@@ -410,7 +435,7 @@ CDN障害時は3D Gameは起動できない。HubとSave DataはThree.jsに依�
 - Achievementは削除しない。
 - Achievement数から`progressionRank`を直接決めない。
 - Progression Dataは1〜7を保存可能。
-- Phase 1でRank Up可能なのは1→2→3。
+- 現在通常GameplayでRank Up可能なのは1→2→3。
 
 ### Rank 1 → 2
 
@@ -478,7 +503,9 @@ Phase 1実装:
 新規Save:
 
 - Smelter / StorageはRank 2未満でBuild UI / Quick Buildから選択不可。
+- Scrap Generator / Power PoleはRank 4未満でBuild不可。
 - Iron Plate Hand Craftは`basic_fabrication`未研究では選択不可。
+- `game.js` coreでもBuild / Craft unlockを再検証し、UI guardだけをSecurity / correctness boundaryにしない。
 
 Legacy Save:
 
@@ -496,8 +523,6 @@ Rank Up / Research確定時:
 3. Page Reload時の`beforeunload` / `pagehide`で、既存`game.js`の最後のSave後にProgressionを再Merge。
 4. Reload後は通常の`storage.js` normalize結果としてGame Runtimeへ入る。
 
-これにより、Phase 1追加のために既存Production / Conveyor Runtimeを大規模変更しない。
-
 ### Regression
 
 `scripts/progression.test.mjs`で最低限次を確認する。
@@ -510,3 +535,65 @@ Rank Up / Research確定時:
 - `Basic Fabrication` ResearchとIron Plate unlock。
 - Blueprint未発見Researchの拒否。
 - Legacy Smelter / Storage / Craft unlock migration。
+
+## 16. Phase 2-A Power Core Contract
+
+### Activation / Compatibility
+
+- Power systemは`progressionRank >= 4`で有効。
+- Rank 1〜3は`legacy` Power modeとして扱い、既存Productionを止めない。
+- Phase 2-Aの実装によって現在のRank 1〜3 Saveへ電力構築を強制しない。
+- Rank 4への通常到達条件は後続Exploration progressionで接続する。
+
+### Starter Grid
+
+- Factory Base中心 `(0, 0)` から半径17.5m。
+- Capacity: 55 Power。
+- Rank 4へ移行した直後の小型Factoryを突然停止させないための互換層。
+- Crusher 18 + Smelter 30 = 48 PowerはStarter Gridだけで維持可能。
+
+### Scrap Generator
+
+- Building ID: `generator`
+- Unlock: Rank 4
+- Cost: `$260`
+- Fuel: 鉄くず1個
+- Fuel cycle: 24秒
+- Generation: 80 Power
+- Fuelは通常のMachine input bufferを使用するため、手動投入とDirectional Conveyor供給の両方を許可する。
+- Fuel cycle中の残秒は`powerFuelSeconds`へ保存する。
+
+### Power Pole
+
+- Building ID: `power_pole`
+- Unlock: Rank 4
+- Cost: `$45`
+- Pole link range: 12.5m
+- Consumer coverage radius: 10m
+- Starter Grid内のPole、Generatorから12.5m以内のPole、接続済みPoleから12.5m以内のPoleを接続済みとして伝播する。
+
+### Shortage / Recovery
+
+- GenerationよりDemandが大きい場合はProduction Machineをdeterministic orderで給電する。
+- CrusherをSmelterより先に維持し、同PriorityではBuilding ID順で安定させる。
+- 給電されないMachineは停止する。
+- 停止時にRecipe Inputを消費しない。
+- 停止時にOutputを削除しない。
+- 停止時に途中Progressを0へ戻さない。
+- Generationが回復すれば同Progressから自動再開する。
+- 給電範囲外と供給不足を別ReasonとしてUIへ出す。
+- ConveyorはPhase 2-AではPassiveのため、Power shortage中もFuel搬送を継続できる。これによりGeneratorへ燃料が届いてRecoveryできる。
+
+### Regression
+
+`scripts/power.test.mjs`で最低限次を確認する。
+
+- Rank 3以前ではPower無効。
+- Rank 4小規模FactoryはStarter Gridだけで動作。
+- Demand超過でShortage発生。
+- FuelなしGeneratorは発電しない。
+- 鉄くずを消費してGeneratorが発電しShortageからRecovery。
+- 遠隔MachineはCoverage外として停止。
+- Pole chainでCoverageを延長できる。
+- Power snapshot計算でInput / Output Bufferを変更しない。
+- Power allocationがdeterministic。
