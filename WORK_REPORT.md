@@ -4,194 +4,167 @@ Date: 2026-09-04
 
 ## Scope
 
-`EliteMay/game`のGame HubとGame 01 `Scrap Factory`をPlayable MVPから、Steam掲載相当を目標に継続改善。
+`EliteMay/game` のGame HubとGame 01 `Scrap Factory`を、Playable MVPからSteam掲載相当を目標に継続改善。
 
-今回の重点:
+現在までの主要段階:
 
-- Visual Foundation V2のRuntime不具合修正
-- ConveyorをVisual-only rotationからDirectional Logisticsへ昇格
-- Conveyorの設置後編集 / 解体を追加
-- Tutorial / Shortcut / Guide / Machine説明を増やし、初見でも操作を理解できる状態へ改善
+1. Playable MVP
+2. Visual Foundation V2
+3. Runtime visual regression fix
+4. Directional logistics / 操作説明改善
+5. Factory Management Pack
 
-## Implemented
-
-### Hub
-
-- Launcher / Library型Home
-- Playable / Plannedの明確なStatus
-- Scrap Factory Save Summary
-- Total Play Time
-- Save JSON Export / Import
-- Responsive layout
-
-### Scrap Factory / Gameplay Base
+## Current Gameplay
 
 - Three.js first-person 3D world
-- WASD / Sprint / Jump / Pointer Lock
 - Scrap Yard + Factory Base
-- Scrap respawn
+- Scrap collection / respawn
 - 12-slot backpack
 - Direct selling
-- Build mode / 2.5m grid / rotation
+- Free building on 2.5m grid
 - Hopper / Seller / Crusher / Smelter / Conveyor / Storage
-- Machine buffers + processing cycles
+- Directional conveyor transport
+- Conveyor rotation / reverse after placement
+- Safe dismantle mode with full build-cost refund
+- Machine input/output buffers and processing cycles
 - Hand crafting
 - Cash / Revenue
 - Tutorial contract / free-play transition
-- Autosave / recovery copy / reset / export
-- Graphics / sensitivity / volume / FPS settings
-- Procedural Web Audio sound
+- Autosave / recovery / reset / JSON export
+- Graphics / sensitivity / volume / FPS / shortcut settings
+- In-game Field Manual / Codex
 
-### Visual Foundation V2
+## Visual Foundation
 
-- Gradient Sky / Cloud / Fog
-- Procedural Concrete / Dirt Texture
-- Oil stain / Lane marking / Hazard stripe
-- Chain-link fence / Gate gantry / Workshop / Awning / Floodlight
-- Container / Scrap pile / Tire / Barrel / Cable spool / Crushed car / Crane
-- 遠景Silo / Chimney / Pipe bridge / Industrial silhouette
-- Collectible Scrap 4種類の専用形状
-- Machine用途別Silhouette
-- Interaction Marker
-- Head Bob / Sprint FOV
-- Static sceneryとBuild placement Collision連携
+- Gradient sky / cloud / fog
+- Procedural concrete / dirt surfaces
+- Oil stain / lane marking / hazard stripe
+- Chain-link fence / gate / workshop / awning / floodlight
+- Scrap-yard props: container / tire / barrel / spool / vehicle / crane / piles
+- Distant silo / chimney / pipe bridge / industrial silhouette
+- Dedicated collectible shapes
+- Purpose-specific machine silhouettes
+- Interaction marker / head bob / sprint FOV
+- Static scenery collision with build placement
 
-### Runtime Visual Bug Fix
+## Directional Logistics / QoL
 
-User screenshotをRuntime Evidenceとして次を修正。
+User playtest feedback addressed:
 
-- Chain-link panelが支柱から90°ずれる問題
-- Fence visual / collider alignment
-- Chain-link shadowの巨大格子影
-- Collectible Scrapの固定Yによる浮き
-- Spawn / Respawn双方でBounding Box接地
+- Conveyor can be dismantled with `F` dismantle mode
+- Conveyor direction can be edited after placement with `E`
+- Crusher output no longer follows an input-side conveyor backward
+- Yellow conveyor arrow is the actual logistics direction
+- Build / dismantle contextual hints
+- Static shortcut HUD
+- Detailed machine description / recipe flow / processing time
+- `O` re-openable field manual
 
-### Directional Conveyor / Factory QoL Update
+Regression test: `scripts/logistics.test.mjs`.
 
-User feedback:
+## Factory Management Pack
 
-- Conveyorを壊せない
-- Conveyorの向きを設置後に変えられない
-- Crusher outputが逆向きへ流れる
-- 説明が少なすぎる
-- Button / Key説明が欲しい
+Factory-game management conventions were researched from current official Satisfactory / Factorio documentation and transferred as task patterns, not copied UI/assets.
 
-対応:
+### Added
 
-- `logistics.js`を追加し、Conveyor `rotation`をActual transport ruleへ接続
-- 黄色い矢印 = 実搬送方向へ統一
-- Source Machineから最初のBeltはInput側がSourceへ接している場合のみ搬送開始
-- Conveyorは自分の矢印方向1CellへだけOutput
-- Crusher Input側の逆向きBeltへ完成品が逆走しない構造へ変更
-- 設置済みConveyorを`E`で開けるよう変更
-- Conveyor Panelに`右へ90°回転` / `向きを反転`を追加
-- Rotation変更をReloadなしでWorld Meshへ反映
-- `F` Dismantle Mode追加
-- Player-built設備をLeft Clickで撤去
-- 建築費100%返金
-- Machine Buffer内のItemをInventoryへ安全に返却
-- Inventoryへ収まらない場合はItem loss防止のため撤去拒否
-- Starter Hopper / Sellerは固定設備として維持
-- `O` Field Manual / Codex追加
-- HUD下部にStatic Shortcut Bar追加
-- Build Mode / Dismantle ModeにDynamic Hint追加
-- Machine PanelへDescription / Recipe Flow / Seconds表示追加
-- Tutorial本文を「何をするか + どのKeyを使うか」まで拡充
-- SettingsへShortcut Bar表示ON/OFF追加
+- `P` Factory Management console
+- `1〜5` quick-build shortcuts
+- Factory summary:
+  - cash
+  - lifetime revenue
+  - session revenue/minute
+  - total/player-built equipment
+  - active/waiting machines
+  - items in machine buffers
+  - discovered items
+  - play time
+- Factory Alerts:
+  - machine material wait
+  - machine output stall with no route
+  - conveyor dead-end
+- 8 challenges / achievements
+- Challenge HUD pinning
+- Factory rank derived from achievements
+- Production Planner:
+  - choose recipe output
+  - set target units/minute
+  - back-calculate machine count and raw-material rate
+- Searchable Codex:
+  - item value / stack / category
+  - building price / purpose / recipe
+- Session event log from game toasts
+- HUD alert-count badge
 
-## Factory Game Research
+### Architecture
 
-Gameplay UX / Logisticsの参考として、見た目をコピーせずTask structureを確認。
-
-- Satisfactory Official Wiki / Conveyor Belts
-  - Input / Output方向をVisualで明確化し、Belt DirectionをActual logisticsとして扱う
-- Satisfactory Official Wiki / Build Gun
-  - Dismantle Mode / build hologram / guideline / quick interaction
-- Satisfactory Official Wiki / HUD
-  - Static shortcutとContextual shortcutを分ける
-- Satisfactory Official Wiki / Controls / Onboarding
-  - Codexを通常Gameplayからいつでも参照可能にする
-  - Objective中にも具体的なKey promptを表示
-- Factorio Wiki / Tutorial / Quick Panel
-  - Goal-driven tutorialとTips / information panelを分離
-
-採用したTransfer:
+New files:
 
 ```text
-Directional logistics
-+ Dismantle mode
-+ Static shortcut
-+ Contextual shortcut
-+ Re-openable Codex
-+ Explicit tutorial instructions
+games/scrap-factory/
+├─ factory-management.js   : Pure analysis / challenge / planner logic
+├─ feature-pack.js          : Browser integration / management UI / quick-build
+└─ factory-management.css  : Management UI styles
+
+scripts/
+└─ factory-management.test.mjs
 ```
+
+The pack intentionally does not replace `game.js` production/economy logic.
 
 ## Save / Compatibility
 
-今回もSave Schemaは変更していない。
+Core game save remains:
 
 - Root key: `elitemay-game-hub-v1`
 - Schema Version: `1`
-- Building `rotation`は既存fieldをそのままActual Logisticsへ利用
-- `settings.showShortcuts`は旧Saveに存在しなくてもDefault `true`で補完
-- Building ID / position / type contractを維持
 
-注意:
+Factory Management preferences are stored separately:
 
-旧VersionではConveyor rotationが物流に影響しなかったため、既存FactoryのBelt向きによってはUpdate後にLineが停止する可能性がある。`E`でConveyorを回転 / 反転すれば修正できる。
+- key: `scrap-factory-management-v1`
+- challenge unlock IDs
+- pinned challenge ID
+- planner target/rate
+
+No existing factory layout, building ID, inventory, economy or player data is migrated for this pack.
 
 ## Validation
 
-### Existing
+### Automated
 
-- Initial MVP: JavaScript / JSON / local refs / Project profiles
-- Visual Foundation V2: PR CI Pass / Main CI Pass / Pages Deploy Pass
-- Runtime Visual Fix: PR CI Pass / Main Pages Deploy Pass
+- JavaScript syntax baseline
+- JSON parse baseline
+- Local HTML ref validation
+- Required project files
+- Directional logistics regression tests
+- Factory management regression tests
+  - challenge completion
+  - dead-end conveyor alert
+  - blocked machine-output alert
+  - production-plan back calculation
 
-### Directional Logistics / UX
+PR #4 CI:
 
-- `logistics.js` pure logic化
-- `scripts/logistics.test.mjs`追加
-- Test coverage:
-  - Rotation 4方向
-  - 直進 → 90° turn route
-  - Sourceへ向いた逆向きConveyorへItemを出さない
-- Project Validatorで次をRequired化
-  - `game-ux.css`
-  - `logistics.js`
-  - `world-runtime.js`
-  - `logistics.test.mjs`
-- UX control ID presenceをValidatorで確認
-- PR CIで最終確認後にMergeする
+- `project-contract`: Pass
+- reusable `baseline / baseline`: Pass
 
-## Verification State
+### Browser / Visual
 
-Directional Logistics / UX Update:
+- Existing published game has prior user playtest evidence.
+- Factory Management Pack browser/pointer-lock/layout confirmation is pending the merged GitHub Pages build.
+- Static CI success is not treated as browser validation.
 
-- Implemented: Yes
-- Local pure logistics test: Pass
-- Local JavaScript syntax: Pass for authored changed modules
-- GitHub PR CI: Pending at this report revision
-- Browser Validated: Pending published build
-- User Validated: Pending published build
-- Save Schema Compatibility: Maintained
+## Known Limits / Next Large Features
 
-## Known Limits
+Not yet implemented:
 
-- Mobile touch controlsなし
-- Splitter / Merger専用設備は未実装
-- Conveyor speed tier / throughput bottleneckは未実装
-- Combat / Weapon / additional zonesは後続Phase
-- 外部3D Model / Image Textureはまだ使用せずProcedural Geometry中心
-- Dismantle target / Pointer Lock / Direction arrowの最終操作感は公開BrowserでReviewが必要
+- Research / technology tree with gameplay unlocks
+- Power generation / power demand
+- Splitter / merger
+- Conveyor throughput tiers
+- More automated recipes / assembler
+- New exploration areas
+- Combat / weapons / enemies
+- Authored external 3D assets
 
-## Next Validation
-
-1. Directional Logistics / UX Pull Request CI
-2. Merge後GitHub Pages Deploy
-3. 公開URLで`O` Guide / Shortcut表示
-4. `F` → Conveyor撤去
-5. Conveyor `E` → 90°回転 / 反転
-6. Hopper → Belt → Crusher → Belt → Sellerで矢印方向だけ搬送
-7. Crusher Input側BeltへOutputが逆走しないこと
-8. Save → Reload後もConveyor rotationが保持されること
+Next large gameplay phase should prioritize **Research + Power + new production chain**, while preserving the current save and directional-logistics contracts.
