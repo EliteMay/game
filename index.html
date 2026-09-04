@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111617">
+  <meta name="description" content="完成度の高いブラウザゲームを1本ずつ追加していくGame Hub。">
+  <title>Game Hub | EliteMay</title>
+  <link rel="stylesheet" href="./css/hub.css">
+</head>
+<body>
+  <div class="hub-shell">
+    <aside class="hub-rail">
+      <a class="brand" href="./index.html" aria-label="Game Hub ホーム">
+        <span class="brand__mark" aria-hidden="true">GH</span>
+        <span><strong>GAME HUB</strong><small>ELITEMAY / LIBRARY</small></span>
+      </a>
+
+      <nav class="rail-nav" aria-label="Hubナビゲーション">
+        <a class="is-active" href="#library"><span>01</span>ライブラリ</a>
+        <a href="#progress"><span>02</span>プレイ記録</a>
+        <a href="#roadmap"><span>03</span>開発予定</a>
+      </nav>
+
+      <section class="rail-status" aria-label="Hub情報">
+        <span>LIBRARY STATUS</span>
+        <strong>1 PLAYABLE</strong>
+        <small>ゲームは完成度を優先し、1本ずつ追加。</small>
+      </section>
+
+      <div class="rail-actions">
+        <button id="export-save" type="button">セーブを書き出す</button>
+        <label class="file-action">セーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label>
+      </div>
+    </aside>
+
+    <main class="hub-main">
+      <header class="hub-header">
+        <div>
+          <p>PERSONAL GAME LIBRARY</p>
+          <h1>遊べるものだけ、ライブラリに置く。</h1>
+        </div>
+        <div class="header-metrics" id="progress">
+          <div><span>TOTAL PLAY</span><strong id="total-playtime">0m</strong></div>
+          <div><span>GAMES</span><strong>01</strong></div>
+          <div><span>ACHIEVEMENTS</span><strong id="hub-achievements">0 / 1</strong></div>
+        </div>
+      </header>
+
+      <section id="library" class="featured-game" aria-labelledby="scrap-title">
+        <div class="featured-game__visual" aria-hidden="true">
+          <div class="factory-silhouette factory-silhouette--back"></div>
+          <div class="factory-silhouette factory-silhouette--front"></div>
+          <div class="conveyor-line"><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="visual-label">GAME 01</span>
+        </div>
+        <div class="featured-game__content">
+          <div class="game-meta"><span>PLAYABLE</span><span>FIRST PERSON</span><span>FACTORY / SALVAGE</span></div>
+          <h2 id="scrap-title">Scrap Factory</h2>
+          <p>廃材置き場を歩き回ってスクラップを回収し、粉砕・精錬・クラフト・販売。手作業からコンベア式の自動工場へ成長させる。</p>
+          <div class="save-summary">
+            <div><span>CASH</span><strong id="scrap-money">$40</strong></div>
+            <div><span>REVENUE</span><strong id="scrap-revenue">$0</strong></div>
+            <div><span>PLAY TIME</span><strong id="scrap-playtime">0m</strong></div>
+            <div><span>PROGRESS</span><strong id="scrap-progress">0 / 8</strong></div>
+          </div>
+          <div class="featured-game__actions">
+            <a class="launch-button" href="./games/scrap-factory/index.html">PLAY SCRAP FACTORY <span>→</span></a>
+            <span id="last-played" class="last-played">未プレイ</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="roadmap" class="library-section" aria-labelledby="library-title">
+        <div class="section-heading">
+          <div><p>LIBRARY</p><h2 id="library-title">次に増やすゲーム</h2></div>
+          <span>未完成ゲームは起動ボタンを出さない</span>
+        </div>
+        <div class="game-list">
+          <article class="game-row">
+            <span class="game-row__index">02</span>
+            <div class="game-row__type">PRODUCTION</div>
+            <div><h3>Chicken Drop</h3><p>生産ラインを強化して、ヒヨコを大量に送り込み利益を伸ばす物理系生産ゲーム。</p></div>
+            <strong class="status-badge">PLANNED</strong>
+          </article>
+          <article class="game-row">
+            <span class="game-row__index">03</span>
+            <div class="game-row__type">BREEDING</div>
+            <div><h3>Creature Ranch</h3><p>生物を育成・繁殖し、能力や個体差を見ながら理想の系統を作る。</p></div>
+            <strong class="status-badge">PLANNED</strong>
+          </article>
+          <article class="game-row">
+            <span class="game-row__index">04</span>
+            <div class="game-row__type">FPS</div>
+            <div><h3>Arena FPS</h3><p>短時間で繰り返せる、小規模マップの一人称シューティング。</p></div>
+            <strong class="status-badge">PLANNED</strong>
+          </article>
+          <article class="game-row">
+            <span class="game-row__index">05</span>
+            <div class="game-row__type">SANDBOX</div>
+            <div><h3>Block World</h3><p>採掘・クラフト・建築を軸にした3Dサンドボックス。長期候補。</p></div>
+            <strong class="status-badge">LATER</strong>
+          </article>
+        </div>
+      </section>
+
+      <footer class="hub-footer">
+        <span>GAME HUB / BUILD 001</span>
+        <a href="https://github.com/EliteMay/game">GitHub Repository</a>
+      </footer>
+    </main>
+  </div>
+
+  <div id="hub-toast" class="hub-toast" hidden aria-live="polite"></div>
+  <script type="module" src="./js/hub.js"></script>
+</body>
+</html>

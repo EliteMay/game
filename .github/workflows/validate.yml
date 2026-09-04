@@ -1,0 +1,26 @@
+name: Validate Web Game
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    uses: EliteMay/.github/.github/workflows/reusable-web-baseline.yml@89d184f743192f7203d39bfca67bcb632f770893
+    with:
+      node-version: '22'
+      syntax-paths: '. games scripts js'
+      check-json: true
+
+  project-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: npm run validate

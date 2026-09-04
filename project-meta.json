@@ -1,0 +1,16 @@
+{
+  "name": "Game Hub",
+  "repository": "EliteMay/game",
+  "guideVersionSource": "EliteMay/web-project-guide",
+  "profiles": ["STATIC", "MEDIA", "TOOL", "PUBLIC-CONTENT"],
+  "visualAmbition": "high",
+  "primaryDevice": "desktop",
+  "saveSchemaVersion": 1,
+  "games": [
+    {
+      "id": "scrap-factory",
+      "status": "playable-mvp",
+      "entry": "games/scrap-factory/index.html"
+    }
+  ]
+}
