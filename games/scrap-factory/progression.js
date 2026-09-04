@@ -169,8 +169,17 @@ export function normalizeProgression(candidate, game = null) {
 }
 
 export function ensureProgressionState(game) {
-  game.progression = normalizeProgression(game?.progression, game);
-  return game.progression;
+  const current = game?.progression;
+  const normalized = normalizeProgression(current, game);
+  if (isObject(current)) {
+    for (const key of Object.keys(current)) {
+      if (!Object.prototype.hasOwnProperty.call(normalized, key)) delete current[key];
+    }
+    Object.assign(current, normalized);
+    return current;
+  }
+  game.progression = normalized;
+  return normalized;
 }
 
 export function requiredBuildingRank(type) {
