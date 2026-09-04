@@ -60,3 +60,35 @@ User screenshotで次を確認。
 
 - WebGLのStatic CIでは「見える壁を通れる」「物が浮く」のようなVisual / Collider mismatchを検出できない。Screenshot feedbackをRuntime Evidenceとして扱う。
 - Visual Foundationの変更では、少なくともFence / Gate / Collectible / Building placementを実ブラウザで見るReview Gateが必要。
+
+## 2026-09-04 / Directional Logistics & Discoverability
+
+### Evidence
+
+User playtestで次を確認。
+
+- Conveyorを見ても撤去方法が分からず、実際にConveyorだけ通常の`E`操作対象から外れていた。
+- Build時に`R`回転できても、設置後の方向修正手段がなかった。
+- Conveyor visualの矢印と物流処理が分離しており、Crusher outputがInput側のConveyorへ逆向きに流れた。
+- Tutorial / HUD / Machine Panelの説明量が少なく、「何を押すか」「なぜ止まるか」が分からない。
+
+### Root Cause
+
+- MVPの物流はConveyorを4-neighbor無向Graphとして扱い、`rotation`はVisual-onlyだった。
+- Conveyorを`handleInteraction`で即returnしていたため、設定 / 撤去Panelへ到達できなかった。
+- 操作説明をBoot screenと短いObjective文へ集約しすぎており、Gameplay中に再確認できる情報層がなかった。
+
+### Keep
+
+- Visual direction indicatorはDecorationではなくRuntime ruleと同じSource of Truthへ接続する。
+- Factory gameの建築は試行錯誤が多いため、撤去・回転・反転を低コストにする。
+- Dismantle時は建築費だけでなくMachine BufferのItem lossも防ぐ。
+- 操作説明は1画面へ詰め込まず、`Static shortcut / Contextual hint / Re-openable Codex`の3層へ分ける。
+- TutorialはGoal名だけでなく「操作Key + 成功条件」まで書く。
+- Userが報告した逆流のような物流BugはPure Functionへ切り出し、Regression Testを持つ。
+
+### Watch
+
+- 旧SaveのConveyor rotationは以前Gameplayへ影響しなかったため、Directional化後に既存Lineが止まる可能性がある。Save破壊ではないがBehavior migrationとして案内が必要。
+- 現在のConveyorは1出力方向のみ。Splitter / Mergerを追加するときは暗黙の多方向探索へ戻さず、明示的なLogistics nodeとして設計する。
+- Dismantle / RotateはStatic CIだけではRaycast targetや操作感を検証できない。公開BrowserでUser validationを続ける。
