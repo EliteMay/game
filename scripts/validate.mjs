@@ -11,11 +11,14 @@ const required = [
   'js/hub.js',
   'games/scrap-factory/index.html',
   'games/scrap-factory/game.css',
+  'games/scrap-factory/game-ux.css',
   'games/scrap-factory/config.js',
+  'games/scrap-factory/logistics.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
   'games/scrap-factory/world-runtime.js',
   'games/scrap-factory/game.js',
+  'scripts/logistics.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -47,6 +50,12 @@ for (const file of jsFiles) {
   catch (error) { failures.push(`JavaScript syntax: ${path.relative(root, file)}\n${error.stderr?.toString() || error.message}`); }
 }
 
+try {
+  execFileSync(process.execPath, [path.join(root, 'scripts/logistics.test.mjs')], { stdio: 'pipe' });
+} catch (error) {
+  failures.push(`Directional logistics tests failed:\n${error.stderr?.toString() || error.stdout?.toString() || error.message}`);
+}
+
 const htmlFiles = ['index.html', '404.html', 'games/scrap-factory/index.html'];
 for (const relative of htmlFiles) {
   const full = path.join(root, relative);
@@ -69,10 +78,11 @@ for (const relative of htmlFiles) {
   if (!/<title>[^<]+<\/title>/i.test(html)) failures.push(`Missing title: ${relative}`);
 }
 
-const scrapIndex = fs.readFileSync(path.join(root, 'games/scrap-factory/index.html'), 'utf8');
-if (!scrapIndex.includes('"./world.js": "./world-runtime.js"')) {
-  failures.push('Scrap Factory import map is missing the runtime visual fix route.');
+const scrapHtml = fs.readFileSync(path.join(root, 'games/scrap-factory/index.html'), 'utf8');
+for (const id of ['open-guide-hud', 'guide-panel', 'machine-rotate', 'machine-reverse', 'dismantle-hint', 'shortcut-bar']) {
+  if (!scrapHtml.includes(`id="${id}"`)) failures.push(`Scrap Factory missing UX control: ${id}`);
 }
+if (!scrapHtml.includes('"./world.js": "./world-runtime.js"')) failures.push('Scrap Factory import map must route world.js through world-runtime.js');
 
 const textFiles = [];
 function collectText(dir) {
@@ -101,4 +111,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, directional logistics tests.`);
