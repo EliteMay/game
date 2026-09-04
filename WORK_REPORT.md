@@ -168,3 +168,33 @@ Not yet implemented:
 - Authored external 3D assets
 
 Next large gameplay phase should prioritize **Research + Power + new production chain**, while preserving the current save and directional-logistics contracts.
+
+## Requirements Planning Update — 2026-09-05
+
+`Scrap Factory` の長期要件を詳細化し、`REQUIREMENTS.md` をゲーム内容・進行・探索・自動化に関する正本として拡張した。
+
+今回確定 / 詳細化した主な内容:
+
+- Rank 1〜7を必須目標 + 選択目標方式で進行
+- Rank / Research / Explorationの役割分担
+- Factoryと現行Scrap Yardは同一Sceneを維持
+- 廃住宅街 / 廃工場 / 軍事施設 / 崩壊した研究施設は独立探索Scene
+- Slot + Weight Backpack / Secure Case
+- 軽い戦闘 / HP / 探索失敗Contract
+- Research / Blueprint / Research Data
+- Power / Generator / Battery
+- Splitter / Merger / Smart Sorter / Priority / Overflow / Conveyor Tier
+- Assembler / Fabricator / Recipe階層
+- Droneによる発見済み通常Resource Pointの自動回収
+- Economy / Optional Order / Factory Expansion
+- Build Move / Upgrade / Quick Build / Elevated Logistics / 小規模Blueprint
+- Factory Management / Alerts / Planner / Bottleneck確認
+- Challenge / Achievement
+- Tutorial / UI / Difficulty / Accessibility
+- Save / Exploration Session / Backup / Migration
+- Mega Factory / Main Clear / Clear後Optimization
+- Browser向けPerformance / Scale Target
+
+この更新は**要件定義のみ**であり、上記の長期機能が実装済みになったことを意味しない。
+
+現行実装のPlayable MVP、Save Schema Version 1、Directional Conveyor Contract、2.5m Grid、Factory座標系は変更していない。
