@@ -335,6 +335,19 @@ function buildFullAutomationFixture() {
     if (needsBranchTrunk) sourceTrunks.set(source.id, { firstKey: key(first.gx, first.gz), branches: 1 });
   }
 
+  // Reserve output lanes first so later input buses cannot consume Splitter branch cells.
+  connect(core, storage, 'core-storage');
+  connect(experimental, core, 'experimental-core');
+  connect(control, experimental, 'control-experimental');
+  connect(control, core, 'control-core');
+  connect(circuit, control, 'circuit-control');
+  connect(circuit, experimental, 'circuit-experimental');
+  connect(motor, control, 'motor-control');
+  connect(plate, experimental, 'plate-experimental');
+  connect(alloy, experimental, 'alloy-experimental');
+  connect(alloy, powerA, 'alloy-power');
+
+  // Feed the reserved production graph from Advanced Drone and metallurgy sources.
   connect(scrap, crusher, 'scrap-crusher');
   connect(crusher, smelter, 'crusher-smelter');
   connect(smelter, plate, 'smelter-plate');
@@ -342,18 +355,8 @@ function buildFullAutomationFixture() {
   connect(copper, motor, 'copper-motor');
   connect(copper, circuit, 'copper-circuit');
   connect(electronics, circuit, 'electronics-circuit');
-  connect(plastic, circuit, 'plastic-circuit');
-  connect(motor, control, 'motor-control');
-  connect(circuit, control, 'circuit-control');
   connect(plastic, control, 'plastic-control');
-  connect(control, experimental, 'control-experimental');
-  connect(alloy, experimental, 'alloy-experimental');
-  connect(circuit, experimental, 'circuit-experimental');
-  connect(plate, experimental, 'plate-experimental');
-  connect(experimental, core, 'experimental-core');
-  connect(control, core, 'control-core');
-  connect(core, storage, 'core-storage');
-  connect(alloy, powerA, 'alloy-power');
+  connect(plastic, circuit, 'plastic-circuit');
 
   function addCoveragePole(id, preferred, consumers) {
     for (let radius = 0; radius <= 4; radius += 1) {
