@@ -26,6 +26,16 @@ export const RESEARCH = {
     description: '探索Researchの入口。Blueprint未発見では研究できない。',
     unlocks: ['research:exploration_i'],
   },
+  grid_storage: {
+    id: 'grid_storage',
+    title: 'Grid Storage',
+    name: '電力蓄電技術',
+    category: 'Power',
+    requiredRank: 4,
+    researchDataCost: 2,
+    description: '余剰電力を蓄え、発電不足時に自動放電するグリッドバッテリーを解放する。',
+    unlocks: ['building:battery'],
+  },
 };
 
 const BUILDING_UNLOCK_RANK = {
@@ -36,6 +46,12 @@ const BUILDING_UNLOCK_RANK = {
   merger: 4,
   generator: 4,
   power_pole: 4,
+  battery: 4,
+  industrial_storage: 5,
+};
+
+const BUILDING_RESEARCH_UNLOCK = {
+  battery: 'grid_storage',
 };
 
 const RANK_REWARDS = {
@@ -191,11 +207,27 @@ export function requiredBuildingRank(type) {
   return BUILDING_UNLOCK_RANK[type] || 1;
 }
 
-export function isBuildingUnlocked(game, type) {
+export function requiredBuildingResearch(type) {
+  return BUILDING_RESEARCH_UNLOCK[type] || null;
+}
+
+export function buildingUnlockState(game, type) {
   const progression = ensureProgressionState(game);
   const requiredRank = requiredBuildingRank(type);
-  if (progression.progressionRank >= requiredRank) return true;
-  return progression.legacyUnlocks.includes(`building:${type}`);
+  const requiredResearch = requiredBuildingResearch(type);
+  const legacy = progression.legacyUnlocks.includes(`building:${type}`);
+  if (legacy) return { unlocked: true, reason: null, requiredRank, requiredResearch };
+  if (progression.progressionRank < requiredRank) {
+    return { unlocked: false, reason: 'rank', requiredRank, requiredResearch };
+  }
+  if (requiredResearch && !progression.completedResearch.includes(requiredResearch) && !progression.unlocks.includes(`building:${type}`)) {
+    return { unlocked: false, reason: 'research', requiredRank, requiredResearch };
+  }
+  return { unlocked: true, reason: null, requiredRank, requiredResearch };
+}
+
+export function isBuildingUnlocked(game, type) {
+  return buildingUnlockState(game, type).unlocked;
 }
 
 export function isHandCraftUnlocked(game, craftId) {
