@@ -27,17 +27,22 @@ Factory / Scrap Yard
 → Core Stabilizer
 → Experimental Archive
 → Experimental Technology Research
+→ Advanced Drone / Experimental Power
+→ automated Plate / Motor / Circuit production
+→ Experimental Component Fabricator
+→ Autonomous Industrial Core Fabricator
+→ Autonomous Industrial Core → Storage directional route
 ```
 
-現在は **Phase 6-B: Fabricator / Central Core / Experimental Technology**。
+現在は **Phase 6-C: Final Automation / Autonomous Industrial Core**。
+
+`REQUIREMENTS.md` の Rank 7 → Main Clear 手順8まで実装済み。
 
 未実装:
-- Advanced Drone
-- Experimental Power System
-- Autonomous Industrial Core complete production line
 - Mega Factory stable-operation objective
 - Main Clear
-- final Hybrid Asset quality pass
+- clear-after optimization objectives
+- final Hybrid Asset / Lighting / VFX / LOD quality pass
 
 ---
 
@@ -47,6 +52,8 @@ Factory / Scrap Yard
 Scrap Factory
 ├─ config.js
 ├─ final-chapter.js
+├─ final-automation.js
+├─ production-recipes.js
 ├─ logistics.js
 ├─ power.js
 ├─ storage-capacity.js
@@ -62,15 +69,14 @@ Scrap Factory
 │  ├─ progression-phase5a.js
 │  ├─ progression-phase5b.js
 │  ├─ progression-phase5c.js
-│  └─ progression-phase6b.js
+│  ├─ progression-phase6b.js
+│  └─ progression-phase6c.js
 ├─ progression-ui.js
-│  ├─ progression-ui-v3.js
-│  └─ phase5c-automation-ui.js
+│  ├─ progression-ui-v4.js
+│  └─ automation-ui.js
 ├─ exploration.js
 │  ├─ exploration-core-v4.js
 │  └─ exploration-core-v5.js
-├─ exploration-ui.js
-│  └─ exploration-ui-v2.js
 └─ exploration/
    ├─ residential.*
    ├─ industrial.*
@@ -80,7 +86,7 @@ Scrap Factory
 
 Compatibility entrypoints `progression.js` / `exploration.js` / `progression-ui.js` を維持する。
 
-Phase 6-Bでも巨大な`game.js`へ新しいFabricator専用Simulationは追加しない。`config.js`のRecipe / Building定義を既存Generic Production Runtimeへ接続する。
+Phase 6-Cでも `game.js` にAdvanced Drone / Fabricator / Experimental Power専用Simulationを増やさず、既存Generic Production / Drone / Generator / Directional Logistics Runtimeへ接続する。
 
 ---
 
@@ -95,7 +101,7 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-BでもSchema Version変更なし。
+Phase 6-CでもSchema Version変更なし。
 
 ### Additive Research Area state
 
@@ -108,21 +114,16 @@ areas.research.centralCore = {
 }
 ```
 
-Existing `areas.research.objective.centralCoreUnlocked` / `completed` と組み合わせる。
+### Additive inventory
 
-Normalize:
-- Phase 6-A Saveに`centralCore`がない場合は全falseを補完
-- `archiveRecovered=true`ならCore install / Stabilizer / Objective completionを整合させる
-- Residential / Industrial / Military / Three-Lab stateを維持
-
-### Final Component inventory
-
-Default inventoryへAdditive key:
 - `ai_control_module`
 - `experimental_frame`
 - `experimental_power_module`
+- `autonomous_industrial_core`
 
-既存Saveは0で補完。
+既存Saveは不足keyを0で補完する。
+
+Final Automation completion専用のpersistent flagは保存しない。Topology / Power / product evidenceは現在のFactory stateから導出する。
 
 ---
 
@@ -141,18 +142,6 @@ Blueprint: tri_lab_fabrication_blueprint
 Unlock: building:fabricator
 ```
 
-Blueprint normal flow:
-```text
-Three Labs recovered
-→ Special Cargo 3 / 3正常帰還
-→ tri_lab_fabrication_blueprint
-```
-
-Legacy Phase 6-A compatibility:
-- 既に`securedComponents` 3/3のSaveはBlueprint fieldがなくてもResearch gateを満たす
-- Research完了時にBlueprintをProgressionへmaterializeする
-- 再探索を要求しない
-
 ### `experimental_technology`
 
 ```text
@@ -162,113 +151,258 @@ Blueprint: central_core_experimental_blueprint
 Unlocks:
 - tier:experimental
 - production:autonomous_core
+- production:automated_components
+- building:advanced_drone_port
+- building:experimental_power_system
 ```
 
-Central Core Archive回収でBlueprint + Research Data 4を保証する。
-
-Phase 6-Bではunlock markerだけを追加し、Autonomous Industrial Core Recipe / Advanced Drone / Experimental Powerを実装済みとは扱わない。
+Phase 6-Bの既存 `completedResearch` 互換を維持する。旧Saveで `experimental_technology` 完了済みなら、新しいPhase 6-C building gateにもResearch完了として扱う。
 
 ---
 
-## 5. Fabricator
+## 5. Production Recipe Families
+
+Source: `production-recipes.js`
+
+### Assembler family
+
+Building types:
+- `assembler`
+- `assembler_plate`
+- `assembler_motor`
+- `assembler_circuit`
+
+Recipes:
+
+```text
+assembler_control_unit
+motor ×1 + circuit ×2 + plastic ×1
+→ control_unit ×1 / 8 sec
+```
+
+```text
+assembler_iron_plate
+iron_ingot ×2
+→ iron_plate ×1 / 4 sec
+```
+
+```text
+assembler_motor
+iron_ingot ×2 + copper_wire ×2
+→ motor ×1 / 6 sec
+```
+
+```text
+assembler_circuit
+copper_wire ×2 + e_waste ×1 + plastic ×1
+→ circuit ×1 / 6 sec
+```
+
+Assembler variants are internal recipe-state building types and are not separate direct-build entries.
+
+### Fabricator family
+
+Building types:
+- `fabricator`
+- `fabricator_core`
+
+Experimental set:
+
+```text
+control_unit ×2
++ rare_alloy ×3
++ circuit ×2
++ iron_plate ×2
+→ ai_control_module ×1
+ + experimental_frame ×1
+ + experimental_power_module ×1
+/ 20 sec
+```
+
+Autonomous Core:
+
+```text
+ai_control_module ×1
++ experimental_frame ×1
++ experimental_power_module ×1
++ control_unit ×1
+→ autonomous_industrial_core ×1
+/ 30 sec
+```
+
+Final recipeは4 input type以内。
+
+### Safe recipe switching
+
+`assignProductionRecipe()`:
+
+- 同一family内だけ切替可能
+- required Researchを確認
+- 新Recipeで受け付けないItemがInput Bufferに残る場合 `buffer-conflict` で拒否
+- Output Bufferは保持
+- Building ID / position / rotation等は保持
+- `progress = 0`
+- building `type` を対応variantへ変更
+
+Automation Consoleからsave後reloadして、module-local runtime stateとの不一致を避ける。
+
+---
+
+## 6. Advanced Drone Contract
+
+Source: `drone-routes.js`
+
+Drone tier:
+- `utility`
+- `advanced`
+
+Utility compatibility:
+
+| Resource Point | Item | Cycle |
+| --- | --- | ---: |
+| residential-copper-network | copper_wire | 8s |
+| industrial-electronics-cache | e_waste | 10s |
+| military-alloy-cache | rare_alloy | 12s |
+
+Advanced:
+
+| Resource Point | Item | Cycle | Capacity/min |
+| --- | --- | ---: | ---: |
+| industrial-scrap-reserve | metal_scrap | 4s | 15 |
+| residential-copper-network | copper_wire | 5s | 12 |
+| residential-polymer-stockpile | plastic | 6s | 10 |
+| industrial-electronics-cache | e_waste | 6s | 10 |
+| military-alloy-cache | rare_alloy | 8s | 7.5 |
+
+Advanced Drone Port:
+
+```text
+Rank: 7
+Research: experimental_technology
+Cost: $1450
+Power Use: 95
+```
+
+`residential-polymer-stockpile` / `industrial-scrap-reserve` はAdvanced-only route。Utility Droneへ割り当てようとすると `tier-unavailable`。
+
+既存Utility Drone compatibilityとRank 6→7 Military Alloy mandatoryを維持する。
+
+---
+
+## 7. Experimental Power System
 
 Building:
 
 ```text
-id: fabricator
+id: experimental_power_system
 Rank: 7
-Research: experimental_fabrication
-Cost: $1250
-Power Use: 110
-Category: production
+Research: experimental_technology
+Cost: $1900
+Fuel: rare_alloy ×1
+Fuel duration: 24 sec
+Generation: 480 Power
 ```
 
-FabricatorはAssemblerの単純高速上位互換ではなくExperimental Tier専用Machine。
+既存 `power.js` Generator contractを再利用する。
 
-### Phase 6-B batch recipe
+Final Automationでは:
+- Advanced Rare Alloy sourceからDirectional routeが存在
+- Fuel systemがactive
+- final production line上のPower consumerがpowered
 
-```text
-fabricator_experimental_set
-
-Input:
-- control_unit ×2
-- rare_alloy ×3
-- circuit ×2
-- iron_plate ×2
-
-20.0 sec
-
-Output:
-- ai_control_module ×1
-- experimental_frame ×1
-- experimental_power_module ×1
-```
-
-Input種類は要件のFinal Tier原則4種類以内を満たす。
-
-既存Generic Runtimeを再利用:
-- Power
-- Input Buffer
-- Progress
-- Output Buffer
-- Directional Logistics
-- Back Pressure先のStorage / logistics
-- Save
-- discoveredItems
-
-Recipe変更UIはPhase 6-Bでは不要。現在FabricatorはこのExperimental batch専用。
+を要求する。
 
 ---
 
-## 6. Final Component Set Contract
+## 8. Final Automation Analyzer
 
-Source: `final-chapter.js`
+Source: `final-automation.js`
 
-Final Component ID:
-- `ai_control_module`
-- `experimental_frame`
-- `experimental_power_module`
+`analyzeFinalAutomation(game)` はpure derived analysisとして、現在のFactory graphを解析する。
 
-Central Core install stockとして数える場所:
-- Factory `inventory`
-- Building `output` buffer
+Stage:
 
-数えない場所:
-- Machine `input` queue
+- `experimentalTechnology`
+- `advancedScrap`
+- `advancedCopper`
+- `advancedPlastic`
+- `advancedElectronics`
+- `advancedAlloy`
+- `metallurgy`
+- `plateAutomation`
+- `motorAutomation`
+- `circuitAutomation`
+- `controlAutomation`
+- `experimentalSetAutomation`
+- `autonomousCoreAutomation`
+- `finalStorageRoute`
+- `experimentalPowerRouted`
+- `experimentalPowerActive`
+- `poweredLine`
+- `productProven`
 
-理由:
-- 他Recipeへ投入済みの予約素材をProgression側が横取りしない
+### Route source of truth
 
-### Atomic consume
+全stageは既存 `findDirectionalRoutes()` を利用する。
 
-`consumeFinalComponentSet(game)`:
+新しいFinal専用Graph / cached completion routeは作らない。
+
+### Candidate chaining
+
+各中間Machine stageは:
 
 ```text
-3種すべて1個以上存在確認
-↓
-不足 → no mutation
-↓
-揃っている → 各1個をInventory → Building Output順で消費
+upstream candidate
+→ directional route
+→ target machine
+→ next candidate
 ```
 
-一部だけ消費してGate解放失敗する状態を作らない。
+としてIDとroute throughputを引き継ぐ。
+
+複数入力Recipeでは各required itemに対するrouteが成立したTargetだけcandidateになる。
+
+### Throughput
+
+Stage candidate throughputは:
+
+```text
+min(upstream throughput, route throughput)
+```
+
+で導出する。
+
+### Power
+
+Final line building IDsを `computePowerSnapshot()` と照合し、Power use > 0の設備がpoweredであることを要求する。
+
+### Product evidence
+
+`autonomous_industrial_core` が:
+- Factory inventory
+- building output buffer
+- `discoveredItems`
+
+のいずれかに存在した場合 `productProven`。
+
+TopologyだけではPhase 6-C completion扱いにせず、実際に最終製品を1個以上生産したEvidenceを要求する。
+
+### Completion state
+
+`topologyReady`:
+- final storage route
+- experimental power route
+
+`qualifies`:
+- 全stage true
+
+Completion flagはSaveしない。
 
 ---
 
-## 7. Research Facility / Central Core
+## 9. Research Facility / Central Core
 
-Area ID: `research`
-Required Rank: 7
-Danger: 4
-
-Zones:
-- Central Atrium
-- Robotics Lab
-- Materials Lab
-- Energy Lab
-- Central Core
-
-### Phase 6-B Main sequence
+Phase 6-B contract維持。
 
 ```text
 Access Relay
@@ -279,121 +413,40 @@ Access Relay
 → Core Stabilizer
 → Experimental Archive
 → Research Facility completed
+→ Experimental Technology
 ```
 
-### Central Gate prerequisites
+Central Core component consumeはAtomic。
 
-1. `labsCompleted = true`
-2. `securedComponents.length >= 3`
-3. Final Component Set ready
-
-成功時:
-- Final ComponentsをAtomic consume
-- `centralCore.fabricationSetInstalled = true`
-- `objective.centralCoreUnlocked = true`
-
-Repeat interaction:
-- `done`
-- componentsを二重消費しない
-
-### Core Stabilizer
-
-前提:
-- Central Core unlocked
-- fabrication set installed
-
-成功:
-- `centralCore.stabilizerOnline = true`
-- Central Core environmental field停止
-
-### Experimental Archive
-
-前提:
-- Stabilizer online
-
-成功:
-- `centralCore.archiveRecovered = true`
-- `objective.completed = true`
-- Research Facility `completedAt`
-- `central_core_experimental_blueprint`
-- Research Data +4
-- reward idempotent
-
-Research Facility completionは**Main Clearではない**。
+Research Facility completionはMain Clearではない。
 
 ---
 
-## 8. Special Cargo Contract
+## 10. Automation Console / Progression UI
 
-Phase 6-A contract維持:
+Current UI entry:
+- `automation-ui.js`
+- `progression-ui-v4.js`
 
-```text
-Lab recovered
-→ persistent objective
+Automation Console:
+- Utility / Advanced Drone route assignment
+- Assembler / Fabricator recipe selection
+- Logistics Warehouse in-place upgrade
+- Final Automation Contract status
 
-Cargo carried
-→ activeSession.researchCargo[]
+Route / Recipe changeはsave後reloadする。
 
-Factory secured
-→ areas.research.securedComponents[]
-```
+Reason:
+- current `game.js` runtime stateがmodule-local
+- Saveだけを書き換えてplay続行すると後続autosaveでstale runtime stateが上書きする可能性がある
 
-Abandon / HP 0:
-- normal Loot loss
-- current Special Cargo loss
-- Lab recovery persists
-- lost cargo can be guaranteed-recollected
+将来public runtime mutation APIを用意できればreload dependencyを外せる。
 
-Normal Return:
-- normal Loot → Transport Depot
-- Special Cargo → securedComponents
-- 3/3到達時Fabrication Blueprintを保証
-
----
-
-## 9. Research Facility Browser Runtime
-
-Current runtime:
-- `exploration/research-phase6b.js`
-
-Scene layout:
-- Atrium / Access Relay
-- west Robotics
-- east Materials
-- north Energy
-- far north Central Core
-
-Environmental hazards:
-- Robotics actuator
-- Materials heat
-- Energy electrical field
-- Central Core unstable field until Stabilizer
-
-HP:
-- baseline 100
-- HP 0 → `abandonExpedition()`
-
-Persistent stateとVisual stateを同じObjective / Central stateから反映する。
-
-Static CIでは実際のCollider / distance / Pointer Lock / threat feelは保証しない。
-
----
-
-## 10. Transport Terminal / Progression UI
-
-Transport Terminal Research Facility status:
-- Labs recovered but cargo未確定 → `CARGO RETURN REQUIRED`
-- Cargo 3/3 → `FABRICATION REQUIRED`
-- 3 Final Components ready → `CORE ACCESS READY`
-- Core opened → `CORE OPEN`
-- Stabilizer → `CORE STABLE`
-- completed → `CLEARED`
-
-Rank 7 Progression UI:
-- Rank 7をRank-Up capとして表示
-- Main Clearではない旨を表示
-- Three Labs → Fabricator → Central Core → Experimental Technologyを案内
-- Research listは`RESEARCH`定義から自動表示
+Rank 7 UIは:
+- Rank-Up capを維持
+- Main Clear未達を明示
+- Final Automation progressを表示
+- Mega Factory / Main Clearを後続Objectiveとして扱う
 
 ---
 
@@ -412,19 +465,12 @@ Rank 7 Progression UI:
 | Priority | 6.0/s | forward priority |
 | Overflow | 6.0/s | forward main / right overflow |
 
-### Drone
-- Residential Copper: 8s
-- Industrial E-Waste: 10s
-- Military Rare Alloy: 12s
-
-Rank 6→7 Mandatory still requires Military Alloy Drone route.
-
 ### Power
 - Starter Grid 55
 - Scrap Generator 80
 - Industrial Generator 180
+- Experimental Power System 480
 - Battery 960 Energy
-- Fabricator consumes 110
 
 ### Storage
 - Small 120
@@ -432,7 +478,7 @@ Rank 6→7 Mandatory still requires Military Alloy Drone route.
 - Logistics Warehouse 1800
 - Back Pressure / no item loss維持
 
-### Spatial
+### Spatial / UX contract
 - 2.5m Grid
 - Factory coordinate system維持
 - Quick Build 1〜5維持
@@ -443,17 +489,15 @@ Rank 6→7 Mandatory still requires Military Alloy Drone route.
 
 Visual direction: `Stylized Industrial Realism`。
 
-Fabricator dedicated silhouette:
-- heavy experimental base
-- central fabrication chamber
-- twin field coils
-- energy rings
-- front control panel
-- status light
+Phase 6-C dedicated procedural visuals:
+- Advanced Drone variants
+- Experimental Power System
+- Assembler recipe variants
+- Autonomous Core Fabricator variant
 
-Generic production box fallbackではなくRank 7 rewardとして識別可能にする。
+Visual variant is not simulation source of truth.
 
-Simulation source of truthにはしない。
+Existing Phase 5-B / 5-C / 6-B visual runtime remains compatibility base where applicable.
 
 ---
 
@@ -471,38 +515,71 @@ Execution:
 scripts/validate.mjs
 → existing regressions through Phase 6-A
 → scripts/phase6b.test.mjs
+→ scripts/phase6c.test.mjs
+  → scripts/phase6c-bus.test.mjs
 ```
 
-Phase 6-B regression covers:
-- Rank 7 cap unchanged
-- Quick Build 1〜5
-- Fabricator config / 110 Power / Research gate
-- final recipe <=4 input types
-- exact 3 output component IDs
-- Exploration Schema v1
-- Phase 6-A state normalization
-- current / legacy 3/3 Cargo Fabrication gate
-- Fabrication Research unlock
-- input queue excluded from Final Component stock
-- atomic component consume
-- Central needs cargo / needs components
-- Central install idempotence
-- Stabilizer dependency
-- Archive dependency
-- Research Facility completion
-- Central reward +4 exactly once
-- Experimental Technology Research
-- current exploration/progression entrypoint markers
-- current Research Facility runtime
+Phase 6-C regression covers:
 
-Existing regressions continue to cover Rank 1→7, Directional Logistics, Factory Management, Power, Storage, Residential, Industrial, Military, Drone, Phase 4-B, Phase 5-A/B/C, Phase 6-A.
+- Rank 7 cap unchanged
+- Quick Build 1〜5 unchanged
+- Autonomous Industrial Core item / recipe
+- final recipe <=4 input types
+- Experimental Technology new unlocks
+- legacy completed Research compatibility
+- Advanced Drone five resource availability
+- Utility Drone blocked from Advanced-only Resource Point
+- route switch keeps output and resets progress
+- safe Assembler / Fabricator recipe switching
+- incompatible input buffer rejection
+- Exploration / Save Schema v1 preservation
+- Experimental Power 480 / Rare Alloy fuel
+- full final directional topology
+- Advanced Drone → processing → Assembler → Fabricator → Storage chain
+- Advanced Alloy → Experimental Power route
+- Experimental Power active state
+- final line powered state
+- actual Autonomous Industrial Core production evidence
+- current progression / UI / world runtime markers
+
+### Main-bus regression
+
+Final E2E fixture uses actual logistics nodes rather than bypassing route logic:
+
+```text
+Advanced sources
+→ Merger
+→ Conveyor Mk.3 main bus
+→ Splitter machine taps
+→ machines
+→ downstream Merger
+→ main bus
+→ final Storage
+```
+
+This fixture was chosen after free-form auto-routing test setup became order-sensitive. The production rule was not weakened; the regression fixture was changed to an explicit, buildable topology.
+
+### CI evidence
+
+Final implementation head before documentation:
+
+```text
+1e3a2bae14c1f9861b25e7d14c88190f486faa3a
+Validate Web Game #135
+result: success
+```
+
+Documentation-inclusive final head must be revalidated before merge.
 
 ### Unverified by static CI
 
 - real browser Pointer Lock / Pause flow
-- Three-Lab / Central Core actual reachability
-- Central Gate and Fabricator collider / first-person scale
-- Fabricator Build Preview readability
-- Central Hazard balance
-- Transport / Progression panel actual layout
+- Automation Console actual layout / overflow
+- Route / Recipe reload interaction feel
+- Advanced Drone / Experimental Power first-person scale
+- Build Preview readability
+- final factory layout ergonomics
+- collider / placement feel
 - WebGL FPS
+- final automated line gameplay balance
+- Firefox / Chromium real operation

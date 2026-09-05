@@ -4,7 +4,7 @@ Date: 2026-09-05
 
 ## Current Milestone
 
-`Scrap Factory` は **Phase 6-B: Fabricator / Central Core / Experimental Technology** まで実装。
+`Scrap Factory` は **Phase 6-C: Final Automation / Autonomous Industrial Core** まで実装。
 
 Rank Upは **Rank 1 → 7**。Rank 7はFinal Chapter開始点でありMain Clearではない。
 
@@ -19,6 +19,11 @@ Rank 7
 → Core Stabilizer
 → Experimental Archive
 → Experimental Technology Research
+→ Advanced Drone / Experimental Power
+→ Automated Plate / Motor / Circuit production
+→ Experimental Component Fabricator
+→ Autonomous Industrial Core Fabricator
+→ Autonomous Industrial Core → Storage complete directional line
 ```
 
 ---
@@ -40,226 +45,261 @@ Rank 7
 
 Phase 6-Aで1〜4を実装済み。
 
-Phase 6-Bで5〜7を実装。
+Phase 6-Bで5〜7を実装済み。
 
-8〜10は未実装のまま残す。
+**Phase 6-Cで8を実装。**
+
+9〜10は未実装のまま残す。
 
 ---
 
 ## Implemented
 
-### 1. Final Chapter Component Core
+### 1. Phase 6-C Progression Layer
 
 Created:
-- `games/scrap-factory/final-chapter.js`
-
-Final Component IDs:
-- `ai_control_module`
-- `experimental_frame`
-- `experimental_power_module`
-
-Factory stock判定:
-- inventory
-- building output buffer
-
-除外:
-- building input buffer
-
-Central Core用部品をMachine input queueから横取りしない。
-
-### 2. Phase 6-B Progression Layer
-
-Created:
-- `progression-phase6b.js`
+- `games/scrap-factory/progression-phase6c.js`
 
 Updated:
-- `progression.js`
+- `games/scrap-factory/progression.js`
 
-Research:
+`experimental_technology` completionで以下を解放:
 
-#### `experimental_fabrication`
-- Rank 7
-- Research Data 1
-- Tri-Lab cargo由来Blueprint
-- Fabricator解放
-
-#### `experimental_technology`
-- Rank 7
-- Research Data 4
-- Central Core Blueprint必須
-- Final Experimental Tier入口
+- `tier:experimental`
+- `production:autonomous_core`
+- `production:automated_components`
+- `building:advanced_drone_port`
+- `building:experimental_power_system`
 
 `PLAYABLE_MAX_RANK = 7`は変更していない。
 
-### 3. Phase 6-A Save Compatibility
+Phase 6-B Saveで既に `experimental_technology` 完了済みの場合も、新building gateを解放済みとして扱う。
 
-Normal flow:
+### 2. Advanced Drone
+
+Updated:
+- `games/scrap-factory/drone-routes.js`
+- `games/scrap-factory/config.js`
+
+Drone tierを分離:
+- Utility
+- Advanced
+
+Advanced Drone Resource Point:
+
+| Resource | Item | Cycle |
+| --- | --- | ---: |
+| Industrial Scrap Reserve | Metal Scrap | 4s |
+| Residential Copper Network | Copper Wire | 5s |
+| Residential Polymer Stockpile | Plastic | 6s |
+| Industrial Electronics Cache | E-Waste | 6s |
+| Military Alloy Cache | Rare Alloy | 8s |
+
+Advanced Drone Port:
 
 ```text
-Special Cargo 3 / 3 normal return
-→ tri_lab_fabrication_blueprint
+Cost: $1450
+Power: 95
+Rank: 7
+Research: experimental_technology
 ```
 
-Phase 6-Aですでに3/3 securedのSave:
-- 新Blueprint fieldがなくても`experimental_fabrication`をResearch可能
-- Research完了時にBlueprintをProgressionへ追加
-- Three Labs再攻略不要
+Utility Drone compatibility:
+- Copper 8s
+- E-Waste 10s
+- Rare Alloy 12s
+- Plastic / Scrap Advanced-only pointsはUtility Portで選択不可
+- Rank 6→7 Military Alloy mandatoryを維持
 
-### 4. Fabricator
+### 3. Automated Assembler Recipes
+
+Added:
+
+```text
+Iron Plate:
+iron_ingot ×2 → iron_plate ×1 / 4s
+
+Motor:
+iron_ingot ×2 + copper_wire ×2 → motor ×1 / 6s
+
+Circuit:
+copper_wire ×2 + e_waste ×1 + plastic ×1 → circuit ×1 / 6s
+```
+
+Existing Control Unit recipe:
+
+```text
+motor ×1 + circuit ×2 + plastic ×1
+→ control_unit ×1 / 8s
+```
+
+Assembler recipe variants are internal building types, not separate direct-build menu items.
+
+### 4. Production Recipe Routing
+
+Created:
+- `games/scrap-factory/production-recipes.js`
+
+Families:
+- Assembler
+- Fabricator
+
+Safe switch contract:
+- Same family only
+- Research gate required
+- incompatible Input Bufferが残る場合は`buffer-conflict`
+- Output Buffer preserved
+- Building identity / location preserved
+- Progress reset only
+- Building type changes to recipe variant
+
+### 5. Autonomous Industrial Core
+
+Added item:
+- `autonomous_industrial_core`
+
+Final recipe:
+
+```text
+AI Control Module ×1
++ Experimental Frame ×1
++ Experimental Power Module ×1
++ Control Unit ×1
+↓ 30 sec
+Autonomous Industrial Core ×1
+```
+
+Recipe input typeは4種類以内。
+
+FabricatorはPhase 6-Cから:
+- Experimental Component Set
+- Autonomous Industrial Core
+
+をAutomation Consoleで切替可能。
+
+### 6. Experimental Power System
 
 Added Building:
 
 ```text
-id: fabricator
+id: experimental_power_system
+Cost: $1900
+Power Generation: 480
+Fuel: rare_alloy ×1
+Fuel duration: 24 sec
 Rank: 7
-Cost: $1250
-Power: 110
-Research: experimental_fabrication
+Research: experimental_technology
 ```
 
-Recipe:
+既存Generator Runtimeを再利用。
 
-```text
-control_unit ×2
-rare_alloy ×3
-circuit ×2
-iron_plate ×2
-↓ 20 sec
-ai_control_module ×1
-experimental_frame ×1
-experimental_power_module ×1
-```
+Final AutomationではAdvanced Rare Alloy RouteがExperimental Powerへ到達し、実際にGeneratorがactiveであることを要求する。
 
-4 input typeでFinal Tier要件内。
-
-既存`game.js` Generic Production Runtimeをそのまま利用するため、Fabricator専用Simulationは追加していない。
-
-### 5. Dedicated Fabricator Visual
-
-Updated:
-- `world-runtime.js`
-
-Silhouette:
-- heavy base
-- fabrication chamber
-- twin field coils
-- energy rings
-- front console
-- status light
-
-Generic fallback boxではなくRank 7設備として識別可能にした。
-
-### 6. Exploration Core v5
+### 7. Final Automation Analyzer
 
 Created:
-- `exploration-core-v5.js`
+- `games/scrap-factory/final-automation.js`
 
-Updated:
-- `exploration.js`
+`analyzeFinalAutomation(game)` はFactory stateから次を導出:
 
-Additive state:
+- Experimental Technology
+- Advanced Drone Scrap / Copper / Plastic / Electronics / Alloy
+- Crusher → Smelter metallurgy
+- Iron Plate automation
+- Motor automation
+- Circuit automation
+- Control Unit automation
+- Experimental Component automation
+- Autonomous Industrial Core automation
+- Final Storage route
+- Experimental Power fuel route
+- Experimental Power active state
+- Final line powered state
+- Product production evidence
 
-```text
-areas.research.centralCore
-├─ fabricationSetInstalled
-├─ stabilizerOnline
-├─ archiveRecovered
-└─ rewardClaimed
-```
+専用completion flagはSaveしない。
 
-Exploration Schemaは1のまま。
+Directional routeは既存 `findDirectionalRoutes()` を唯一のSource of Truthとして再利用。
 
-### 7. Atomic Central Core Install
+### 8. Actual Product Evidence
 
-Central Gate前提:
-- Three Labs complete
-- Special Cargo 3 / 3 Factory secured
-- Final Component 3種が各1個以上
+TopologyだけでPhase 6-C完了とはしない。
 
-Component consume:
-- 全3種存在確認後だけ実行
-- 各1個消費
-- 不足なら無変更
-- Repeat interactionで二重消費しない
+`Autonomous Industrial Core` が:
+- Factory inventory
+- Building output buffer
+- discoveredItems
 
-### 8. Central Core Objective
+のいずれかに存在して初めて `productProven = true`。
 
-```text
-Final Component Set Install
-→ Central Core Open
-→ Core Stabilizer
-→ Experimental Archive
-```
+Final lineを並べただけでは`qualifies`にならない。
 
-Archive reward:
-- `central_core_experimental_blueprint`
-- Research Data +4
-- Research Facility `objective.completed = true`
-- reward idempotent
+### 9. Unified Automation Console
 
-Research Facility completionはMain Clearではない。
+Created / Updated:
+- `games/scrap-factory/automation-ui.js`
+- `games/scrap-factory/phase5c-automation-ui.js`
 
-### 9. Research Facility Phase 6-B Runtime
+Console capabilities:
+- Utility / Advanced Drone route assignment
+- Assembler / Fabricator Recipe routing
+- Industrial Storage → Logistics Warehouse upgrade
+- Final Automation Contract status
 
-Created:
-- `exploration/research-phase6b.js`
+Route / Recipe変更時はSave後reload。
 
-Updated:
-- `exploration/research.html`
+理由:
+- current `game.js` runtime stateはmodule-local
+- Saveのみ変更して継続すると後続autosaveがstale stateで上書きするRiskがある
 
-Added:
-- Central Core component gate
-- Core Stabilizer console
-- Experimental Archive terminal
-- Central Core unstable hazard before Stabilizer
-- Phase 6-B objective HUD
-- Factory Fabrication不足表示
-- current progress prompts
-
-Existing:
-- Access Relay
-- Three Labs
-- Special Cargo
-- normal return
-- HP / Abandon contract
-
-を維持。
-
-### 10. Transport / Progression UI
-
-Updated Transport Terminal:
-- CARGO RETURN REQUIRED
-- FABRICATION REQUIRED
-- CORE ACCESS READY
-- CORE OPEN
-- CORE STABLE
-- CLEARED
+### 10. Rank 7 Progression UI
 
 Created:
-- `progression-ui-v3.js`
+- `games/scrap-factory/progression-ui-v4.js`
 
-Rank 7 cap panelをFinal Chapter内容へ更新。
+Updated:
+- `games/scrap-factory/progression-ui.js`
 
-旧「次PhaseでMilitaryを実装」のstale textを削除。
+Rank 7 panel:
+- Main Clear未達を維持
+- Final Automation進行を表示
+- Mega Factory / Main Clearを次段階として残す
 
----
+### 11. Dedicated Phase 6-C Visuals
 
-## Compatibility / Contracts Preserved
+Updated:
+- `games/scrap-factory/world-runtime.js`
 
+Dedicated procedural markers / silhouettes:
+- Advanced Drone variants
+- Experimental Power System
+- Assembler recipe variants
+- Autonomous Core Fabricator variant
+
+Simulation stateのSource of Truthにはしない。
+
+### 12. Save Compatibility
+
+Updated:
+- `games/scrap-factory/storage.js`
+
+Additive inventory:
+- `autonomous_industrial_core: 0`
+
+Preserved:
 - `elitemay-game-hub-v1`
 - Root Save Schema 1
 - Game Schema 1
 - Progression Schema 1
 - Exploration Schema 1
 - Rank 1→7
-- Phase 6-A Three-Lab state
 - Existing Factory Layout
+- Phase 6-A Three-Lab state
+- Phase 6-B Central Core state
 - 2.5m Grid
-- Factory coordinate system
 - Directional Logistics
 - Storage Back Pressure
-- Drone routing
-- Rank 6→7 Military Alloy mandatory
+- Utility Drone routing
 - Quick Build 1〜5
 - GitHub Pages relative paths
 
@@ -268,105 +308,149 @@ Rank 7 cap panelをFinal Chapter内容へ更新。
 ## Regression Coverage
 
 Added:
-- `scripts/phase6b.test.mjs`
+- `scripts/phase6c-final-automation.test.mjs`
+- `scripts/phase6c-bus.test.mjs`
+- `scripts/phase6c.test.mjs`
 
 Updated:
-- `scripts/phase6a.test.mjs`
 - `package.json`
 
-`npm run validate` runs:
+`npm run validate`:
 
 ```text
-existing scripts/validate.mjs
-&&
-scripts/phase6b.test.mjs
+scripts/validate.mjs
+&& scripts/phase6b.test.mjs
+&& scripts/phase6c.test.mjs
 ```
 
-Phase 6-B checks:
+Phase 6-C checks:
 - Rank 7 cap unchanged
-- Quick Build 1〜5
-- Fabricator config
-- final recipe 4-input limit
-- exact three component outputs
-- Exploration Schema v1
-- Phase 6-A save normalization
-- fresh 3/3 cargo Blueprint grant
-- legacy 3/3 cargo compatibility
-- Fabricator Research gate
-- final part stock ignores Machine inputs
-- atomic component consume
-- Central needs-cargo / needs-components gates
-- Central install idempotence
-- Stabilizer dependency
-- Archive dependency
-- Central reward idempotence
-- Experimental Technology availability / completion
-- current runtime / entrypoint markers
+- Quick Build 1〜5 unchanged
+- Autonomous Industrial Core item
+- Autonomous Core <=4-input recipe
+- Experimental Technology new unlocks
+- legacy Research compatibility
+- Advanced Drone all 5 resources
+- Utility Drone cannot use Advanced-only points
+- Drone route switch output preservation / progress reset
+- Assembler / Fabricator safe recipe switching
+- incompatible input buffer rejection
+- Save / Exploration schema v1
+- Experimental Power 480 / Rare Alloy fuel
+- full directional final automation topology
+- final Storage route
+- Experimental Power fuel route
+- Experimental Power active state
+- final production line powered state
+- actual Autonomous Industrial Core production
+- current progression / automation / world runtime markers
 
-Existing tests through Phase 6-A continue to run first.
+Existing tests through Phase 6-B continue to run first.
+
+---
+
+## Main-bus Regression Fix
+
+### Problem
+
+最初のPhase 6-C E2E fixtureは、空きGridをBFSで自動探索して各Machineを接続していた。
+
+Factoryが密になるにつれ:
+- input routeがoutput branchを塞ぐ
+- output branchがinput portを塞ぐ
+- repeated source branchの予約順で結果が変わる
+- test fixtureのrouting順序がGameplay contractより複雑になる
+
+状態になった。
+
+既存Regressionはすべて通っており、Production / Logistics本体ではなくFixture設計が不安定だった。
+
+### Final approach
+
+Testを弱めず、明示的なbuildable topologyへ変更:
+
+```text
+Advanced Sources
+→ Merger
+→ Conveyor Mk.3 Main Bus
+→ Splitter
+→ Machine
+→ Merger
+→ Main Bus
+→ ...
+→ Final Storage
+```
+
+これにより:
+- actual Directional Logistics ruleを通る
+- Splitter / Merger behaviorを含む
+- 5 source + multi-input productionを1本の明示構成で検証
+- test construction orderへの依存を除去
+
+できた。
+
+Analyzerの正式stage名とTest assertionのずれも修正した。
 
 ---
 
 ## CI Evidence During Implementation
 
-Core implementation head:
+Phase 6-C final implementation head before docs:
 
 ```text
-410e883f43238ddcfc32735f6133786ce6d47e85
-Validate Web Game #113
+1e3a2bae14c1f9861b25e7d14c88190f486faa3a
+Validate Web Game #135
 result: success
 ```
 
-UI / current Research objective synchronization head:
+このrunでは:
+- project-contract: success
+- reusable baseline: success
+- existing regression through Phase 6-A: success
+- Phase 6-B: success
+- Phase 6-C main-bus test: success
 
-```text
-483c99061116764a20382261c7c4a859be1c0dc3
-Validate Web Game #117
-result: success
-```
+を確認。
 
-Completion uses a later documentation-inclusive final head and its CI rather than these intermediate runs.
+**Completionはdocumentation-inclusive final headとmerge後mainのCI / Pagesを再確認して判断する。**
 
 ---
 
 ## Reusable Learning
 
-### Preserve requirements order with separate technology gates
+### End-to-end game tests should use explicit representative layouts
 
-Final Chapterでは次を1つのResearchへ潰さない。
+自由配置ゲームのE2E Testで「Test自身が自動的に良いLayoutを設計する」仕組みを作ると、Product ruleの検証よりFixture routing algorithmのdebugへ時間を使いやすい。
 
-```text
-Three-Lab knowledge
-→ Fabricator unlock
-→ Factory manufactured parts
-→ Central Core
-→ post-Core Experimental Technology
-```
-
-Central Core ResearchでFabricatorを解放すると、要件の「Factoryで最終部品を製造してからCentral Core攻略」の順序を逆転させる。
-
-そのため:
-- Pre-Core = `experimental_fabrication`
-- Post-Core = `experimental_technology`
-
-に分離した。
-
-### Progression-critical manufactured parts are consumed atomically
-
-複数部品が必要な永続Gateでは:
+Final automationのような代表lineは:
 
 ```text
-all present?
-→ no: no mutation
-→ yes: consume all + unlock persistent objective
+explicit representative layout
+→ actual production routing function
+→ regression assertion
 ```
 
-とし、一部だけ消費された中間失敗状態を作らない。
+を優先する。
 
-### Do not count Machine input queues as general Factory stock
+Test fixtureを単純化しても、Product runtimeを迂回しない限りRegressionを弱めることにはならない。
 
-Machine inputは別工程へ予約済みのItemとして扱う。
-Progression Gateはinventory + outputだけを対象にし、Input queueを横取りしない。
+### Final progression state should be derived from actual factory state
+
+Final Automation用に`finalAutomationComplete = true`のようなSave flagを追加しない。
+
+- Drone assignment
+- Directional route
+- Machine type / recipe
+- Power state
+- produced item evidence
+
+から毎回導出することで、PlayerがFactoryを壊した場合も状態が正しく戻る。
+
+### A final-line topology check should require production evidence
+
+MachineとBeltが接続されているだけでは「完成した工場」とは言えない。
+
+Final productを実際に1個以上生産した証拠を要求し、Topology-only false positiveを防ぐ。
 
 ---
 
@@ -374,16 +458,20 @@ Progression Gateはinventory + outputだけを対象にし、Input queueを横�
 
 Static CIでは次を保証しない。
 
-- Research Facilityの実ブラウザNavigation
-- Central Core Gate / Stabilizer / Archiveへの実到達性
-- Central Core collider / door visual alignment
-- Central hazard radius / damage feel
-- Fabricator build preview / first-person scale
-- Fabricator field coil visual animation
+- 実ブラウザでのFactory操作
+- Automation Console actual layout / overflow
+- Recipe dropdown / Apply / reloadの操作感
+- Advanced Drone route switch / reloadの操作感
+- Experimental PowerへのRare Alloy供給の実プレイ感
+- Advanced Drone first-person silhouette / scale
+- Experimental Power first-person silhouette / scale
+- Assembler / Fabricator variant Build Preview readability
+- Collider / Placement feel
 - Pointer Lock / Pause復帰
-- Transport Terminal / Progression panel layout
+- Final line layout ergonomics
 - WebGL FPS
 - Firefox / Chromiumでの実操作
+- Final production balance / throughput tuning
 
 Browser / User Validation対象として残す。
 
@@ -393,16 +481,13 @@ Browser / User Validation対象として残す。
 
 Requirements上の次段階:
 
-### Phase 6-C候補
-- Advanced Drone
-- Experimental Power System
-- Autonomous Industrial Core Recipe / Production
-- Final product完全自動Line
-
 ### Final Phase
-- Mega Factory stable operation objective
+- Mega Factory stable-operation objective
 - Main Clear
-- clear後Optimization
-- final Hybrid Asset / Lighting / VFX / LOD quality pass
 
-Phase 6-Bではこれらを実装済み扱いにしない。
+### Post Clear / Quality
+- clear-after Optimization objectives
+- final Hybrid Asset / Lighting / VFX / LOD quality pass
+- browser playtest / balance pass
+
+Phase 6-Cではこれらを実装済み扱いにしない。

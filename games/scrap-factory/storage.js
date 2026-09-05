@@ -45,6 +45,7 @@ export function makeDefaultGameSave() {
       ai_control_module: 0,
       experimental_frame: 0,
       experimental_power_module: 0,
+      autonomous_industrial_core: 0,
     },
     buildings: structuredClone(DEFAULT_BUILDINGS),
     tutorialStep: 0,

@@ -176,26 +176,11 @@ export function analyzeFactory(game) {
       if (building.type === 'smart_sorter') smartSorters += 1;
       const connected = connectedLogisticsOutputs(building, byCell);
       if (!connected.length) {
-        alerts.push({
-          severity: 'info',
-          buildingId: building.id,
-          title: `${def?.name || '物流設備'}: 行き止まり`,
-          detail: '有効な出力先に設備または次の物流ノードがありません',
-        });
+        alerts.push({ severity: 'info', buildingId: building.id, title: `${def?.name || '物流設備'}: 行き止まり`, detail: '有効な出力先に設備または次の物流ノードがありません' });
       } else if (building.type === 'splitter' && connected.length < 2) {
-        alerts.push({
-          severity: 'info',
-          buildingId: building.id,
-          title: `${def.name}: 分岐先が1本のみ`,
-          detail: 'Splitterの利点を使うには2本以上の有効な出力先へ接続します',
-        });
+        alerts.push({ severity: 'info', buildingId: building.id, title: `${def.name}: 分岐先が1本のみ`, detail: 'Splitterの利点を使うには2本以上の有効な出力先へ接続します' });
       } else if (building.type === 'smart_sorter' && connected.length < 3) {
-        alerts.push({
-          severity: 'info',
-          buildingId: building.id,
-          title: `${def.name}: 分類先が不足`,
-          detail: '正面=高度部品 / 左=中間材・製品 / 右=原料 の3レーンを接続すると全カテゴリを分類できます',
-        });
+        alerts.push({ severity: 'info', buildingId: building.id, title: `${def.name}: 分類先が不足`, detail: '正面=高度部品 / 左=中間材・製品 / 右=原料 の3レーンを接続すると全カテゴリを分類できます' });
       }
     }
   }
@@ -204,13 +189,7 @@ export function analyzeFactory(game) {
   for (const building of buildings) counts[building.type] = Number(counts[building.type] || 0) + 1;
   const power = computePowerSnapshot(game);
   if (power.enabled && power.status === 'shortage') {
-    alerts.unshift({
-      severity: 'warn',
-      kind: 'bottleneck',
-      buildingId: null,
-      title: 'POWER: 供給不足',
-      detail: `供給 ${Math.floor(power.generation || 0)} / 需要 ${Math.floor(power.demand || 0)} / 範囲外 ${power.uncoveredIds?.size || 0}`,
-    });
+    alerts.unshift({ severity: 'warn', kind: 'bottleneck', buildingId: null, title: 'POWER: 供給不足', detail: `供給 ${Math.floor(power.generation || 0)} / 需要 ${Math.floor(power.demand || 0)} / 範囲外 ${power.uncoveredIds?.size || 0}` });
     bottleneckCount += 1;
   }
 
@@ -251,7 +230,11 @@ export function analyzeFactory(game) {
 }
 
 function recipeByOutput(itemId) {
-  return Object.values(RECIPES).find((recipe) => Object.prototype.hasOwnProperty.call(recipe.output, itemId)) || null;
+  // Empty-input recipes model external collection (Drone routes). They must not hide the underlying raw-material leaf in the production planner.
+  return Object.values(RECIPES).find((recipe) => (
+    Object.keys(recipe.input || {}).length > 0
+    && Object.prototype.hasOwnProperty.call(recipe.output, itemId)
+  )) || null;
 }
 
 export function planProduction(targetItemId, targetPerMinute) {
