@@ -31,6 +31,7 @@ const required = [
   'games/scrap-factory/progression-core.js',
   'games/scrap-factory/progression-phase4b.js',
   'games/scrap-factory/progression-phase5a.js',
+  'games/scrap-factory/progression-phase5b.js',
   'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
@@ -55,6 +56,7 @@ const required = [
   'scripts/phase4b.test.mjs',
   'scripts/military-exploration.test.mjs',
   'scripts/phase5a.test.mjs',
+  'scripts/phase5b.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -97,6 +99,7 @@ for (const [name, script] of [
   ['Phase 4-B advanced logistics', 'scripts/phase4b.test.mjs'],
   ['Military exploration', 'scripts/military-exploration.test.mjs'],
   ['Phase 5-A drone progression', 'scripts/phase5a.test.mjs'],
+  ['Phase 5-B priority overflow logistics', 'scripts/phase5b.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -170,10 +173,23 @@ const logisticsRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/lo
 for (const marker of ['smart_sorter', 'smartSorterLaneForItem', 'SMART_SORTER_LANES']) {
   if (!logisticsRuntime.includes(marker)) failures.push(`Phase 4-B logistics runtime missing marker: ${marker}`);
 }
+for (const marker of ['conveyor_mk3', 'priority_splitter', 'overflow_splitter', 'priority']) {
+  if (!logisticsRuntime.includes(marker)) failures.push(`Phase 5-B logistics runtime missing marker: ${marker}`);
+}
 
 const phase5Progression = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-phase5a.js'), 'utf8');
 for (const marker of ['drone_control_systems', 'drone_port', 'analyzeRank6DroneLine', 'PLAYABLE_MAX_RANK = 7']) {
   if (!phase5Progression.includes(marker)) failures.push(`Phase 5-A progression missing marker: ${marker}`);
+}
+
+const phase5bProgression = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-phase5b.js'), 'utf8');
+for (const marker of ['conveyor_mk3', 'priority_splitter', 'overflow_splitter']) {
+  if (!phase5bProgression.includes(marker)) failures.push(`Phase 5-B progression missing marker: ${marker}`);
+}
+
+const worldRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/world-runtime.js'), 'utf8');
+for (const marker of ['conveyor_mk3', 'priority_splitter', 'overflow_splitter']) {
+  if (!worldRuntime.includes(marker)) failures.push(`Phase 5-B world visual missing marker: ${marker}`);
 }
 
 const textFiles = [];
@@ -203,4 +219,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A + Phase 5-B tests.`);
