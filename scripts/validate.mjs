@@ -21,6 +21,7 @@ const required = [
   'games/scrap-factory/storage-capacity.js',
   'games/scrap-factory/exploration.js',
   'games/scrap-factory/exploration-core.js',
+  'games/scrap-factory/exploration-core-v3.js',
   'games/scrap-factory/exploration-ui.js',
   'games/scrap-factory/exploration-ui-v2.js',
   'games/scrap-factory/factory-management.js',
@@ -29,6 +30,7 @@ const required = [
   'games/scrap-factory/progression.js',
   'games/scrap-factory/progression-core.js',
   'games/scrap-factory/progression-phase4b.js',
+  'games/scrap-factory/progression-phase5a.js',
   'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
@@ -40,6 +42,9 @@ const required = [
   'games/scrap-factory/exploration/industrial.html',
   'games/scrap-factory/exploration/industrial.css',
   'games/scrap-factory/exploration/industrial.js',
+  'games/scrap-factory/exploration/military.html',
+  'games/scrap-factory/exploration/military.css',
+  'games/scrap-factory/exploration/military.js',
   'scripts/logistics.test.mjs',
   'scripts/factory-management.test.mjs',
   'scripts/progression.test.mjs',
@@ -48,6 +53,8 @@ const required = [
   'scripts/exploration.test.mjs',
   'scripts/industrial-exploration.test.mjs',
   'scripts/phase4b.test.mjs',
+  'scripts/military-exploration.test.mjs',
+  'scripts/phase5a.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -88,6 +95,8 @@ for (const [name, script] of [
   ['Exploration', 'scripts/exploration.test.mjs'],
   ['Industrial exploration', 'scripts/industrial-exploration.test.mjs'],
   ['Phase 4-B advanced logistics', 'scripts/phase4b.test.mjs'],
+  ['Military exploration', 'scripts/military-exploration.test.mjs'],
+  ['Phase 5-A drone progression', 'scripts/phase5a.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -102,6 +111,7 @@ const htmlFiles = [
   'games/scrap-factory/index.html',
   'games/scrap-factory/exploration/residential.html',
   'games/scrap-factory/exploration/industrial.html',
+  'games/scrap-factory/exploration/military.html',
 ];
 for (const relative of htmlFiles) {
   const full = path.join(root, relative);
@@ -146,6 +156,11 @@ for (const marker of ['INDUSTRIAL_AREA_ID', 'collectExplorationLoot', 'advanceIn
   if (!industrialRuntime.includes(marker)) failures.push(`Industrial exploration runtime missing core integration: ${marker}`);
 }
 
+const militaryRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/military.js'), 'utf8');
+for (const marker of ['MILITARY_AREA_ID', 'advanceMilitaryObjective', 'updateExplorationHealth', 'returnFromExpedition', 'abandonExpedition']) {
+  if (!militaryRuntime.includes(marker)) failures.push(`Military exploration runtime missing core integration: ${marker}`);
+}
+
 const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
 for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'tickPowerStorage', 'storageRemaining', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
   if (!gameRuntime.includes(marker)) failures.push(`Scrap Factory runtime missing core integration: ${marker}`);
@@ -154,6 +169,11 @@ for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'tickPowerSto
 const logisticsRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/logistics.js'), 'utf8');
 for (const marker of ['smart_sorter', 'smartSorterLaneForItem', 'SMART_SORTER_LANES']) {
   if (!logisticsRuntime.includes(marker)) failures.push(`Phase 4-B logistics runtime missing marker: ${marker}`);
+}
+
+const phase5Progression = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-phase5a.js'), 'utf8');
+for (const marker of ['drone_control_systems', 'drone_port', 'analyzeRank6DroneLine', 'PLAYABLE_MAX_RANK = 7']) {
+  if (!phase5Progression.includes(marker)) failures.push(`Phase 5-A progression missing marker: ${marker}`);
 }
 
 const textFiles = [];
@@ -183,4 +203,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + exploration + industrial exploration + Phase 4-B tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A tests.`);

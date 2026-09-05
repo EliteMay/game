@@ -177,7 +177,7 @@ function rankFiveAssemblerGame() {
 {
   const game = rankFourAdvancedGame();
   const line = analyzeRank4AdvancedLine(game);
-  assert.equal(PLAYABLE_MAX_RANK, 6, 'normal gameplay should now reach Rank 6');
+  assert.equal(PLAYABLE_MAX_RANK, 7, 'normal gameplay should now reach Rank 7');
   assert.equal(line.qualifies, true);
   assert.deepEqual(line.productTypes, ['crushed_metal', 'iron_ingot']);
   assert.equal(line.usesSplitter, true);
@@ -265,9 +265,9 @@ function rankFiveAssemblerGame() {
   assert.equal(result.changed, true);
   assert.equal(game.progression.progressionRank, 6);
   assert.equal(game.progression.researchData, 1);
-  const cap = claimRankUp(game);
-  assert.equal(cap.changed, false);
-  assert.equal(cap.reason, 'phase-cap', 'Rank 6 is the current playable Rank-Up cap');
+  const next = claimRankUp(game);
+  assert.equal(next.changed, false);
+  assert.equal(next.reason, 'requirements', 'Rank 6 must require the Military Facility and Drone automation loop before Rank 7');
 }
 
 {

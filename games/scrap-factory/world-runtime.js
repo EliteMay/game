@@ -6,6 +6,7 @@ const GROUND_CLEARANCE = 0.025;
 const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger', 'smart_sorter']);
 const INFRASTRUCTURE_VISUALS = new Set(['battery', 'industrial_storage']);
 const ADVANCED_PRODUCTION_VISUALS = new Set(['assembler']);
+const AUTOMATION_VISUALS = new Set(['drone_port']);
 
 function isFencePanel(node) {
   if (!node?.isMesh || node.geometry?.type !== 'PlaneGeometry') return false;
@@ -220,9 +221,7 @@ function addAdvancedProductionVisual(root, type, preview = false) {
   addBox(group, [1.85, 1.48, 1.55], body, [0, 0.91, 0]);
   addBox(group, [1.25, 0.78, 1.67], chamber, [0, 1.04, -0.02]);
   addBox(group, [1.45, 0.2, 1.76], frame, [0, 1.54, 0]);
-  for (const z of [-0.62, 0.62]) {
-    addBox(group, [0.36, 0.7, 0.48], dark, [-0.94, 0.7, z], [0, 0, 0]);
-  }
+  for (const z of [-0.62, 0.62]) addBox(group, [0.36, 0.7, 0.48], dark, [-0.94, 0.7, z]);
   addBox(group, [0.38, 1.14, 1.64], frame, [0.92, 0.86, 0]);
   addBox(group, [0.15, 0.82, 1.3], accent, [1.13, 0.92, 0]);
   const spinner = addCylinder(group, 0.38, 0.38, 0.22, 18, accent, [0, 1.08, -0.88], [Math.PI / 2, 0, 0]);
@@ -230,6 +229,51 @@ function addAdvancedProductionVisual(root, type, preview = false) {
   root.userData.spinner = spinner;
   root.userData.statusLight = addBox(group, [0.34, 0.18, 0.07], statusMaterial(preview), [0.62, 1.66, -0.84]);
   addBox(group, [0.7, 0.1, 0.06], dark, [-0.25, 1.66, -0.85]);
+
+  finalizeVisual(group, preview);
+  root.add(group);
+}
+
+function addAutomationVisual(root, type, preview = false) {
+  if (!root || !AUTOMATION_VISUALS.has(type) || root.userData.automationVisual) return;
+  root.userData.automationVisual = true;
+  hideBaseVisual(root, preview);
+
+  const group = new THREE.Group();
+  group.userData.automationArt = true;
+  const frame = material(0x222b30, { preview, metalness: 0.78, roughness: 0.5 });
+  const body = material(0x53646c, { preview, metalness: 0.52, roughness: 0.58 });
+  const dark = material(0x151b1e, { preview, metalness: 0.64, roughness: 0.6 });
+  const accent = material(0x7ea9b7, { preview, metalness: 0.36, roughness: 0.4 });
+  const warning = material(0xc0a14b, { preview, metalness: 0.34, roughness: 0.48 });
+
+  // Low launch deck + raised control mast creates a silhouette distinct from production machines.
+  addBox(group, [2.25, 0.2, 2.05], frame, [0, 0.12, 0]);
+  addBox(group, [1.85, 0.28, 1.65], body, [0, 0.34, 0]);
+  addBox(group, [1.35, 0.08, 1.15], dark, [0, 0.53, 0]);
+  for (const x of [-0.68, 0.68]) for (const z of [-0.58, 0.58]) {
+    addCylinder(group, 0.11, 0.14, 0.32, 10, warning, [x, 0.69, z]);
+  }
+  addBox(group, [0.42, 1.2, 0.46], frame, [0.7, 1.02, 0.5]);
+  addBox(group, [0.62, 0.44, 0.16], accent, [0.7, 1.58, 0.25]);
+  const antenna = addCylinder(group, 0.06, 0.08, 1.0, 10, accent, [0.7, 2.02, 0.5]);
+  antenna.userData.active = false;
+  const radar = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.045, 8, 24), accent);
+  radar.position.set(0.7, 2.46, 0.5);
+  radar.rotation.x = Math.PI / 2;
+  group.add(radar);
+  root.userData.spinner = radar;
+  root.userData.statusLight = addBox(group, [0.24, 0.16, 0.06], statusMaterial(preview), [0.7, 1.7, 0.16]);
+
+  // Docked utility drone silhouette.
+  const drone = new THREE.Group();
+  drone.position.set(-0.35, 0.85, -0.1);
+  group.add(drone);
+  addBox(drone, [0.58, 0.18, 0.42], dark, [0, 0, 0]);
+  for (const [x, z] of [[-0.42, -0.3], [-0.42, 0.3], [0.42, -0.3], [0.42, 0.3]]) {
+    addBox(drone, [0.42, 0.06, 0.08], frame, [x * 0.5, 0, z * 0.5]);
+    addCylinder(drone, 0.18, 0.18, 0.025, 12, accent, [x, 0.04, z]);
+  }
 
   finalizeVisual(group, preview);
   root.add(group);
@@ -265,6 +309,7 @@ export class ScrapWorld extends BaseScrapWorld {
     }
     if (INFRASTRUCTURE_VISUALS.has(building?.type)) addInfrastructureVisual(mesh, building.type, false);
     if (ADVANCED_PRODUCTION_VISUALS.has(building?.type)) addAdvancedProductionVisual(mesh, building.type, false);
+    if (AUTOMATION_VISUALS.has(building?.type)) addAutomationVisual(mesh, building.type, false);
     return mesh;
   }
 
@@ -273,6 +318,7 @@ export class ScrapWorld extends BaseScrapWorld {
     if (ADVANCED_LOGISTICS.has(type)) addAdvancedLogisticsVisual(this.buildPreview, type, true);
     if (INFRASTRUCTURE_VISUALS.has(type)) addInfrastructureVisual(this.buildPreview, type, true);
     if (ADVANCED_PRODUCTION_VISUALS.has(type)) addAdvancedProductionVisual(this.buildPreview, type, true);
+    if (AUTOMATION_VISUALS.has(type)) addAutomationVisual(this.buildPreview, type, true);
   }
 
   animateTransfer(path, itemId, speed = 5.8) {

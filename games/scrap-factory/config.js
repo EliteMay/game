@@ -18,6 +18,7 @@ export const ITEMS = {
   circuit: { id: 'circuit', name: '制御回路', short: '回路', value: 145, stack: 12, color: 0x4f846d, category: 'advanced' },
   motor: { id: 'motor', name: '産業モーター', short: 'モーター', value: 185, stack: 10, color: 0x7b6b5c, category: 'advanced' },
   control_unit: { id: 'control_unit', name: '制御ユニット', short: '制御', value: 520, stack: 8, color: 0x6f837f, category: 'advanced' },
+  rare_alloy: { id: 'rare_alloy', name: '軍用レア合金', short: 'レア合金', value: 680, stack: 8, color: 0x8798a2, category: 'advanced' },
 };
 
 export const RECIPES = {
@@ -41,6 +42,13 @@ export const RECIPES = {
     input: { motor: 1, circuit: 2, plastic: 1 },
     output: { control_unit: 1 },
     seconds: 8.0,
+  },
+  drone_military_alloy: {
+    id: 'drone_military_alloy',
+    machine: 'drone_port',
+    input: {},
+    output: { rare_alloy: 1 },
+    seconds: 12.0,
   },
 };
 
@@ -69,6 +77,11 @@ export const BUILDINGS = {
     id: 'assembler', name: 'アセンブラー', cost: 420, category: 'production', buildable: true,
     description: '廃工場の制御Blueprintを解析して解放する高度組立機。モーター・制御回路・プラスチックから制御ユニットを自動組立する。',
     color: 0x526a66, accepts: ['motor', 'circuit', 'plastic'], recipe: 'assembler_control_unit', powerUse: 50,
+  },
+  drone_port: {
+    id: 'drone_port', name: 'ドローンポート', cost: 760, category: 'automation', buildable: true,
+    description: '軍事施設のDrone Control技術で解放。確保済みMilitary Alloy Resource PointへUtility Droneを自動派遣し、12秒ごとに軍用レア合金を回収する。65 Powerを使用。',
+    color: 0x53646c, accepts: [], recipe: 'drone_military_alloy', powerUse: 65,
   },
   conveyor: {
     id: 'conveyor', name: 'コンベア Mk.1', cost: 12, category: 'logistics', buildable: true,
@@ -146,6 +159,7 @@ export const BUILD_MENU_ORDER = [
   'battery',
   'industrial_storage',
   'assembler',
+  'drone_port',
 ];
 
 export const SCRAP_SPAWNS = [

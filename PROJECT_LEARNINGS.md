@@ -420,3 +420,75 @@ Regressionで確認した主なContract:
 - Industrial Electrical Arcは最小Environmental Hazardで、Damage/HP/敵との統合はしていない。
 - Procedural廃工場はV4 minimum visual gateを意識した実装だが、Hybrid Asset Foundationの最終品質ではない。
 - Static CIではPointer Lock、Objectiveへの実到達、Collider、Landmark readability、Hazard visibility、FPSを保証できない。Browser Validationを別Gateとして残す。
+
+## 2026-09-05 / Phase 4-B Smart Sorting & Factory Diagnostics
+
+### Keep
+
+- Item-aware routingを既存Directional Graphへ追加し、Smart Sorter専用の別Graphを作らない。
+- Sorterが固定カテゴリ分類なら、Filter設定をSaveへ増やさずRoute計算時に`itemId`からOutput Portを導出できる。
+- Production Statistics / BottleneckはFactory stateから導出し、Telemetry SnapshotをSaveへ重複保存しない。
+- 新Logistics NodeはGeneric Boxのままにせず、Gameplay Ruleと一致するLane / ArrowをVisualに出す。
+- Phase 4-Bの横拡張をRank 5→6 Mandatoryへ後付けで強制せず、既に成立した進行Contractを保持する。
+
+### Watch
+
+- 現行Machine速度ではMk.1でも十分なケースが多く、純粋なBelt throughput bottleneckは高速Recipe追加後に意味が増える。
+- Factory Managementの追加CardsはDOM拡張なので、実ブラウザでPanel open timing / overflowを確認する。
+- `world-runtime.js`へ専用Visualが増えているため、将来`industrial-art.js`へ統合してVisual ownershipを整理する余地がある。
+
+## 2026-09-05 / Phase 5-A Military Facility & Drone Automation
+
+### Problem
+
+- Rank 6→7を一括でConveyor Mk.3 / Priority / Overflow / Advanced Power / 戦闘 / Droneまで実装すると、Gameplay loopとRegressionの原因範囲が広がりすぎる。
+- Drone回収のためだけに新しいSimulation Engineや独自物流を追加すると、Power / Back Pressure / Directional Routingと二重実装になる。
+- 本格Weapon / Enemy AIを先に導入すると、探索・工場自動化が主役というGame designよりCombat側の実装負担が先行する。
+- Drone PortをGeneric Box fallbackのままにすると、Rank 6の主要Rewardとして視覚的に弱い。
+
+### Keep
+
+- Rank 6→7は「Military Facilityで技術取得 → Research → Drone Port → Storage」のVertical Sliceを先に完成させ、Mk.3 / Priority / Overflowを後続へ分離する。
+- **外部Resource Point由来の定期回収をEmpty-input Recipeとして既存Generic Production Runtimeへ接続**すると、新Simulationを作らずPower / Progress / Output / Back Pressureを再利用できる。
+- Drone PortのRank判定は `Military Objective + Research + secured Resource Point + current Directional Factory graph` から導出し、`droneRouteComplete`のようなCached flagをSaveしない。
+- 進行必須Drone BlueprintとResource Pointは同じMain Objectiveからguaranteeし、Random Lootへ依存させない。
+- Exploration SessionへHPをAdditive補完しても、既存Areaを壊さないDefault / Normalizeを設計すればSchema v1を維持できる。
+- 本格戦闘前のThreatは `HP + 危険Area + 非戦闘解除Route` で導入し、探索Riskを作りながら戦闘中心へ寄せない。
+- Security状態はPersistent Objective stateからVisual / Hazardを直接切り替え、Visual-only stateを保存しない。
+- Major Reward BuildingはGeneric fallbackを避け、Launch Deck / Control Mast / Docked Drone等の用途別Silhouetteを持たせる。
+- 旧RegressionがPlayable capを固定して失敗した場合、旧Testを削除せず、新Rank仕様に合わせてcap assertionと次Rank requirementを更新する。
+
+### Evidence
+
+PR #13初回 `Validate Web Game` run #83:
+
+- reusable baseline: success
+- project-contract: failure
+- 原因: 旧Regressionの `PLAYABLE_MAX_RANK === 6` assertion
+
+Rank 7仕様へ更新後、実装 + Drone Port dedicated visual head `fa7a691e4610df2ac9cb9960e36c96d6c9a1ac8c` に対する run #85はsuccess。
+
+Regressionで確認:
+
+- Rank 1→6既存進行
+- Military Rank 6 gate
+- Exploration Schema v1 additive military state / HP
+- Access → Security → Drone Bay dependency
+- Blueprint / Research Data / Resource Point reward exactly once
+- HP state / Abandon semantics
+- Drone Control Research gate
+- Drone Port Rank / Research gate
+- secured Resource Point requirement
+- Drone Port → Industrial Storage Directional Route
+- throughput 3.0 option
+- Rank 6→7 eligibility
+- Rank 7 phase cap
+
+### Watch
+
+- Drone Portは現段階では`military-alloy-cache` 1種類へ固定。複数Resource Point選択 / Drone route assignment UIは後続。
+- Military Turretは固定Threat zoneで、Weapon / patrol AI / cover combatは未実装。
+- Military Sceneの内部PropsはGameplay colliderへ完全統合していないため、見た目と移動可能範囲はBrowser Validationが必要。
+- Turret threat radius / HP damage cadenceが一人称で納得できるかはStatic CIでは判断できない。
+- Empty-input Recipeは「Research取得済みならResource Pointも確保済み」という通常進行Contractに依存する。将来複数Drone Resourceを扱うときはBuildingごとのroute assignment stateを明示設計する。
+- `exploration-core-v3.js` / `progression-phase5a.js`のLayeringは安全なVertical Sliceには有効だが、Phase追加ごとにFileを増やし続けず、安定後にCore ownershipを整理する。

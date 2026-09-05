@@ -1,3 +1,15 @@
-// Compatibility entrypoint. Progression logic lives in progression-core.js so existing imports stay stable.
+// Compatibility entrypoint. Core progression stays stable while later phases layer explicit overrides.
 export * from './progression-core.js';
-export { buildingUnlockState, isBuildingUnlocked, requiredBuildingRank } from './progression-phase4b.js';
+export {
+  PLAYABLE_MAX_RANK,
+  RESEARCH,
+  analyzeRank6DroneLine,
+  buildingUnlockState,
+  claimRankUp,
+  completeResearch,
+  getRankDefinition,
+  isBuildingUnlocked,
+  rankProgress,
+  requiredBuildingRank,
+  researchState,
+} from './progression-phase5a.js';
