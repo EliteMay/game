@@ -33,3 +33,5 @@ for (const [from, to] of replacements) {
 const tempPath = path.join(os.tmpdir(), `apply-post-clear-fixed-${Date.now()}.mjs`);
 fs.writeFileSync(tempPath, source);
 await import(pathToFileURL(tempPath).href);
+
+// This wrapper exists only while the implementation branch is being generated and validated.
