@@ -93,6 +93,11 @@ export const BUILDINGS = {
     description: 'Rank 4で解放される高速ベルト。黄色い矢印の方向へ3個/秒で搬送し、Mk.1の2倍の帯域を持つ。',
     color: 0x48656b, accepts: [], throughput: 3,
   },
+  conveyor_mk3: {
+    id: 'conveyor_mk3', name: 'コンベア Mk.3', cost: 55, category: 'logistics', buildable: true,
+    description: 'Rank 6高速物流ベルト。黄色い矢印の方向へ6個/秒で搬送する。Priority / Overflow設備の高帯域Line向け。',
+    color: 0x3f6870, accepts: [], throughput: 6,
+  },
   splitter: {
     id: 'splitter', name: 'スプリッター', cost: 85, category: 'logistics', buildable: true,
     description: 'Rank 4物流設備。背面1入力を正面・左・右の有効な搬送先へ順番に分配する。最大3個/秒。',
@@ -107,6 +112,16 @@ export const BUILDINGS = {
     id: 'smart_sorter', name: 'スマートソーター', cost: 180, category: 'logistics', buildable: true,
     description: 'Rank 5物流設備。背面から受けた素材をカテゴリで自動分類する。高度部品は正面、中間材・製品は左、原料は右へ最大3個/秒で送る。',
     color: 0x4f6b62, accepts: [], throughput: 3,
+  },
+  priority_splitter: {
+    id: 'priority_splitter', name: 'プライオリティ分岐機', cost: 260, category: 'logistics', buildable: true,
+    description: 'Rank 6物流設備。背面1入力を正面Priority Lineへ最優先で送り、正面が詰まった時だけ左右Backup Lineへ流す。最大6個/秒。',
+    color: 0x556d52, accepts: [], throughput: 6,
+  },
+  overflow_splitter: {
+    id: 'overflow_splitter', name: 'オーバーフロー分岐機', cost: 240, category: 'logistics', buildable: true,
+    description: 'Rank 6物流設備。背面1入力を正面Main Lineへ送り、Main Lineが受け取れない時だけ右Overflow Lineへ余剰を流す。最大6個/秒。',
+    color: 0x6e5c4b, accepts: [], throughput: 6,
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
@@ -154,6 +169,9 @@ export const BUILD_MENU_ORDER = [
   'splitter',
   'merger',
   'smart_sorter',
+  'conveyor_mk3',
+  'priority_splitter',
+  'overflow_splitter',
   'generator',
   'power_pole',
   'battery',
