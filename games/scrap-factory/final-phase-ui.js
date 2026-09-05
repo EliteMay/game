@@ -42,11 +42,6 @@ function ensureStyles() {
     .main-clear-summary div { padding:11px; border:1px solid #3d4445; background:#252b2c; display:grid; gap:4px; }
     .main-clear-summary span { color:#8f9891; font-size:.56rem; letter-spacing:.1em; }
     .main-clear-summary strong { font-size:.82rem; }
-    .final-phase-inline { margin-top:10px; padding:11px; border:1px solid #41494a; background:#202627; }
-    .final-phase-inline__head { display:flex; justify-content:space-between; gap:10px; align-items:center; }
-    .final-phase-inline__head span { color:var(--accent); font-size:.6rem; font-weight:900; letter-spacing:.1em; }
-    .final-phase-inline__head strong { font-size:.72rem; }
-    .final-phase-inline p { margin:7px 0 0 !important; font-size:.72rem; }
     @media (max-width:700px) { .final-phase-hud { right:12px; top:270px; min-width:150px; } .main-clear-summary { grid-template-columns:1fr; } }
   `;
   document.head.append(style);
@@ -169,63 +164,6 @@ function renderHud(game, status) {
   if (hud.innerHTML !== html) hud.innerHTML = html;
 }
 
-function patchProgressionPanel(game, status) {
-  const section = document.querySelector('#progression-panel .progression-section--cap');
-  if (!section || !game) return;
-  const headStatus = section.querySelector('.progression-section__head > strong');
-  if (headStatus) {
-    const next = status.cleared ? 'MAIN CLEAR' : status.analysis.finalAutomation.qualifies ? 'STEP 9 ACTIVE' : headStatus.textContent;
-    if (headStatus.textContent !== next) headStatus.textContent = next;
-  }
-
-  let inline = section.querySelector('[data-final-phase-status]');
-  if (!inline) {
-    inline = document.createElement('div');
-    inline.className = 'final-phase-inline';
-    inline.dataset.finalPhaseStatus = 'true';
-    section.append(inline);
-  }
-  const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
-  const html = `
-    <div class="final-phase-inline__head"><span>STEP 9 → 10 / MEGA FACTORY</span><strong>${status.cleared ? 'MAIN CLEAR' : `${Math.round(status.progress * 100)}%`}</strong></div>
-    <div class="final-phase-meter"><i style="--final-progress:${Math.round(status.progress * 100)}%"></i></div>
-    <p>${status.cleared
-      ? 'Main Clear達成済み。同じSaveでFactory Optimizationを続行できます。'
-      : status.analysis.finalAutomation.qualifies
-        ? status.analysis.stable
-          ? `${MEGA_FACTORY_STABLE_SECONDS}秒の連続安定稼働を確認中。残り ${formatSeconds(status.remainingSeconds)}。`
-          : `安定稼働が中断中: ${missing || 'Factory状態を確認してください'}。連続時間は0から再計測します。`
-        : 'Step 8のAutonomous Industrial Core完全自動Lineを先に完成させてください。'}</p>`;
-  if (inline.innerHTML !== html) inline.innerHTML = html;
-
-  [...section.querySelectorAll('p')].forEach((paragraph) => {
-    if (paragraph === inline.querySelector('p')) return;
-    if (paragraph.textContent?.includes('Requirement Step 9')) {
-      const text = 'Step 9はMega Factoryの連続安定稼働、Step 10はMain Clearです。Final Phase runtimeが現在のFactory状態を監視します。';
-      if (paragraph.textContent !== text) paragraph.textContent = text;
-    }
-  });
-}
-
-function patchAutomationConsole(game, status) {
-  const section = [...document.querySelectorAll('.automation-console-section--wide')]
-    .find((candidate) => candidate.querySelector('h3')?.textContent?.trim() === 'Final Automation Contract');
-  if (!section || !game) return;
-  let inline = section.querySelector('[data-mega-factory-console]');
-  if (!inline) {
-    inline = document.createElement('div');
-    inline.className = 'final-phase-inline';
-    inline.dataset.megaFactoryConsole = 'true';
-    section.append(inline);
-  }
-  const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
-  const html = `
-    <div class="final-phase-inline__head"><span>MEGA FACTORY STABILITY</span><strong>${status.cleared ? 'MAIN CLEAR' : `${Math.round(status.progress * 100)}%`}</strong></div>
-    <div class="final-phase-meter"><i style="--final-progress:${Math.round(status.progress * 100)}%"></i></div>
-    <p>${status.cleared ? 'Main Clear達成済み。' : status.analysis.stable ? `連続安定稼働 ${formatSeconds(status.stableSeconds)} / ${formatSeconds(status.targetSeconds)}` : `未安定: ${missing || 'Step 8未完成'}`}</p>`;
-  if (inline.innerHTML !== html) inline.innerHTML = html;
-}
-
 function renderAll(status = null) {
   const game = getRuntimeGame();
   if (!game) return;
@@ -235,10 +173,7 @@ function renderAll(status = null) {
     if (hud) hud.hidden = true;
     return;
   }
-  const resolved = status || finalPhaseStatus(game);
-  renderHud(game, resolved);
-  patchProgressionPanel(game, resolved);
-  patchAutomationConsole(game, resolved);
+  renderHud(game, status || finalPhaseStatus(game));
 }
 
 function maybePersist(result) {
