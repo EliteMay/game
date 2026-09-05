@@ -113,18 +113,33 @@ function areaCard(game, definition) {
   const activeHere = activeSession?.areaId === definition.id;
   const activeOther = Boolean(activeSession && !activeHere);
   const progressPercent = Math.round((summary?.discoveryRatio || 0) * 100);
-  const objectiveLabel = summary?.completed ? 'MAIN OBJECTIVE COMPLETE' : 'MAIN OBJECTIVE ACTIVE';
+  const researchPhaseDone = definition.id === 'research' && summary?.labsCompleted && Number(summary?.securedComponents || 0) >= 3;
+  const objectiveLabel = summary?.completed
+    ? 'MAIN OBJECTIVE COMPLETE'
+    : researchPhaseDone
+      ? 'LAB PHASE COMPLETE / CENTRAL CORE LOCKED'
+      : 'MAIN OBJECTIVE ACTIVE';
   const available = areaState.unlocked && !activeOther;
   const buttonLabel = activeHere
     ? `${definition.name}の探索を再開`
     : activeOther
       ? '別エリアの探索Sessionが進行中'
       : `${definition.name}へ出発`;
-  const status = summary?.completed ? 'CLEARED' : activeHere ? 'SESSION ACTIVE' : areaState.unlocked ? 'AVAILABLE' : 'LOCKED';
+  const status = summary?.completed
+    ? 'CLEARED'
+    : activeHere
+      ? 'SESSION ACTIVE'
+      : researchPhaseDone
+        ? 'LABS SECURED'
+        : areaState.unlocked
+          ? 'AVAILABLE'
+          : 'LOCKED';
   const lockReason = areaState.unlocked ? '' : `Rank ${areaState.requiredRank}で解放`;
-  const shortcut = definition.id === 'industrial'
+  const detailNote = definition.id === 'industrial'
     ? `<small>${summary?.shortcutOpened ? 'Service Shortcut 開通済み' : 'Control Room復旧後にService Shortcutを開通可能'}</small>`
-    : '<small>進行必須報酬はObjective完了時に保証</small>';
+    : definition.id === 'research'
+      ? `<small>Special Cargo ${summary?.securedComponents || 0} / 3${researchPhaseDone ? ' / Central Coreは次Phase' : ''}</small>`
+      : '<small>進行必須報酬はObjective完了時に保証</small>';
 
   return `
     <article class="expedition-card${available || activeHere ? '' : ' is-locked'}">
@@ -134,7 +149,7 @@ function areaCard(game, definition) {
       </div>
       <div class="expedition-card__grid">
         <div><span>MAIN OBJECTIVE</span><p>${definition.objective}</p><small>${objectiveLabel}</small></div>
-        <div><span>MAIN LOOT</span><p>${lootNames(definition)}</p>${shortcut}</div>
+        <div><span>MAIN LOOT</span><p>${lootNames(definition)}</p>${detailNote}</div>
         <div><span>RECOMMENDED</span><p>${definition.recommended}</p><small>正常帰還前のLootはExpedition Session内</small></div>
         <div><span>DISCOVERY</span><p>${progressPercent}% / ${summary?.discovered || 0} / ${summary?.zoneTotal || definition.zoneIds.length} 区画</p><small>Resource Point ${summary?.resourcePoints || 0}</small></div>
       </div>

@@ -1,0 +1,112 @@
+body.research-expedition {
+  background: #071014;
+}
+
+.research-expedition .expedition-boot::before,
+.research-expedition .exploration-pause::before {
+  background:
+    radial-gradient(circle at 50% 20%, rgba(71, 145, 154, 0.18), transparent 34%),
+    radial-gradient(circle at 18% 74%, rgba(92, 111, 137, 0.14), transparent 32%),
+    radial-gradient(circle at 82% 72%, rgba(136, 96, 64, 0.12), transparent 30%),
+    linear-gradient(180deg, rgba(3, 9, 12, 0.34), rgba(3, 7, 9, 0.9));
+}
+
+.research-boot-card,
+.research-pause-card {
+  border-color: rgba(91, 151, 158, 0.5);
+  box-shadow: 0 28px 110px rgba(0, 0, 0, 0.68);
+}
+
+.research-boot-card > p,
+.research-objective > span,
+.research-hazard-note > span {
+  color: #8fc5c8;
+}
+
+.research-objective {
+  border-left-color: #72afb5;
+  background: rgba(10, 21, 24, 0.88);
+}
+
+.research-cargo-panel {
+  max-width: 360px;
+}
+
+.special-cargo-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(126, 168, 172, 0.18);
+  color: #bdd5d3;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.special-cargo-list strong {
+  color: #e1efed;
+  font-weight: 750;
+}
+
+.special-cargo-list .is-secured {
+  color: #8dc79f;
+}
+
+.special-cargo-list .is-carried {
+  color: #d7c27b;
+}
+
+.research-hazard-note {
+  position: fixed;
+  left: 50%;
+  bottom: 82px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(780px, calc(100vw - 32px));
+  padding: 8px 12px;
+  border: 1px solid rgba(88, 145, 151, 0.45);
+  background: rgba(8, 18, 21, 0.88);
+  color: #d9e8e7;
+  font-size: 11px;
+  letter-spacing: 0.025em;
+  pointer-events: none;
+}
+
+.research-hazard-note span {
+  flex: 0 0 auto;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+}
+
+.research-hazard-note.is-danger {
+  border-color: rgba(182, 83, 69, 0.58);
+  background: rgba(25, 12, 12, 0.9);
+  color: #f1d9d5;
+}
+
+.research-hazard-note.is-ready {
+  border-color: rgba(96, 148, 103, 0.56);
+  background: rgba(10, 24, 16, 0.88);
+  color: #d7eadb;
+}
+
+.research-expedition .exploration-toast.is-hazard {
+  border-color: rgba(196, 87, 72, 0.78);
+  color: #ffe5df;
+}
+
+.research-expedition .exploration-topbar > div:last-child strong {
+  min-width: 84px;
+}
+
+@media (max-width: 760px) {
+  .research-hazard-note {
+    display: none;
+  }
+
+  .research-cargo-panel {
+    max-width: calc(100vw - 28px);
+  }
+}

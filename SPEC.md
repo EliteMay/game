@@ -6,46 +6,44 @@ Updated: 2026-09-05
 
 ## 1. Current Playable Scope
 
-通常Gameplayは **Rank 1 → 7** まで接続済み。
+通常Gameplayは **Rank 1 → 7** まで接続済み。Rank 7はMain ClearではなくFinal Chapter開始点。
 
 ```text
 Factory / Scrap Yard
-→ Rank 1-3 Production
-→ Residential Exploration
-→ Rank 4 Logistics / Power
+→ Residential / Rank 4 Logistics & Power
 → Abandoned Factory / Advanced Assembly
-→ Smart Sorting / Factory Diagnostics
-→ Rank 6
 → Military Facility / Drone Control
-→ Drone Port automated recovery
-→ Conveyor Mk.3 / Priority / Overflow
-→ Configurable Drone Routes / Industrial Generator / Logistics Warehouse
+→ Rank 6 Advanced Logistics / Drone Routes / Industrial Power & Storage
 → Rank 7
+→ Ruined Research Facility
+→ Access Relay
+→ Robotics / Materials / Energy Lab
+→ Special Cargo normal return
 ```
 
-現在は **Phase 5-C**。
+現在は **Phase 6-A: Ruined Research Facility / Three Labs**。
 
-実装済みPhase 5要素:
+Phase 6-A実装済み:
+- Rank 7 Research Facility Transport Terminal entry
+- Central Atrium / Access Relay
+- Robotics Lab
+- Materials Lab
+- Energy Lab
+- 3種類のSpecial Cargo
+- Lab別environment hazard
+- Lab recoveryの永続化
+- failed expedition後のSpecial Cargo再回収
+- normal returnでFactory側へCargo確定
+- Phase 6-A専用3D Scene / UI
 
-- Military Facility / HP / Security Turret
-- Drone Control Blueprint / Research
-- Drone Port / Rank 6→7
-- Conveyor Mk.3 / Priority / Overflow
-- 3 secured Resource Point Drone routes
-- Automation Console
-- Industrial Generator
-- Logistics Warehouse
-- Industrial Storage → Logistics Warehouse in-place upgrade
-- Phase 5-C dedicated visual wrapper
-
-後続Phase:
-
-- Runtime API経由のReloadなしRoute切替
-- Advanced / Experimental Power tier
-- full weapon / patrol AI
-- ruined research facility / Fabricator / Advanced Drone
+未実装:
+- Central Core攻略
+- Fabricator
+- Experimental Research / Experimental Power
+- AI Control Module / Experimental Frame / Experimental Power Module recipe
+- Advanced Drone
+- Autonomous Industrial Core
 - Mega Factory / Main Clear
-- Final Hybrid Asset quality pass
 
 ---
 
@@ -61,10 +59,9 @@ Scrap Factory
 ├─ drone-routes.js
 ├─ game.js
 ├─ world.js
-├─ world-runtime-phase5b.js   # validated Phase 5-B visual base
-├─ world-runtime.js           # Phase 5-C visual wrapper
+├─ world-runtime-phase5b.js
+├─ world-runtime.js
 ├─ factory-management.js
-│  └─ phase4b-management-ui.js
 ├─ feature-pack.js
 ├─ progression.js
 │  ├─ progression-core.js
@@ -74,327 +71,294 @@ Scrap Factory
 │  └─ progression-phase5c.js
 ├─ progression-ui.js
 │  └─ phase5c-automation-ui.js
-├─ exploration.js
-│  └─ exploration-core-v3.js
-└─ exploration-ui.js
+├─ exploration.js                 # compatibility entrypoint
+│  └─ exploration-core-v4.js      # Rank 1-7 exploration state
+├─ exploration-ui.js
+│  └─ exploration-ui-v2.js        # Transport Terminal
+└─ exploration/
+   ├─ residential.*
+   ├─ industrial.*
+   ├─ military.*
+   └─ research.html / research.css / research.js
 ```
 
-Compatibility entrypoint `progression.js` / `exploration.js` は既存Import pathを維持する。
+`exploration.js`のImport pathは維持し、内部Coreだけv4へ更新する。
 
-Phase 5-Cでは大きい`game.js`へ新Simulationを追加せず、既存Recipe / Power / Storage Runtimeを再利用する。
+Phase 6-AはFactory `game.js`へFinal Chapter専用Simulationを増やさず、探索SceneとExploration stateへ閉じ込める。
 
 ---
 
-## 3. Save Contract
+## 3. Save / Compatibility Contract
 
 ```text
 localStorage key: elitemay-game-hub-v1
 Root Save Schema: 1
 Progression Schema: 1
 Exploration Schema: 1
+Build Grid: 2.5m
 ```
 
-Phase 5-CでもSchema変更なし。
+Phase 6-AでもSchema番号は変更しない。
 
-Additive building field:
+Phase 6-A additive exploration state:
 
 ```text
-resourcePointId: string | null
+exploration.areas.research
+exploration.areas.research.objective.accessRelayOnline
+exploration.areas.research.objective.roboticsRecovered
+exploration.areas.research.objective.materialsRecovered
+exploration.areas.research.objective.energyRecovered
+exploration.areas.research.objective.labsCompleted
+exploration.areas.research.objective.shortcutOpened
+exploration.areas.research.objective.centralCoreUnlocked
+exploration.areas.research.objective.completed
+exploration.areas.research.securedComponents[]
+exploration.activeSession.researchCargo[]
 ```
 
-用途:
-- Drone PortのUser-selected Resource Point IDのみ保存する
+Legacy Save normalize:
+- Research Areaが無い → default research state追加
+- `researchCargo`が無いactive session → `[]`
+- Residential / Industrial / Military stateは既存値を維持
+- unknown research component IDは除外
 
-保存しないDrone Route定義:
-- output item
-- cycle seconds
-- capacity/min
-- distance
-- danger
-- droneAllowed
+`centralCoreUnlocked` / Research Facility `completed` はPhase 6-Aでは進行でtrueにしない。
 
-これらは `drone-routes.js` が正本。
-
-旧Save:
-- `resourcePointId` がない / null → Military Alloy Resource Pointが確保済みなら従来RouteへFallback
+既存Phase 5-C additive field:
+- Drone Port `resourcePointId`
 
 保存しないDerived Data:
-- Directional route graph
-- route throughput / priority
+- Directional route graph / throughput / priority
 - Power snapshot
 - Factory diagnostics
-- Rank topology result
 - Resource Point performance metadata
+- Lab UI表示状態
 
 ---
 
-## 4. Spatial / Compatibility Contract
+## 4. Research Facility State Contract
 
-- Build Grid: `2.5m`
-- Factory座標系維持
-- Existing LayoutをMigrationで削除しない
-- Visual Logistics direction = Runtime direction
-- Quick Build 1〜5順序を維持
-- GitHub Pages Relative Path対応
-- Storage Tier UpgradeでBuilding ID / x / z / rotationを維持
+Area ID: `research`
 
----
+Unlock:
+- Progression Rank 7
 
-## 5. Directional Logistics
+Zones:
+1. `atrium`
+2. `robotics_lab`
+3. `materials_lab`
+4. `energy_lab`
+5. `central_core`
 
-Source of Truth: `logistics.js`
-
-| Node | Throughput | Input | Output / Rule |
-| --- | ---: | --- | --- |
-| Conveyor Mk.1 | 1.5/s | basic | Forward |
-| Conveyor Mk.2 | 3.0/s | basic | Forward |
-| Conveyor Mk.3 | 6.0/s | basic | Forward |
-| Splitter | 3.0/s | Rear | Forward / Left / Right Round-robin |
-| Merger | 3.0/s | Rear / Left / Right | Forward |
-| Smart Sorter | 3.0/s | Rear | category固定Lane |
-| Priority Splitter | 6.0/s | Rear | Forward Priority / Left+Right Backup |
-| Overflow Splitter | 6.0/s | Rear | Forward Main / Right Overflow |
-
-Route throughput = 経路上の最小Logistics throughput。
-
-PriorityはRoute探索時のDerived DataでSaveしない。
-
----
-
-## 6. Drone Resource Point Routing
-
-Source of Truth: `drone-routes.js`
-
-| ID | Area | Output | Cycle | Capacity/min | Distance | Danger | Runtime type |
-| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `residential-copper-network` | residential | copper_wire ×1 | 8s | 7.5 | 620m | 1 | `drone_port_copper` |
-| `industrial-electronics-cache` | industrial | e_waste ×1 | 10s | 6 | 890m | 2 | `drone_port_electronics` |
-| `military-alloy-cache` | military | rare_alloy ×1 | 12s | 5 | 1180m | 3 | `drone_port` |
-
-Playerが各AreaでResource Pointを攻略済みの場合のみAutomation Consoleの選択肢に出す。
-
-Drone Route変更:
+Main Phase 6-A flow:
 
 ```text
-resourcePointId更新
-→ compatibility runtime type更新
-→ partial progress = 0
-→ input / output bufferは維持
-→ Save APIで保存
-→ ReloadしてMemory stateと再同期
+Access Relay
+→ Robotics / Materials / Energy Lab（任意順）
+→ 各LabのSpecial Cargo回収
+→ Normal Return
+→ securedComponents 3 / 3
 ```
 
-`drone_port_copper` / `drone_port_electronics` はBuild Menuへ直接出さない内部Compatibility type。新規建築は常に`drone_port`から開始する。
+Lab dependency:
+- Access Relay前は3 Lab recovery不可
+- 3 LabはRelay後なら任意順
+- 全Lab recovery → `labsCompleted = true`
+- Central Core interaction → `phase-locked`
+- Lab phase完了だけではArea `completed = false`
 
-### Rank 6 → 7 compatibility
-
-既存MandatoryはMilitary Alloyの自動回収を要求するため、`analyzeRank6DroneLine()`はMilitary-assigned Portだけを対象にする。
-
-Copper / E-Waste RouteのみではMandatoryを満たさない。
-
-Target Storage:
-- Small Storage
-- Industrial Storage
-- Logistics Warehouse
+Optional Service Lift:
+- 3 Lab recovery後に開通可能
+- Phase 6-AではPersistent shortcut stateだけ保存
 
 ---
 
-## 7. Building Unlocks
+## 5. Special Cargo Contract
 
-Phase 5-B:
+Special Cargoは通常`ITEMS` / Backpack itemではなく、Final ChapterのProgression Cargoとして独立管理する。
+
+| Lab | Cargo ID | Display Name |
+| --- | --- | --- |
+| Robotics | `robotics-control-core` | AI制御コア試作機 |
+| Materials | `materials-alloy-sample` | 実験合金サンプル |
+| Energy | `energy-cell-prototype` | 高密度Energy Cell試作機 |
+
+状態を3段階に分ける:
 
 ```text
-conveyor_mk3      → Rank 6
-priority_splitter → Rank 6
-overflow_splitter → Rank 6
+Lab recovered
+→ persistent objective flag
+
+Cargo carried
+→ activeSession.researchCargo[]
+
+Factory secured
+→ areas.research.securedComponents[]
 ```
 
-Phase 5-C:
+Failure:
+- Abandon / HP 0で`researchCargo`は失う
+- Lab recoveryは失わない
+- 復旧済みLabから未確定Cargoを次回Guaranteed recollect可能
+
+Normal Return:
+- normal loot → existing Transport Depot
+- new Special Cargo → `securedComponents[]`
+- duplicate secureは拒否
+
+この分離により「失敗でLab攻略まで巻き戻す」と「Cargo消失で進行不能になる」の両方を避ける。
+
+---
+
+## 6. Research Facility Runtime / Hazard
+
+Browser runtime: `exploration/research.js`
+
+Scene:
+- Central AtriumをNavigation anchorにする
+- West = Robotics Lab
+- East = Materials Lab
+- North = Energy Lab
+- Far North = sealed Central Core
+
+Hazard:
+- Robotics: unstable actuator zone
+- Materials: hot process chamber
+- Energy: electrical arc field
+
+Shared exploration contract:
+- HP baseline 100
+- HP 0 → `abandonExpedition()`
+- Abandon / HP 0 → current normal loot + unreturned Special Cargo loss
+- discovered zones / Lab recoveryは保持
+- player/session state autosave
+- normal return pointへ到達して初めてCargo確定
+
+Phase 6-AではCombat AIは追加しない。Research Facilityは既存の探索・電源・環境Hazard統合を先にPlayableにする。
+
+---
+
+## 7. Transport Terminal
+
+`exploration-ui-v2.js`は`EXPLORATION_AREAS`から4エリアを表示する。
+
+Research Facility:
+- Rank 7未満 → LOCKED
+- active session → SESSION ACTIVE
+- 3 Lab + Special Cargo 3/3 secured → `LABS SECURED`
+- whole-area `completed`はfalseのため`CLEARED`とは表示しない
+
+Phase 6-A完了表示:
 
 ```text
-industrial_generator → Rank 6
-logistics_warehouse  → Rank 6
+LAB PHASE COMPLETE / CENTRAL CORE LOCKED
+Special Cargo 3 / 3 / Central Coreは次Phase
 ```
 
-Drone Port:
-- Rank 6
-- `drone_control_systems` Research必須
+---
 
-`PLAYABLE_MAX_RANK = 7` 維持。
+## 8. Existing Rank 1-6 Systems Preserved
+
+### Directional Logistics
+
+| Node | Throughput | Rule |
+| --- | ---: | --- |
+| Conveyor Mk.1 | 1.5/s | Forward |
+| Conveyor Mk.2 | 3.0/s | Forward |
+| Conveyor Mk.3 | 6.0/s | Forward |
+| Splitter | 3.0/s | Forward / Left / Right Round-robin |
+| Merger | 3.0/s | Rear / Left / Right → Forward |
+| Smart Sorter | 3.0/s | category fixed lane |
+| Priority Splitter | 6.0/s | Forward Priority / backup |
+| Overflow Splitter | 6.0/s | Forward Main / Right Overflow |
+
+### Drone Routes
+
+| Area | Output | Cycle |
+| --- | --- | ---: |
+| Residential | Copper Wire | 8s |
+| Industrial | E-Waste | 10s |
+| Military | Rare Alloy | 12s |
+
+Rank 6→7 MandatoryはMilitary Alloy assigned Drone Portを引き続き要求する。
+
+### Power
+- Starter Grid 55
+- Scrap Generator 80
+- Industrial Generator 180
+- Battery 960 Energy
+
+### Storage
+- Small Storage 120
+- Industrial Storage 600
+- Logistics Warehouse 1800
+- Back Pressure / no item loss維持
 
 ---
 
-## 8. Power
+## 9. Visual Layer
 
-PowerはRank 4から有効。
+Factory visual directionは引き続き`Stylized Industrial Realism`。
 
-| Device | Supply / Use |
-| --- | ---: |
-| Starter Grid | +55 |
-| Scrap Generator | +80 |
-| Industrial Generator | +180 |
-| Crusher | -18 |
-| Smelter | -30 |
-| Assembler | -50 |
-| Drone Port | -65 |
+Research Facilityは人工照明主体のFinal Chapter Scene:
+- cool cyan/steel Atrium
+- Robotics = cool technical blue
+- Materials = warm amber process equipment
+- Energy = violet/blue energy equipment
+- Central Coreは遠方のlocked destinationとして見せる
 
-Generator fuel definition:
-
-```text
-Scrap Generator:
-metal_scrap ×1 / 24s / 80 Power
-
-Industrial Generator:
-metal_scrap ×1 / 24s / 180 Power
-```
-
-`power.js` はGeneratorごとに:
-- `powerFuelItem`
-- `powerFuelSeconds`
-- `powerGeneration`
-を読む。
-
-既存Scrap Generatorの24秒Contractを維持する。
-
-Battery:
-- 960 Energy
-- charge 60
-- discharge 80
+Procedural visualでGameplay readabilityを優先しており、Final Hybrid Asset quality passではない。
 
 ---
 
-## 9. Storage / In-place Upgrade
-
-| Storage | Capacity | Rank |
-| --- | ---: | ---: |
-| Small Storage | 120 | early |
-| Industrial Storage | 600 | 5 |
-| Logistics Warehouse | 1800 | 6 |
-
-Back Pressure:
-- Full TargetへItemを移送しない
-- Target受入確認後のみSource Outputを減らす
-- Legacy over-capacity stateの既存Itemを削除しない
-
-### Industrial Storage → Logistics Warehouse
-
-Cost:
-
-```text
-620 - 240 = 380
-```
-
-UpgradeはBuilding objectの`type`を変更する。
-
-維持:
-- ID
-- x / z / rotation
-- input
-- output
-- existing items
-
-撤去→再建を要求しない。
-
----
-
-## 10. Production / Generic Runtime
-
-Existing:
-
-```text
-Metal Scrap → Crusher / 2.2s → Crushed Metal
-Crushed Metal → Smelter / 3.0s → Iron Ingot
-Motor + Circuit + Plastic → Assembler / 8.0s → Control Unit
-```
-
-Drone variantsも既存Generic Recipe Runtimeを利用:
-
-```text
-Copper route      → 8s  → Copper Wire
-Electronics route → 10s → E-Waste
-Military route    → 12s → Rare Alloy
-```
-
-Power / Output Buffer / Back Pressure / Directional LogisticsをDrone専用Simulationへ複製しない。
-
----
-
-## 11. Automation Console
-
-Browser module: `phase5c-automation-ui.js`
-
-機能:
-- Drone Port一覧
-- Portごとのsecured Resource Point選択
-- Output / cycle / capacity / distance / danger表示
-- Industrial Storage一覧
-- Logistics WarehouseへのUpgrade
-
-現在は`game.js`のMemory stateがModule localであるため、Saveだけ変更した後のAutosave競合を避ける目的で変更適用後にReloadする。
-
-将来Runtime mutation APIを公開した場合はReload依存を除去できる。
-
----
-
-## 12. Progression / Exploration
-
-Exploration shared contract:
-- Normal Returnまで通常Loot未確定
-- Abandon / HP 0ではCurrent Session Lootのみ失う
-- Objective / Shortcut / Resource Pointは永続
-- Progression BlueprintはGuaranteed / Idempotent
-
-Secured Resource Points:
-- Residential: `residential-copper-network`
-- Industrial: `industrial-electronics-cache`
-- Military: `military-alloy-cache`
-
-Rank 6 → 7 Mandatory自体はPhase 5-Aから変更しない。
-
----
-
-## 13. Visual Layer
-
-Visual direction: `Stylized Industrial Realism`。
-
-Phase 5-B Visual Runtimeを`world-runtime-phase5b.js`としてCompatibility Base化。
-
-Phase 5-C `world-runtime.js`はそのSubclass Wrapperとして次だけ追加:
-- Copper Drone Port: warm copper Route identity
-- Electronics Drone Port: green electronics Route identity
-- Industrial Generator: large engine block / twin exhaust / rotor
-- Logistics Warehouse: tall rack silhouette / high-density storage facade
-
-Simulation source of truthにはしない。
-
----
-
-## 14. Validation
+## 10. Validation
 
 `npm run validate`
 
-Static CI:
+Single entrypoint:
+
+```text
+package.json
+→ node scripts/validate.mjs
+```
+
+`validate.mjs`がPhase 6-Aを正式に含み、Research Sceneの必須File / HTML local refs / Runtime marker / `scripts/phase6a.test.mjs`を既存Regressionと同じ経路で確認する。
+
+Phase 6-A regression:
+- Rank 6 research facility locked
+- Rank 7 unlock
+- Exploration Schema v1 legacy normalization
+- old area state preservation
+- Access Relay dependency
+- 3 Lab recovery
+- `labsCompleted` true
+- whole Research Facility `completed` false
+- Central Core phase-lock
+- Special Cargo collection
+- Abandon loss
+- Lab state persistence after failure
+- guaranteed cargo recollection
+- normal return secure
+- duplicate secure prevention
+- normal loot Transport Depot preservation
+- Research HTML / CSS / JS integration markers
+- exploration compatibility entrypoint → v4
+
+Existing validator continues:
 - JS/MJS syntax
 - JSON parse
 - local HTML refs
-- existing Directional Logistics / Phase 5-B regressions
-- Rank 1→7 Progression
-- Power / Storage / Back Pressure
-- Residential / Industrial / Military Exploration
-- old Drone Port fallback
-- 3 secured Drone Route definitions
-- route recipe/type switching
-- output Buffer preservation on route switch
-- non-Military route rejection for Rank 6→7 mandatory
-- Industrial Generator Rank gate / 180 Power
-- Logistics Warehouse Rank gate / 1800 capacity
-- Quick Build 1〜5
-- Phase 5-B visual compatibility base marker
-- Phase 5-C visual wrapper / Automation Console marker
+- Rank 1→7 progression
+- Directional Logistics
+- Factory Management
+- Power / Storage
+- Residential / Industrial / Military
+- Phase 4-B / Phase 5-A / 5-B / 5-C
 
 Static CIで保証しない:
-- Automation Consoleの実Layout
-- Pointer Lock handoff / close時復帰
-- Route変更・Upgrade後Reloadの体感
-- Phase 5-C設備のBuild Preview / Collider / first-person scale
+- Research Facility Pointer Lock / pause feel
+- first-person navigation readability
+- Hazard damage balance
+- Lab / Central Core visual scale
+- collider / route feel
 - WebGL FPS

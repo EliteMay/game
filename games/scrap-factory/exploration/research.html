@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1215">
+  <meta name="description" content="Scrap FactoryのRank 7崩壊研究施設。Robotics、Materials、Energy Labを復旧してExperimental Tierの特殊部品を回収する。">
+  <title>崩壊した研究施設 | Scrap Factory</title>
+  <link rel="stylesheet" href="./residential.css">
+  <link rel="stylesheet" href="./research.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body class="research-expedition">
+  <main class="exploration-shell" aria-label="崩壊した研究施設探索">
+    <canvas id="exploration-canvas" aria-label="崩壊した研究施設3D探索画面"></canvas>
+
+    <section id="expedition-boot" class="expedition-boot">
+      <div class="expedition-boot__card research-boot-card">
+        <p>EXPEDITION AREA 04 / FINAL CHAPTER</p>
+        <h1>崩壊した研究施設</h1>
+        <strong>RUINED RESEARCH FACILITY / DANGER 4</strong>
+        <span>Access Relay復旧 → Robotics / Materials / Energy Lab攻略 → 特殊部品を正常帰還</span>
+        <div class="expedition-controls"><kbd>WASD</kbd> 移動　<kbd>Shift</kbd> ダッシュ　<kbd>E</kbd> 操作　<kbd>Esc</kbd> メニュー</div>
+        <button id="enter-expedition" type="button">研究施設へ入る</button>
+        <small id="boot-message">EXPEDITION SESSION LOADED</small>
+      </div>
+    </section>
+
+    <section id="exploration-hud" class="exploration-hud" hidden>
+      <div class="exploration-topbar">
+        <div><span>AREA</span><strong id="zone-label">CENTRAL ATRIUM</strong></div>
+        <div><span>SESSION PACK</span><strong id="session-pack">0 / 12</strong></div>
+        <div><span>FACILITY MAP</span><strong id="district-progress">0 / 5</strong></div>
+        <div><span>HP</span><strong id="health-value">100 / 100</strong></div>
+      </div>
+
+      <aside class="exploration-objective research-objective">
+        <span>FINAL CHAPTER / PHASE 6-A</span>
+        <h2 id="objective-title">中央Access Relayを復旧</h2>
+        <p id="objective-body">Atriumの電源Relayを起動し、3つの研究LabへAccessできる状態にする。</p>
+        <div class="objective-steps" id="objective-steps"></div>
+      </aside>
+
+      <aside class="session-loot research-cargo-panel">
+        <span>EXPEDITION LOOT / SPECIAL CARGO</span>
+        <div id="session-loot-list">未回収</div>
+        <div id="special-cargo-list" class="special-cargo-list">特殊部品 未回収</div>
+        <small>特殊部品は正常帰還でFactory側へ確定。放棄・HP 0では今回運搬分を失います。</small>
+      </aside>
+
+      <div class="research-hazard-note"><span>FACILITY HAZARD</span><strong id="hazard-note">Lab内部の電気・熱・機械Hazardに注意。中央Relay復旧後に各Labを攻略できます。</strong></div>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div id="exploration-prompt" class="exploration-prompt" hidden></div>
+      <div id="exploration-toast" class="exploration-toast" aria-live="polite"></div>
+    </section>
+
+    <section id="exploration-pause" class="exploration-pause" hidden>
+      <div class="exploration-pause__card research-pause-card">
+        <p>EXPEDITION PAUSED</p>
+        <h2>崩壊した研究施設</h2>
+        <button id="resume-expedition" type="button">探索に戻る</button>
+        <a href="../../../index.html">Game Hubへ戻る（Session保持）</a>
+        <button id="abandon-expedition" class="danger" type="button">探索を放棄してFactoryへ戻る</button>
+        <small>放棄またはHP 0では今回の通常Lootと未確定Special Cargoを失います。復旧済みLab・区画発見は保持されます。</small>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./research.js"></script>
+</body>
+</html>
