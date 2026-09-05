@@ -108,7 +108,7 @@ function normalizeSession(candidate) {
       x: Number.isFinite(Number(player.x)) ? Number(player.x) : 0,
       y: Number.isFinite(Number(player.y)) ? Number(player.y) : 1.7,
       z: Number.isFinite(Number(player.z)) ? Number(player.z) : 15,
-      yaw: Number.isFinite(Number(player.yaw)) ? Number(player.yaw) : Math.PI,
+      yaw: Number.isFinite(Number(player.yaw)) ? Number(player.yaw) : 0,
     },
   };
 }
@@ -160,7 +160,7 @@ function makeSession() {
     startedAt: new Date().toISOString(),
     loot: {},
     collectedLootIds: [],
-    player: { x: 0, y: 1.7, z: 15, yaw: Math.PI },
+    player: { x: 0, y: 1.7, z: 15, yaw: 0 },
   };
 }
 
@@ -200,9 +200,7 @@ export function discoverExplorationZone(game, zoneId) {
   return { changed: true, zoneId, discovered: area.discoveredZones.length };
 }
 
-export function canAddExplorationLoot(game, itemId, amount = 1) {
-  const exploration = ensureExplorationState(game);
-  const session = exploration.activeSession;
+function canAddSessionLoot(session, itemId, amount = 1) {
   if (!session || !ITEMS[itemId]) return false;
   const simulated = { ...session.loot };
   for (let index = 0; index < Math.max(0, nonNegativeInt(amount)); index += 1) {
@@ -214,6 +212,11 @@ export function canAddExplorationLoot(game, itemId, amount = 1) {
   return true;
 }
 
+export function canAddExplorationLoot(game, itemId, amount = 1) {
+  const exploration = ensureExplorationState(game);
+  return canAddSessionLoot(exploration.activeSession, itemId, amount);
+}
+
 export function collectExplorationLoot(game, lootId, itemId, amount = 1) {
   const exploration = ensureExplorationState(game);
   const session = exploration.activeSession;
@@ -221,7 +224,7 @@ export function collectExplorationLoot(game, lootId, itemId, amount = 1) {
   if (!session) return { changed: false, reason: 'no-session' };
   if (!ITEMS[itemId]) return { changed: false, reason: 'unknown-item' };
   if (session.collectedLootIds.includes(String(lootId))) return { changed: false, reason: 'collected' };
-  if (!canAddExplorationLoot(game, itemId, count)) return { changed: false, reason: 'full' };
+  if (!canAddSessionLoot(session, itemId, count)) return { changed: false, reason: 'full' };
   session.loot[itemId] = Number(session.loot[itemId] || 0) + count;
   session.collectedLootIds.push(String(lootId));
   return { changed: true, itemId, amount: count, total: session.loot[itemId] };
