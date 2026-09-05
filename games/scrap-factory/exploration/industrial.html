@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111718">
+  <meta name="description" content="Scrap Factoryの独立探索エリア、廃工場。補助GeneratorとControl Roomを復旧し、組立制御Blueprintを回収する。">
+  <title>廃工場 | Scrap Factory</title>
+  <link rel="stylesheet" href="./residential.css">
+  <link rel="stylesheet" href="./industrial.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body class="industrial-expedition">
+  <main class="exploration-shell" aria-label="廃工場探索">
+    <canvas id="exploration-canvas" aria-label="廃工場3D探索画面"></canvas>
+
+    <section id="expedition-boot" class="expedition-boot">
+      <div class="expedition-boot__card industrial-boot-card">
+        <p>EXPEDITION AREA 02</p>
+        <h1>廃工場</h1>
+        <strong>ABANDONED FACTORY / DANGER 2</strong>
+        <span>補助Generatorを復旧 → Control Room再起動 → 組立制御Blueprintを回収</span>
+        <div class="expedition-controls"><kbd>WASD</kbd> 移動　<kbd>Shift</kbd> ダッシュ　<kbd>E</kbd> 操作　<kbd>Esc</kbd> メニュー</div>
+        <button id="enter-expedition" type="button">探索を開始</button>
+        <small id="boot-message">EXPEDITION SESSION LOADED</small>
+      </div>
+    </section>
+
+    <section id="exploration-hud" class="exploration-hud" hidden>
+      <div class="exploration-topbar">
+        <div><span>AREA</span><strong id="zone-label">ARRIVAL BAY</strong></div>
+        <div><span>SESSION PACK</span><strong id="session-pack">0 / 12</strong></div>
+        <div><span>FACTORY MAP</span><strong id="district-progress">0 / 4</strong></div>
+      </div>
+
+      <aside class="exploration-objective industrial-objective">
+        <span>MAIN OBJECTIVE</span>
+        <h2 id="objective-title">補助Generatorを復旧</h2>
+        <p id="objective-body">Generator Hallの黄色いService Panelを操作する。</p>
+        <div class="objective-steps" id="objective-steps"></div>
+      </aside>
+
+      <aside class="session-loot">
+        <span>EXPEDITION LOOT</span>
+        <div id="session-loot-list">未回収</div>
+        <small>入口Transport Padへ正常帰還するまでFactoryへ確定しません。</small>
+      </aside>
+
+      <div class="industrial-hazard-note"><span>HAZARD</span><strong>青白い電気アーク区画は接近すると押し戻されます</strong></div>
+      <div class="crosshair" aria-hidden="true"></div>
+      <div id="exploration-prompt" class="exploration-prompt" hidden></div>
+      <div id="exploration-toast" class="exploration-toast" aria-live="polite"></div>
+    </section>
+
+    <section id="exploration-pause" class="exploration-pause" hidden>
+      <div class="exploration-pause__card">
+        <p>EXPEDITION PAUSED</p>
+        <h2>廃工場</h2>
+        <button id="resume-expedition" type="button">探索に戻る</button>
+        <a href="../../../index.html">Game Hubへ戻る（Session保持）</a>
+        <button id="abandon-expedition" class="danger" type="button">探索を放棄してFactoryへ戻る</button>
+        <small>放棄すると今回拾った通常Lootだけ失います。区画発見・設備復旧・Blueprint進行は保持されます。</small>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="./industrial.js"></script>
+</body>
+</html>
