@@ -19,12 +19,22 @@ export const ITEMS = {
   motor: { id: 'motor', name: '産業モーター', short: 'モーター', value: 185, stack: 10, color: 0x7b6b5c, category: 'advanced' },
   control_unit: { id: 'control_unit', name: '制御ユニット', short: '制御', value: 520, stack: 8, color: 0x6f837f, category: 'advanced' },
   rare_alloy: { id: 'rare_alloy', name: '軍用レア合金', short: 'レア合金', value: 680, stack: 8, color: 0x8798a2, category: 'advanced' },
+  ai_control_module: { id: 'ai_control_module', name: 'AI制御モジュール', short: 'AI MODULE', value: 980, stack: 6, color: 0x6faeb8, category: 'advanced' },
+  experimental_frame: { id: 'experimental_frame', name: '実験フレーム', short: 'EXP FRAME', value: 1150, stack: 6, color: 0x8d99aa, category: 'advanced' },
+  experimental_power_module: { id: 'experimental_power_module', name: '実験電力モジュール', short: 'EXP POWER', value: 1320, stack: 6, color: 0x777fd0, category: 'advanced' },
 };
 
 export const RECIPES = {
   crusher_metal: { id: 'crusher_metal', machine: 'crusher', input: { metal_scrap: 1 }, output: { crushed_metal: 1 }, seconds: 2.2 },
   smelter_iron: { id: 'smelter_iron', machine: 'smelter', input: { crushed_metal: 1 }, output: { iron_ingot: 1 }, seconds: 3.0 },
   assembler_control_unit: { id: 'assembler_control_unit', machine: 'assembler', input: { motor: 1, circuit: 2, plastic: 1 }, output: { control_unit: 1 }, seconds: 8.0 },
+  fabricator_experimental_set: {
+    id: 'fabricator_experimental_set',
+    machine: 'fabricator',
+    input: { control_unit: 2, rare_alloy: 3, circuit: 2, iron_plate: 2 },
+    output: { ai_control_module: 1, experimental_frame: 1, experimental_power_module: 1 },
+    seconds: 20.0,
+  },
   drone_residential_copper: { id: 'drone_residential_copper', machine: 'drone_port_copper', input: {}, output: { copper_wire: 1 }, seconds: 8.0 },
   drone_industrial_electronics: { id: 'drone_industrial_electronics', machine: 'drone_port_electronics', input: {}, output: { e_waste: 1 }, seconds: 10.0 },
   drone_military_alloy: { id: 'drone_military_alloy', machine: 'drone_port', input: {}, output: { rare_alloy: 1 }, seconds: 12.0 },
@@ -44,6 +54,7 @@ export const BUILDINGS = {
   crusher: { id: 'crusher', name: '粉砕機', cost: 80, category: 'production', buildable: true, description: '鉄くず1個を2.2秒で破砕金属1個へ加工する。Rank 4以降は稼働時に18 Powerを使用する。', color: 0x8a6b4d, accepts: ['metal_scrap'], recipe: 'crusher_metal', powerUse: 18 },
   smelter: { id: 'smelter', name: '簡易精錬炉', cost: 140, category: 'production', buildable: true, description: '破砕金属1個を3.0秒で鉄インゴット1個へ精錬する。Rank 4以降は稼働時に30 Powerを使用する。', color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron', powerUse: 30 },
   assembler: { id: 'assembler', name: 'アセンブラー', cost: 420, category: 'production', buildable: true, description: '廃工場の制御Blueprintを解析して解放する高度組立機。モーター・制御回路・プラスチックから制御ユニットを自動組立する。', color: 0x526a66, accepts: ['motor', 'circuit', 'plastic'], recipe: 'assembler_control_unit', powerUse: 50 },
+  fabricator: { id: 'fabricator', name: 'ファブリケーター', cost: 1250, category: 'production', buildable: true, description: 'Rank 7 Experimental Tier専用設備。3 Labの技術を統合し、Central Core復旧に必要な3種類の最終部品を20秒で一括製造する。', color: 0x596b72, accepts: ['control_unit', 'rare_alloy', 'circuit', 'iron_plate'], recipe: 'fabricator_experimental_set', powerUse: 110 },
   drone_port: { id: 'drone_port', name: 'ドローンポート', buildable: true, description: '確保済みResource PointへUtility Droneを自動派遣するRank 6設備。Automation ConsoleでPortごとに回収先を変更できる。', ...DRONE_PORT_COMMON, recipe: 'drone_military_alloy' },
   drone_port_copper: { id: 'drone_port_copper', name: 'ドローンポート / 銅配線網', buildable: false, description: '住宅街の確保済み銅配線網を自動回収中。Automation ConsoleからRoute変更可能。', ...DRONE_PORT_COMMON, recipe: 'drone_residential_copper' },
   drone_port_electronics: { id: 'drone_port_electronics', name: 'ドローンポート / 電子部品庫', buildable: false, description: '廃工場の確保済み電子部品庫を自動回収中。Automation ConsoleからRoute変更可能。', ...DRONE_PORT_COMMON, recipe: 'drone_industrial_electronics' },
@@ -78,7 +89,7 @@ export const BUILD_MENU_ORDER = [
   'conveyor_mk2', 'splitter', 'merger', 'smart_sorter',
   'conveyor_mk3', 'priority_splitter', 'overflow_splitter',
   'generator', 'industrial_generator', 'power_pole', 'battery',
-  'industrial_storage', 'logistics_warehouse', 'assembler', 'drone_port',
+  'industrial_storage', 'logistics_warehouse', 'assembler', 'drone_port', 'fabricator',
 ];
 
 export const SCRAP_SPAWNS = [
