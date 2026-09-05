@@ -2,11 +2,12 @@
 
 ## 要件定義ステータス
 
-- Status: **要件定義完了（Visual強化要件統合済み）**
-- Completed: 2026-09-05
+- Status: **要件定義完了（Home / Player Upgrade / Tutorial強化要件統合済み）**
+- Completed: 2026-09-06
 - Visual Requirements Updated: 2026-09-05
+- Home / Player Convenience / Tutorial Requirements Updated: 2026-09-06
 - 対象: Game Hub / Game 01 `Scrap Factory`
-- このファイルを Scrap Factory のゲーム内容・進行・探索・自動化・Visual Direction・制作Phaseに関する要件の正本とする。
+- このファイルを Scrap Factory のゲーム内容・進行・探索・自動化・Home / Player Upgrade・Tutorial・Visual Direction・制作Phaseに関する要件の正本とする。
 - 実装詳細は現行 `SPEC.md`、現行挙動はRepository上の実装を照合する。
 - Balance値、Visual Budget、個別数値は下部の「制作段階で調整してよい項目」の範囲で調整可能。
 - 既存Save / Directional Conveyor / 2.5m Grid / Factory座標系 / GitHub Pages対応等の確定済みContractを、Visual強化や実装都合だけで無断変更しない。
@@ -74,7 +75,10 @@ Scrap Factoryは、探索と工場自動化の両方が最後まで必要にな�
 - 電力
 - Splitter / Merger / Smart Sorter / 高速Conveyor
 - 高度加工 / Assembler / Fabricator
-- Backpack重量制 / Secure Case
+- Backpack段階拡張 / Secure Case
+- Home / Bed / PC / Home Storage / Exploration Workbench
+- Player Convenience Upgrade / Scanner / Material Tracking / Loadout Preset
+- Contextual Tutorial / Tutorial Library / System Diagnostics
 - 軽い戦闘 / HP / 環境危険
 - Drone / 自動素材回収
 - Factory Expansion / 立体物流
@@ -460,6 +464,7 @@ Transport Terminalでは最低限次を確認できる。
 - 廃住宅街以降はTransport Terminalから出発する。
 - 出発前に簡易Loadoutを確認する。
 - Menuから即Factoryへワープする方式にはしない。
+- Homeへの直接Fast Travelも探索中は不可とする。
 - 指定帰還地点へ到達して初めて正常帰還。
 - Shortcut / Service Gate / Elevator等の復旧で後から出入口を増やせる。
 - 時間制限中心のExtraction Gameにはしない。
@@ -522,30 +527,49 @@ Lootは場所の意味と一致させる。
 
 # Backpack / Inventory
 
-探索用Backpackは **Slot数 + 最大重量** の両方で制限する。
+探索用Backpackは **Slot数を中心とする既存方式を維持**し、今回のHome / Player Convenience要件では重量制を導入しない。
 
-- Slot = 種類 / Stack数の制限
-- Weight = 重量物の制限
-- 既存12 Slot Backpackから段階的に拡張
-- 上限付近ではSprint効率を軽く下げてもよい
-- 上限超過Lootは取得不可
-- 強い移動速度低下を中心にはしない
+- 既存12 Slot Backpackから段階的に拡張する。
+- Backpack I / II / IIIの3段階を基本とする。
+- Backpack IはRank 2、Backpack IIはRank 4、Backpack IIIはRank 6でPC側の購入候補として解放する。
+- 具体Slot数はBalance / Playtestで調整可能。
+- Slot上限を超えるItemは取得不可または既存Inventory Contractに従って拒否する。
+- 重量によるSprint低下、最大重量、Heavy Frame等は今回の要件には含めない。
+- 既存Backpack UpgradeとPC Upgradeを二重Systemにせず、PC側のBackpack Upgradeへ統合する。
 
-Upgrade候補:
+Upgrade候補 / 関連機能:
 
-- Slot増加
-- 最大重量増加
-- Material Pouch
-- Heavy Frame
+- Backpack I / II / III
+- Auto Sort
+- Quick Deposit
+- Loadout Preset
 - Secure Case
 
 ## Secure Case
 
-Blueprint / Research Data / Key Item等の重要品を少数保護できる特殊収納。
+探索失敗時にもPlayerが明示的に保護したItemを少数保持できる特殊収納。
 
-- 探索失敗時も保持。
-- 容量は小さくする。
-- 何を保護するか選択する要素を残す。
+入れられる:
+
+- 通常Loot
+- Rare素材
+- PC Upgrade用素材
+- Optional PC Upgrade Blueprint
+
+入れられない:
+
+- Main Objective用Special Cargo
+- 進行必須Quest Item / Key Item
+- Central Core等のMain Progression専用Item
+- Factory設備等の大型物
+
+原則:
+
+- Playerが自分でCaseへ入れたItemだけ保護する。
+- 高価値Itemを自動選択しない。
+- 容量は小さくし、PC Upgradeで段階拡張する。
+- 探索失敗時もCase内の許可対象Itemを保持する。
+- Main ProgressionのRiskをSecure Caseだけで無効化しない。
 
 ## Factory Inventoryとの分離
 
@@ -558,6 +582,506 @@ Blueprint / Research Data / Key Item等の重要品を少数保護できる特�
 ```
 
 Factory内の建築ではFactory Storageから材料を直接消費可能にし、毎回Backpackへ材料を移すことを必須にしない。
+
+Home StorageはFactory Storageとは別のPlayer / Exploration用Storageとして扱う。PC UpgradeでFactory製品を使う場合、Factory Network Link取得前はFactory Storageから自分で取り出し、BackpackでHomeへ運ぶ。
+
+# Home / Player Convenience Progression
+
+## 役割
+
+Factoryのすぐ近くに、Playerの **自宅兼生活・探索準備拠点**となる小さなHomeを置く。
+
+HomeはFactoryを置き換えず、役割を明確に分ける。
+
+```text
+Home
+→ Player Upgrade / Exploration準備 / Save / Recovery / Personal Storage
+
+Factory
+→ Production / Logistics / Power / Drone / Factory Research
+```
+
+Home / PC UpgradeはMain Progressionの必須Gateにしない。PC Upgradeを取得しなくてもRank 1〜7、各探索Area、Factory Automation、Main Clearへ到達可能にする。
+
+## Home配置 / World Contract
+
+- Factoryと同じ3D World内にシームレスに存在する。
+- Loadingを挟む別Interior Sceneにはしない。
+- Factoryから徒歩10〜20秒程度を目安とする近距離に置く。
+- Factory Build Gridと競合しない固定Safe Areaへ配置する。
+- 既存Factory Layoutや2.5m Gridの中心座標を理由なく変更しない。
+- Home内ではFactory Machine / Conveyor等をBuild不可とする。
+- Bed / PC / Home Storage / Workbench等の機能設備は固定配置・解体不可。
+- Home設備のColliderとVisualを一致させ、見える壁や家具を通り抜ける状態を残さない。
+- Home内はSafe Zoneとし、敵・環境Damageを発生させない。
+- HomeのPC / 基本照明等をFactory Power Shortageで使用不能にせず、Upgrade / RecoveryのSoft Lockを作らない。
+- 探索中からHomeへ直接Fast Travelする機能は追加しない。
+
+## Home Visual Direction
+
+Homeは **廃工業地帯の小型プレハブ住宅**を基本とする。
+
+初期状態:
+
+- 金属外壁
+- 少し古い窓
+- 簡素なBed
+- 中古PC + 小型Monitor
+- Home Storage
+- Workbench
+- 小さな棚 / 工具 / Scrap系小物
+- 最低限の照明
+
+Progressionに合わせて巨大化させるのではなく、PC / Monitor / Scanner機器 / Storage / Workbench周辺が少しずつ整備・高度化する。
+
+House Buildingを主要Systemにはしない。家具位置は固定し、CosmeticによるAppearance変更のみ許容する。
+
+## Door / Home Marker
+
+- Home Doorは通常Interactとして `E` で開閉する。
+- Loadingを発生させない。
+- Door Animation / ColliderでPlayerが引っかからないようにする。
+- 一定距離離れた後の自動Closeは実装段階で採用可能。
+- HUD / Mapに控えめな `HOME` Markerを表示可能にする。
+- HOME MarkerはSettingsで非表示可能。
+- HOME Marker自体をFast Travel機能にはしない。
+- 既存SaveではHome追加時に一度だけ利用可能になったことを通知する。
+
+## Bed
+
+Bedは次を担当する。
+
+- 手動Save
+- Home Respawn地点
+- HP等のPlayer状態回復
+- 短い休憩演出
+
+使用Flow:
+
+```text
+[E] 休む
+→ 短いFade Out
+→ Save
+→ Player状態回復
+→ Fade In
+```
+
+- 数秒程度で完了する。
+- 昼夜Cycle / 疲労 / 睡眠時間選択Systemは今回追加しない。
+- Bed利用でFactory Productionの長時間Time Skipを発生させない。
+- 既存Auto Saveは維持する。
+- New GameではHome Bed付近を開始 / Respawn地点とする。
+- 既存Saveでは現在位置を強制移動せず、Home Bedを初めて使用するまでは既存の復帰Contractを壊さない。使用後はHome Respawnを有効化する。
+
+## PC: Player Management Terminal
+
+PCはPlayer側の管理中心Terminalとする。
+
+担当:
+
+- Player Upgrade Tree
+- Upgrade必要素材 / Cash / Blueprint確認
+- Material Tracking / Pin
+- 発見済み素材 / 入手エリアHint
+- Tutorial Library
+- Tutorial Replay / 再開
+- Controls / Guide
+- Player Progress
+- Home Upgrade
+- Home Cosmetic選択
+
+担当しない:
+
+- Factory Researchの全面移行
+- Drone管理
+- Production Recipe管理
+- Power管理
+- Factory全体Automation
+
+Factory Management / Automation Consoleの役割を奪わない。
+
+PC Interaction:
+
+- `E` でPC操作へ入る。
+- Player移動を停止し、CameraをMonitorへ短く寄せて専用UIを開く。
+- Mouse操作可能。
+- `Esc` で通常Gameplayへ戻る。
+- 3D Monitorの小さなButtonを直接Mouseで押す複雑なUIにはしない。
+- PC / Workbench / Home Storage UI操作中もFactory Production / Conveyor / Power / Drone Simulationは継続する。
+- 本来のPause Menuを開いた場合だけ既存Pause Contractに従う。
+
+PC主要画面:
+
+- `UPGRADES`
+- `MATERIAL TRACKING`
+- `HOME`
+- `TUTORIAL LIBRARY`
+- `PLAYER PROGRESS`
+
+Upgrade購入前に効果・必要素材・不足数・消費内容を詳細画面で確認可能にする。毎回二重確認Popupを要求せず、詳細画面上の `UPGRADE` 実行を確定操作とする。
+
+重要Upgrade Transactionは `条件確認 → 素材 / Cash消費 → Unlock → Save` を一まとまりとして扱い、途中状態・二重消費・Item lossを残さない。
+
+## PC Upgrade基本Contract
+
+通常Upgrade:
+
+```text
+必要Rank
++ Cash
++ 探索素材 / Factory加工品
+→ Upgrade
+```
+
+特殊Upgrade:
+
+```text
+必要Rank
++ Optional Upgrade Blueprint発見
++ Cash
++ 素材
+→ Upgrade
+```
+
+原則:
+
+- 最終的には全Upgrade取得可能。
+- 排他的Skill Buildにはしない。
+- Reset / Respecを基本要件にしない。
+- 単純な `+数%` Upgradeを大量に並べない。
+- 新しい便利機能やPlayer行動の改善を優先する。
+- Main Progression必須素材をPC Upgradeだけで大量消費させない。
+- Upgrade専用通貨を追加せず既存Cash / 素材 / Factory製品を利用する。
+- 序盤は探索素材中心、中盤以降はFactory加工品も必要にする。
+- 特殊UpgradeだけBlueprintを要求し、全UpgradeをBlueprint周回にしない。
+- Main Clear後も未取得Upgradeを取得可能。
+
+## PC Upgrade Tree
+
+### Rank 1
+
+- Loot Scanner I
+
+### Rank 2
+
+- Backpack I
+- Quick Deposit
+
+### Rank 3
+
+- Loot Scanner II
+- Material Tracking
+- Home Storage II
+
+### Rank 4
+
+- Backpack II
+- Auto Sort
+- Loadout Preset
+- Sprint Efficiency
+
+### Rank 5
+
+- Resource Scanner
+- Advanced Scanner
+- Home Storage III
+
+### Rank 6
+
+- Backpack III
+- Secure Case I
+- Rare Loot Detection
+- Secure Case II
+
+### Rank 7
+
+- Factory Network Link
+- Scanner Mastery
+
+具体効果値・Slot数・Scanner距離等はBalance / Playtestで調整可能。
+
+PCでは現在Rank + 次Rank程度までのUpgradeを中心に見せる。特殊UpgradeはBlueprint未発見時に詳細を全開示せず、`未発見技術` 等のHint表示に留める。
+
+## Existing Backpack Upgrade統合
+
+- 既存Backpack UpgradeとPC Backpack Upgradeを別Systemとして残さない。
+- 既存SaveですでにBackpack強化済みなら対応するPC Upgradeを取得済みとしてMigrationする。
+- 既存SaveのBackpack容量を下げない。
+- 取得済みUpgradeの再購入を要求しない。
+- Cash / 素材を二重請求しない。
+
+## Optional Upgrade Blueprint
+
+PC Upgrade用のOptional Blueprintは通常のMain Progression Blueprintと区別する。
+
+```text
+探索でOptional Blueprint発見
+→ Backpack / Secure Case
+→ 正常帰還
+→ 永久登録
+→ PCで特殊Upgrade詳細 / 購入を解放
+```
+
+- 正常帰還前に探索失敗した場合、Backpack内Blueprintは通常Loot Contractに従って失う。
+- Secure Case内の許可対象Optional Blueprintは保持できる。
+- 一度正常帰還して登録済みなら以降失わない。
+- 登録後にHomeまで物理Blueprintを持ち歩かせる必要はない。
+
+## Loot / Resource Scanner
+
+Scannerは常時全Lootを表示せず、**Pulse方式**とする。
+
+```text
+Scanner入力
+→ 0.2〜0.4秒程度の短いPulse演出
+→ 周囲の回収可能Itemを数秒Highlight
+→ Cooldown
+```
+
+原則:
+
+- Scanner用Consumable / Batteryを毎回消費しない。
+- Player操作を長時間停止しない。
+- Cameraを強制移動しない。
+- 強いFlashを使わない。
+- 音だけに状態を依存しない。
+- Cooldown中は控えめに残り時間を確認可能。
+- 画面を埋め尽くさないよう距離 / 同時表示数の上限を持たせる。
+
+Scanner Progression:
+
+```text
+未強化 / 初期情報
+→ 必要素材名
+
+Loot Scanner I
+→ 近距離Loot検出
+
+Loot Scanner II
+→ 範囲 / 表示時間等を強化
+
+Resource Scanner
+→ Resource Point / 素材エリア情報を強化
+
+Advanced Scanner
+→ 素材種類 / 方向の識別を強化
+
+Rare Loot Detection
+→ Rare Lootを明確に強調
+
+Scanner Mastery
+→ 最終便利機能
+```
+
+正確な全Loot位置を最初からMapへ常時表示しない。
+
+## Material Tracking / Pin
+
+PC / Guideから任意のUpgrade・素材目標を **1つだけ** Pin可能にする。
+
+HUDではMain Goalを別枠で残し、Optional TrackをMain Progressionと混同しない。
+
+例:
+
+```text
+TRACKED
+Advanced Scanner
+
+Circuit      3 / 5
+E-Waste      8 / 8
+Cash       $620 / $900
+Blueprint   未発見
+```
+
+Scanner Pulse時:
+
+- 追跡中Upgradeの必要素材を強くHighlight。
+- その他回収可能Lootは弱くHighlight。
+- 追跡素材だけに限定して他の発見を完全に消さない。
+
+素材入手Hintは段階的に詳しくする。
+
+```text
+素材名
+→ 主な入手エリア
+→ エリア内の大まかな方向
+→ 近距離Scanner
+```
+
+## Home Storage
+
+Home StorageはFactory Storageとは別の **Player / Exploration用Storage** とする。
+
+主用途:
+
+- PC Upgrade素材
+- 探索用品
+- 装備
+- Secure Case関連Item
+- 持ち歩かない予備品
+
+Factory Storage主用途:
+
+- 大量素材
+- Production用素材 / 製品
+- Conveyor物流
+- 自動生産
+
+原則:
+
+- Home StorageをFactory Conveyor物流へ直接接続しない。
+- 初期容量でも序盤が詰まらない程度を確保する。
+- Home Storage II / IIIをPCから素材 + Cashで段階拡張する。
+- Storage Upgradeで既存Itemを消さない。
+- Main Progressionの必須条件にはしない。
+- Main Clear後も最大段階までUpgrade可能。
+
+PC Upgrade素材参照:
+
+- 初期: Backpack + Home Storage
+- Rank 7 `Factory Network Link` 後: Backpack + Home Storage + Factory Storage
+
+Factory Network Link取得前はFactory製品をPC Upgradeへ使うために、Factory StorageからPlayer自身が取り出してHomeへ持ち帰る。
+
+## Workbench
+
+Exploration準備専用WorkbenchをHomeへ最初から固定配置する。
+
+FactoryのHand Craft / Productionを移動させる設備にはしない。
+
+役割:
+
+- Backpack整理
+- Home StorageとのItem移動
+- Secure Case管理
+- 探索装備 / Utility準備
+- Loadout Preset
+- Quick Deposit
+
+段階解放:
+
+- Rank 1: 基本整理 / Storage移動 / Secure Case基本UI
+- Rank 2: Quick Deposit
+- Rank 4: Loadout Preset
+- Rank 6: Secure Case高度管理 / 探索準備強化
+
+### Quick Deposit
+
+Playerが任意操作した場合のみ実行する。
+
+主にHome Storageへ移す:
+
+- 通常Loot
+- Upgrade素材
+- Optional素材
+
+自動で移動しない:
+
+- Secure Case内Item
+- お気に入り指定Item
+- 常備品 / 回復Item
+- Main Objective Item
+
+Home Storage容量を超えるItemはBackpackへ残し、Itemを削除しない。帰宅した瞬間の強制自動収納にはしない。
+
+### Loadout Preset
+
+中盤以降に複数の探索準備Presetを保存可能にする。
+
+例:
+
+- 通常探索
+- Rare素材回収
+- 危険エリア
+
+原則:
+
+- Home Storageに存在するItemだけ自動移動する。
+- 不足Itemは不足表示する。
+- Itemを生成しない。
+- Main Objective ItemをPreset対象にしない。
+- Backpack容量を超える場合は勝手に捨てず警告する。
+- PresetはSaveに保存する。
+- Presetなしでも従来どおり手動準備可能。
+
+## Home設備Progression
+
+Home自体はNew Game開始時から利用可能にする。
+
+初期利用可能:
+
+- Bed
+- PC基本画面
+- Home Storage
+- Workbench基本機能
+
+Rank / PC Upgradeに応じて次を追加する。
+
+```text
+Rank 1
+→ Bed / PC / Home Storage / Loot Scanner I
+
+Rank 2
+→ Backpack I / Quick Deposit
+
+Rank 3
+→ Resource系探索支援 / Home Storage II / Material Tracking
+
+Rank 4
+→ Backpack II / Loadout Preset / Auto Sort / Mobility系
+
+Rank 5
+→ Advanced Scanner / Home Storage III
+
+Rank 6
+→ Backpack III / Secure Case強化 / Rare Loot Detection
+
+Rank 7
+→ Factory Network Link / 最終Scanner機能
+
+Clear後
+→ 未取得Upgrade / Cosmetic収集継続
+```
+
+Home設備UpgradeはPCで購入後、短い設置 / 起動演出だけ行い即完成する。リアル時間の工事待ちを入れない。
+
+## Starter Supplies
+
+New GameだけHome Storageへ最低限のStarter Suppliesを配置する。
+
+- 序盤Tutorialで詰まらない最低限の探索 / 回復用品
+- Basic Tutorialに必要な基本物資を少量
+
+含めない:
+
+- Loot Scanner Iを無料取得できる十分なUpgrade素材
+- Rare素材
+- Blueprint
+- 高価値Item
+
+既存SaveにはHome追加ボーナスとしてStarter Suppliesを配布しない。
+
+## Home Cosmetic
+
+Home Cosmeticは探索・進行のOptional報酬とする。
+
+候補:
+
+- 廃住宅街のPoster
+- 廃工場のIndustrial Light
+- 軍事施設のMonitor / Small Prop
+- Achievement / Challenge記念品
+- Main Clear Trophy / 記念Cosmetic
+
+原則:
+
+- 性能差を付けない。
+- Main Progression必須にしない。
+- 家具を自由配置するHouse Buildingにはしない。
+- Wall Poster / Desk Prop / Lighting / Bed Appearance等の固定Slot方式にする。
+- PC `HOME` 画面から解放済みAppearanceを選択する。
+- 付け替えCostを要求しない。
+- 選択状態をSaveする。
 
 # 探索失敗 / HP / 戦闘
 
@@ -579,9 +1103,21 @@ Factory内の建築ではFactory Storageから材料を直接消費可能にし�
 - Backpack Upgrade
 - 基本装備 / 武器
 - 探索開始前から所有していた恒久装備
-- Secure Case内Item
+- Secure Case内の許可対象Item
 
 Factory全体を巻き戻す罰にはしない。
+
+New GameまたはHome Respawn有効化後の探索失敗Flow:
+
+```text
+HP 0 / Abandon
+→ Current Sessionの非保護Lootを失う
+→ Home Bedで復帰
+→ PC / Storage / Workbenchで再準備
+→ 再出発
+```
+
+既存SaveはHome追加時に現在位置や復帰地点を強制変更せず、Bed使用後にHome Respawnへ移行する。
 
 ## HP / 回復
 
@@ -589,6 +1125,7 @@ Factory全体を巻き戻す罰にはしない。
 - Damage数値はBalance時に調整可能。
 - Damage源: 敵 / 落下 / 電気 / 火災 / 有毒区域 / 機械等。
 - 正常帰還後はHP回復。
+- Bed利用でもHP等のPlayer状態を回復可能。
 - Recovery Kit系Consumableを使用。
 - Recovery Kitは探索入手 / Factory Craft可能。
 - 毎回治療費を払う仕組みを中心にしない。
@@ -987,6 +1524,48 @@ Production Plannerは目標生産量から必要Machine / Input量を計算す�
 
 Bottleneck表示では「Efficiency低下」だけでなく不足Resource / 停止理由まで説明する。
 
+## System Diagnostics
+
+Machine / Logistics / Power / Drone / Final Automation等で、単に `停止中` / `未達成` と表示するのではなく原因と対処を確認可能にする。
+
+通常表示:
+
+```text
+Smelter — 停止: 電力不足
+```
+
+詳細表示例:
+
+```text
+Input: 正常
+Power: 不足
+Output: 正常
+Route: 正常
+
+対処:
+発電量またはPower接続を確認してください。
+```
+
+対象:
+
+- Crusher / Smelter / Assembler / Fabricator
+- Conveyor / Splitter / Merger / Sorter
+- Power
+- Storage / Back Pressure
+- Drone Route
+- PC / Home Upgrade不足条件
+- Final Automation
+- Mega Factory Stability
+
+原則:
+
+- 通常は短い原因だけ表示し、必要時に詳細診断を開く。
+- 問題Popupを大量に出さない。
+- 複数原因がある場合は重要な原因を優先表示する。
+- TutorialのStuck Helpと可能な限り同じGame Rule / DiagnosisをSource of Truthとして使う。
+- Tutorial専用の別判定でRuntime Ruleと矛盾させない。
+- 自動修復 / 自動接続は行わない。
+
 # Challenge / Achievement
 
 Achievement = 恒久記録。
@@ -1019,41 +1598,180 @@ Achievement = 長期記録
 
 # Tutorial / Field Manual
 
-## 最初の30〜60分
+Tutorialは **Contextual + 実操作成功判定型**とし、説明を読むだけで完了させない。
+
+## New Game / Basic Tutorial
+
+New GameではHome Bed付近から開始する。
+
+Basic Tutorial Flow:
 
 ```text
-移動
+Home Bed付近から開始
+→ WASD / Interaction
+→ PCを確認
+→ Home Doorを開けて外へ出る
+→ Scrap Yardへ移動
 → Scrap回収
-→ Sellerで売却
-→ Crusher設置
-→ 加工
-→ Conveyor接続
-→ 初の自動販売Line
+→ Inventory確認
+→ Factoryへ戻る
+→ 手動売却
+→ Build Mode
+→ Hopper
+→ Conveyor
+→ Crusher
+→ Seller
+→ Directional Route成立
+→ 破砕金属の自動売却を1回成功
+→ BASIC TUTORIAL COMPLETE
+→ Free Play / Rank Goal
 ```
 
-- 長い説明を先に読ませない。
-- 必要な操作が発生した時点でContext Hintを表示。
-- Tutorial終了後はRank Goalへ自然に接続。
+Basic Tutorialの完了条件は **最初の自動販売が実際に成功すること**とする。
 
-## Field Manual
+`Loot Scanner I` はPC Upgradeを理解するためのRecommended Tutorialとして提示するが、Basic Tutorial / Rank Up / Main Progressionの必須条件にはしない。
 
-`O`で後から確認可能。
+Recommended Scanner Tutorial:
 
-候補:
+```text
+PCでLoot Scanner Iを確認
+→ 必要素材 / Cashを確認
+→ Scrap Yard等で少量回収
+→ Homeへ戻る
+→ PCでUpgrade
+→ Scanner Pulseを体験
+```
 
-- Controls
+最初のUpgradeも無料配布せず、要求量を軽くして実際の `素材 + Cash → Upgrade` Loopを体験させる。
+
+## Tutorial表示Contract
+
+通常時:
+
+- 画面端に現在Objectiveを1つだけ表示。
+- 対象付近で短いContextual Hintを表示。
+- 一定時間詰まった場合だけStuck Helpを強化。
+- PC / `O` Guideで詳細説明をいつでも確認可能。
+
+Stuck Helpは段階的に強くする。
+
+```text
+1. Objective
+→ 2. 短いHint
+→ 3. 対象Highlight
+→ 4. 正しい向き / 配置例の半透明Preview
+```
+
+- 自動でMachineを設置しない。
+- 自動でTutorialをClearしない。
+- Player自身が操作して成功条件を満たす。
+- すでに条件を満たしている場合はTutorial工程を自動達成扱いにしてよい。
+- Tutorialのために通常機能をLockしない。
+
+## Rank / System Tutorial
+
+Basic Tutorial完了後は自由行動へ移行し、新Systemが初めて必要になる段階だけ短いTutorialを出す。
+
+例:
+
+- Rank 1: Scrap / Inventory / Build / Conveyor
+- Rank 2: Smelter / Storage
+- Rank 3: Transport Terminal / 独立探索Area
+- Rank 4: Splitter / Merger / Power
+- Rank 5: Assembler / Advanced Production
+- Rank 6: Drone / Advanced Logistics
+- Rank 7: Fabricator / Final Automation / Mega Factory
+
+一度に大量の新Systemを説明しない。
+
+## Tutorial Skip / Replay
+
+- Basic TutorialはSkip可能。
+- 個別System TutorialもSkip可能。
+- SkipしてもMain ProgressionをLockしない。
+- 後からPC / `O` Guideから再開 / Replay可能。
+- ReplayはGame State / Rank / Inventory / Factoryを巻き戻さず、Objective / Hint / Highlight / Previewだけ再実行する。
+- Tutorial報酬は初回のみ取得可能。
+- ReplayでCash / 素材を繰り返し取得できない。
+- 既存SaveへBasic Tutorialを強制再実行しない。
+
+## Tutorial / Hint Settings
+
+個別にON / OFF可能にする。
+
+- Tutorial Objectives
+- Contextual Hints
+- Stuck Help
+- Next Goal
+
+全てOFFでもPC / `O` GuideのTutorial Libraryは利用可能にする。
+
+Tutorial進行・完了・Skip・報酬受取・未読状態等はSaveごとに保持する。New Game開始時にTutorialを開始するか選択可能にする。
+
+## Tutorial Language
+
+説明文は日本語中心とし、既存System名を英語併記する。
+
+例:
+
+- 破砕機（Crusher）
+- コンベア（Conveyor）
+- 電力（Power）
+- 物流（Logistics）
+- 研究（Research）
+- ドローン（Drone）
+
+初心者が英語だけを理解しないと進行できる状態にしない。
+
+## Tutorial Library / Field Manual
+
+PCと `O` Guideは **同じTutorial Content Source of Truth**を参照する。
+
+- PC: Homeでじっくり確認するManual UI
+- `O`: World内どこでも確認するGuide
+
+カテゴリ候補:
+
+- Basics
 - Exploration
+- Inventory
+- Home
 - Building
-- Conveyor
-- Production
-- Selling
-- Dismantle
-- Rank
-- Research
+- Logistics
 - Power
+- Production
 - Drone
+- Advanced Automation
+- Final Chapter
 
-未解放Systemを序盤から全表示せず、進行に応じて追加する。
+- 未読 / 既読を表示。
+- 未解放Systemを序盤から大量表示しない。
+- Progressionに応じて追加する。
+- 既存Saveでは現在Rankまでの必要項目を利用可能にする。
+- TutorialをSkipしてもLibraryは利用可能。
+
+詳細説明には必要に応じて次を含める。
+
+- 何をするか
+- 操作Key
+- なぜ必要か
+- 成功条件
+- 正しい接続 / 配置例
+- 問題が起きた場合の診断 / 対処
+
+## Next Goal
+
+Tutorial完了後も、任意で次のおすすめを表示可能にする。
+
+区分:
+
+- `MAIN` — 次のRank / Main Progression
+- `RECOMMENDED` — 今行うと便利な内容
+- `OPTIONAL` — PC Upgrade / Home強化 / Cosmetic等
+
+一度に大量のGoalを並べず、Main Goalを最優先する。OptionalをMain Progressionのように見せない。
+
+PC / Guideから任意目標を1つPinでき、Main Goalは別枠で維持する。
 
 # UI / HUD
 
@@ -1069,16 +1787,24 @@ Achievement = 長期記録
 
 - 現在Objective
 - Cash
-- Backpack / Weight
+- Backpack Slot / Secure Case等の必要情報
 - 必要時のHP
 - Crosshair / Interaction Marker
 - Static Shortcut Bar（設定で非表示可）
+- 必要時のScanner / Material Tracking / Next Goal
+
+PC Upgrade取得一覧をHUDへ常時並べない。
+
+- Scanner使用時だけScanner情報。
+- Secure Case操作時だけ容量情報。
+- Material Tracking中だけ追跡対象。
+- Factory Network LinkはPC画面内で接続状態を表示。
 
 Build / Dismantle専用情報はMode中だけ表示。
 
 詳細統計はFactory Managementへ分離。
 
-Pause Menuに探索中の即時 `Return to Factory` は置かない。
+Pause Menuに探索中の即時 `Return to Factory` / `Return Home` は置かない。
 
 # Difficulty / Accessibility / Settings
 
@@ -1111,8 +1837,11 @@ Difficultyが主に変更するもの:
 - Sprint Hold / Toggle
 - Crouch Hold / Toggle（Crouch導入時）
 - Key Bind
+- Scanner PulseのKey Bind
 
 BrowserではPointer Lockによる相対Mouse Inputを基本とし、OS Level Raw Inputを保証要件にはしない。
+
+Scanner Keyは既存Controlsと衝突しないKeyを実装段階で選択し、Key Bind対象にする。
 
 ## Accessibility
 
@@ -1123,7 +1852,12 @@ BrowserではPointer Lockによる相対Mouse Inputを基本とし、OS Level Ra
 - HUD Scale
 - Text Size
 - Crosshair調整
-- Shortcut / Interaction / Tutorial Hint表示設定
+- Shortcut / Interaction表示設定
+- Tutorial Objectives ON / OFF
+- Contextual Hints ON / OFF
+- Stuck Help ON / OFF
+- Next Goal ON / OFF
+- HOME Marker ON / OFF
 - 色だけに情報を依存しない
 - 重要情報を音だけに依存しない
 
@@ -1414,6 +2148,15 @@ Late / Mega:
 
 Rank / UpgradeをHUDだけでなくWorldからも感じられるようにする。
 
+### Home
+
+- Factory横の小型プレハブ住宅。
+- Earlyでは中古PC / 簡素なBed / 小型Storage / Workbenchを中心にする。
+- MidではMonitor増設 / Scanner機器 / Storage拡張 / Exploration準備設備が増える。
+- LateではAdvanced Terminal / Factory Network表示 / Advanced Scanner機器等でPlayer側の成長を見せる。
+- Home Progressionを大型建築化で表現せず、既存の小さい室内に機能 / Visual detailが増える方向とする。
+- Home Cosmeticは固定SlotのAppearance変更で表現し、Gameplay機能配置と矛盾させない。
+
 ### 廃住宅街
 
 - House / Apartment / Garage / Shop / Utility building。
@@ -1521,6 +2264,7 @@ Camera:
 - Landing / heavy impactは短いCamera responseのみ。
 - Build中はHead Bob / FOV / Shakeを弱め、Placement精度を優先。
 - Machine PanelでCameraを強制的に大きく移動させない。
+- Home PCは専用InteractionとしてMonitorへ短く寄せるCamera transitionを許容するが、長い演出にはしない。
 
 First-person Animation:
 
@@ -1568,6 +2312,7 @@ Gameplay中心とし、長い会話 / Movie / NPC会話を主軸にしない。
 Environmental Storytelling:
 
 - Scrap Yard: 旧工業地帯の痕跡
+- Home: Playerが拠点へ根付き、探索 / Factory成長とともに生活・技術環境も整っていく痕跡
 - 廃住宅街: 生活の放棄 / 停電 / 避難
 - 廃工場: 生産停止 / 電力障害 / 自動化異常
 - 軍事施設: 研究施設封鎖 / 特殊技術移送
@@ -1597,12 +2342,34 @@ Mega Factory完成を、失われた産業技術をPlayer自身が理解・再�
 - Research
 - Rank Up
 - Factory Expansion
-- Backpack Upgrade
+- PC / Backpack / Home Upgrade
+- Home Storage重要変更
+- Tutorial重要進行 / 報酬受取
+- Home Cosmetic選択
 - Settings
 - 正常帰還
 - 一定時間ごと
 
-Manual Save相当も残す。
+BedによるManual Save相当も残す。
+
+## Home / Player Persistent State
+
+必要に応じて次を永続化する。
+
+- PC Upgrade取得状態
+- Backpack Upgrade状態
+- Home Storage contents / capacity tier
+- Secure Case tier / contents
+- Material Tracking / Pin
+- Loadout Preset
+- Tutorial completion / skip / replay-independent reward flags
+- Tutorial Library unread / unlocked state
+- Home初回案内済み
+- Home Respawn有効状態
+- Home Cosmetic unlock / selection
+- Optional PC Upgrade Blueprint登録状態
+
+容易に再計算できる表示用Summaryを第二のSource of Truthとして重複保存しない。
 
 ## Exploration Session
 
@@ -1623,12 +2390,14 @@ Refresh / Browser Closeだけで探索成功扱いにはしない。
 正常帰還:
 
 - 探索LootをFactory Storageへ確定。
+- Optional PC Upgrade Blueprint等、正常帰還で登録する対象を永久登録。
 - Exploration Session終了。
 
 行動不能 / Abandon:
 
 - 通常Loot喪失。
 - Secure Case等の保持対象のみ残す。
+- Home Respawn有効時はHome Bedへ復帰。
 - Session終了。
 
 ## Backup / Export / Import
@@ -1646,6 +2415,19 @@ ImportはSchema確認 → Migration → Backup → 適用を基本とする。
 Save Schema変更時に旧Dataを無断破棄しない。
 
 不足項目を既定値で補完し、既存Factory Layout / Progressionを可能な限り維持する。
+
+Home / Player Convenience追加時:
+
+- Home / Bed / PC / Home Storage / Workbenchを既存Saveにも利用可能にする。
+- 既存SaveのPlayer現在位置をHomeへ強制Teleportしない。
+- Basic Tutorialを強制再実行しない。
+- 現在RankまでのTutorial Libraryは必要範囲を利用可能にする。
+- 既存Backpack Upgrade Evidenceから対応するPC Backpack Upgradeを取得済みとしてMigrationする。
+- 既存Backpack容量を下げない。
+- Scanner / Secure Case / Factory Network Link等の新規Convenience Upgradeを勝手に取得済みにしない。
+- Existing Factory Layout / Inventory / Rank / Main Clear / Achievementを維持する。
+- Home固定位置が既存Factory Buildingと衝突する場合はMigration / Placement Strategyを先に解決し、既存設備を無断削除しない。
+- 既存SaveへStarter Suppliesを無料配布しない。
 
 Save破損時に即初期化せず、Backup復元 / Export / 新規開始等の選択肢を持たせる方向。
 
@@ -1684,6 +2466,8 @@ Factory / Exploration Sceneを同時にフルSimulationしない。
 
 探索中Factory Productionは毎Frame裏で動かさず、探索経過時間に対する結果計算方式を基本とする。
 
+Home内のPC / Workbench / Storage UI操作はFactory Scene内Interactionなので、Player操作を止めてもFactory Simulation自体は継続する。
+
 Input不足 / Output満杯 / Power不足 / Storage容量を無視した無限生産にはしない。
 
 ゲームを閉じていた現実時間を使ったOffline Progressを主要Systemにはしない。
@@ -1695,7 +2479,7 @@ Asset / RenderingのSoft Targetを設ける。最終値は実測で調整可能�
 Initial Load:
 
 - Game HubからScrap Factoryへ入るためのCore Assetは概ね15〜25MB程度を初期目安。
-- Factory / Scrap Yardに不要な将来Area Assetを初回から一括読込しない。
+- Factory / Scrap Yard / Homeに不要な将来Area Assetを初回から一括読込しない。
 
 Exploration Area:
 
@@ -1863,7 +2647,7 @@ Generator
 - Exploration Session
 - 指定帰還地点
 - 探索失敗 / Abandon
-- Slot + Weight
+- Slot-based Backpack
 - Secure Case
 - Shortcut
 - Resource Point
@@ -2002,9 +2786,26 @@ Robotics / Materials / Energy Lab
 
 Rank 7到達だけでは完成扱いしない。
 
-## Phase 7: Endgame / Polish
+## Phase 7: Endgame / Home / Player Convenience / Polish
 
-Main Clear成立後に追加する候補:
+Main Clear成立後のEndgame候補に加え、既存Main Progressionを壊さずHome / Player Convenience / Tutorial強化をCross-cutting拡張として実装する。
+
+Home / Player Convenience対象:
+
+- Home fixed safe area
+- Bed / Home Respawn / Manual Save
+- PC Player Management Terminal
+- PC Upgrade Tree
+- Home Storage / Workbench
+- Scanner / Material Tracking
+- Backpack I / II / III integration
+- Secure Case contract update
+- Loadout Preset / Quick Deposit
+- Tutorial / Tutorial Library / Next Goal
+- System Diagnostics
+- Existing Save Migration
+
+Endgame / Polish候補:
 
 - Advanced Orders
 - Endgame Challenges
@@ -2018,7 +2819,34 @@ Main Clear成立後に追加する候補:
 - Final Visual Polish
 - Performance Optimization
 
-Polishを理由にMain Progressionの完成を後回しにしない。
+Home / Tutorial拡張を理由にMain Clear Contractを変更しない。Polishを理由にMain Progressionの完成を後回しにしない。
+
+### Home / Tutorial完成Flow
+
+```text
+New Game
+→ Home Bed付近から開始
+→ Basic Tutorial
+→ Scrap回収
+→ 最初の自動販売成功
+→ Basic Tutorial完了
+→ Free Play
+→ PC Upgrade / Material Trackingを任意利用
+→ Rank進行でSystem Tutorial / Home機能段階解放
+→ Main Clearまで既存Progression維持
+```
+
+必須Regression:
+
+- Existing SaveのFactory / Rank / Main Clearを維持。
+- Home追加で既存Buildingを無断削除しない。
+- Backpack Upgrade Migrationで容量を下げない。
+- Tutorial Skip / Replay / Settingsが進行を壊さない。
+- PC UpgradeでItem二重消費 / Item lossなし。
+- Home Storage UpgradeでItem lossなし。
+- Secure Caseの許可 / 禁止Item Contract成立。
+- Scanner / Material Tracking連動成立。
+- Factory Network Link取得前後の素材参照範囲が正しい。
 
 ## Visual Development Track
 
@@ -2116,6 +2944,15 @@ VisualはPhase 7まで何も触らない方式にはしない。新しいArea / 
 - Visual品質のためにGameplay Readability / 操作性 / Save互換性を犠牲にしない。
 - License不明Asset / 永続依存するHotlink Assetを導入しない。
 - Graphics Quality / LOD / VFX削減でSimulation結果を変更しない。
+- 今回のBackpackはSlot制を維持し、重量制を無断で再導入しない。
+- PC UpgradeをMain Progression必須Gateへ変更しない。
+- HomeをFactory Automation / Factory Researchの代替Systemにしない。
+- Home追加で既存Factory Building / Layoutを無断削除・移動しない。
+- Secure CaseでMain Objective Item / Special Cargoを保護可能にして探索Riskを無効化しない。
+- Tutorialのために通常Gameplay機能をLockしない。
+- Tutorial ReplayでGame Stateを巻き戻さない。
+- Home Fast Travelで探索の指定帰還Contractを回避させない。
+- Home Cosmeticへ性能差を付けない。
 
 # 完成条件
 
@@ -2147,6 +2984,66 @@ VisualはPhase 7まで何も触らない方式にはしない。新しいArea / 
 - Repository文書と現行実装が一致。
 - 実測Performance / Browser Review / Visual Reviewの未確認事項を完成済みと偽らない。
 
+## Home / Player Convenience / Tutorial Completion
+
+最低限次をEnd-to-Endで確認する。
+
+New Game:
+
+```text
+New Game
+→ Home Bed付近から開始
+→ PC / Door / Scrap Yard導線
+→ Scrap回収
+→ 手動売却
+→ Build / Directional Conveyor
+→ 最初の自動販売成功
+→ Basic Tutorial Complete
+→ Free Play
+```
+
+Home / PC:
+
+- BedでSave / 回復可能。
+- Home Respawn Contract成立。
+- PCを開閉でき、通常Gameplayへ安全に戻れる。
+- PC / Workbench / Storage操作中もFactory Simulationが継続。
+- Home Storage / Workbenchの基本Flow成立。
+- Home Storage UpgradeでItem lossなし。
+- PC Upgradeが `条件確認 → 消費 → Unlock → Save` でAtomicに成立。
+- Main Progression必須でなくOptionalに利用可能。
+
+Player Convenience:
+
+- Backpack I / II / IIIが既存Backpack Upgradeと二重化しない。
+- Scanner PulseがPlayer操作を妨げず動作。
+- Material Trackingした素材をScannerが優先表示。
+- Quick Depositで除外対象 / 容量超過Itemを失わない。
+- Loadout Presetで不足Itemを生成しない。
+- Secure Caseの許可対象だけ探索失敗時に保持。
+- Main Objective ItemをSecure Caseへ入れられない。
+- Factory Network Link前後でPC Upgrade素材参照範囲が正しく変わる。
+
+Tutorial / Diagnostics:
+
+- Tutorial Objectives / Contextual Hint / Stuck Helpが段階的に動作。
+- 既に条件達成済みの場合に不要なやり直しを要求しない。
+- SkipしてもMain Progression可能。
+- ReplayしてもRank / Inventory / Factoryを巻き戻さない。
+- Tutorial報酬をReplayで再取得できない。
+- PC / `O` Guideが同じTutorial Contentを参照。
+- Next GoalでMain / Recommended / Optionalを混同しない。
+- Machine / Logistics / Power / Drone等で停止原因と対処を確認可能。
+
+Existing Save:
+
+- Home追加後も現在位置を強制変更しない。
+- Basic Tutorialを強制再実行しない。
+- Existing Backpack容量を下げない。
+- 取得済みBackpack Upgradeを再購入させない。
+- Existing Factory Layout / Rank / Inventory / Main Clear / Achievementを維持。
+- Home固定位置と既存Buildingの衝突で既存設備を削除しない。
+
 ## Visual Quality Completion
 
 長期Visual完成では最低限次を満たす。
@@ -2155,14 +3052,16 @@ VisualはPhase 7まで何も触らない方式にはしない。新しいArea / 
 - MachineはSilhouette / Mechanism / Portで役割を判別可能。
 - Materialが色だけでなくRoughness / Metalness / Wear等で区別される。
 - Ground / Environmentが巨大な単一Plane / 単一Textureだけに見えない。
-- Factory / Scrap Yard / Residential / 廃工場 / 軍事施設 / 研究施設でArchitecture / Material / Lightingの差がある。
+- Factory / Home / Scrap Yard / Residential / 廃工場 / 軍事施設 / 研究施設でArchitecture / Material / Lightingの差がある。
 - Factory Rank進行でWorld上の成長を感じられる。
+- HomeでもPC / Storage / Scanner機器等のProgressionをWorld上で感じられる。
 - Interactable / Hazard / Directional LogisticsがDecorationに埋もれない。
 - Shadow / Fog / VFX / Post Effectで視認性を大きく損なわない。
 - Low / Medium / High / Performance ModeでVisual設定を調整可能。
 - 通常 / 大Factory / Mega FactoryでPerformance目標を実測。
 - Asset License / Attribution / Repository管理を確認。
 - Browser / Screenshotで最低限次をReviewする。
+  - Home Interior / Exterior
   - Rank 1 Factory
   - 中盤Factory
   - Mega Factory
@@ -2186,7 +3085,17 @@ VisualはPhase 7まで何も触らない方式にはしない。新しいArea / 
 - 各Recipe投入数 / 処理時間 / 売価
 - Conveyor Throughput
 - Generator発電量 / Machine消費電力
-- Backpack Slot / Weight最終数値
+- Backpack I / II / IIIの具体Slot数
+- Secure Case各段階のSlot数
+- Home Storage各Tierの容量
+- Scanner Range / Highlight時間 / Cooldown / 同時表示数
+- PC Upgradeに必要なCash / 素材数
+- Home Upgradeに必要なCash / 素材数
+- Tutorial Stuck Helpの待ち時間
+- PC Camera transition / Bed Fade等の短い演出時間
+- Starter Suppliesの具体内容 / 数量
+- Homeの正確な寸法 / 配置座標
+- Home Cosmeticの最終種類数
 - Drone Cargo / Speed / Range
 - Resource Point供給量
 - Order報酬額
@@ -2207,4 +3116,4 @@ VisualはPhase 7まで何も触らない方式にはしない。新しいArea / 
 - Hero Asset detail量
 - Visual Detail / Effect量
 
-これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性、Gameplay Readabilityを変更しない。
+これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性、Gameplay Readability、PC UpgradeのOptional性、Slot-based Backpackを変更しない。
