@@ -7,6 +7,8 @@ import {
   logisticsOutputKeys,
   logisticsThroughput,
 } from './logistics.js';
+import { computePowerSnapshot } from './power.js';
+import { isStorageBuilding, storageAmount, storageCapacity, storageRemaining } from './storage-capacity.js';
 
 export const CHALLENGES = [
   { id: 'collector_10', title: '廃材回収員', description: 'スクラップを10個回収する', target: 10, metric: 'collected' },
@@ -72,6 +74,9 @@ export function analyzeFactory(game) {
   let bufferedItems = 0;
   let logisticsNodes = 0;
   let logisticsCapacity = 0;
+  let storageUsed = 0;
+  let storageTotalCapacity = 0;
+  let storageFull = 0;
 
   for (const building of buildings) {
     bufferedItems += bufferAmount(building.input) + bufferAmount(building.output);
@@ -95,6 +100,20 @@ export function analyzeFactory(game) {
         if (!route && Number(amount) >= 2) {
           alerts.push({ severity: 'warn', buildingId: building.id, title: `${def.name}: 出力が滞留`, detail: `${ITEMS[itemId]?.name || itemId} ×${amount} / 搬送先なし` });
         }
+      }
+    }
+
+    if (isStorageBuilding(building)) {
+      storageUsed += storageAmount(building);
+      storageTotalCapacity += storageCapacity(building);
+      if (storageRemaining(building) <= 0) {
+        storageFull += 1;
+        alerts.push({
+          severity: 'warn',
+          buildingId: building.id,
+          title: `${def?.name || 'Storage'}: 満杯`,
+          detail: `${storageAmount(building)} / ${storageCapacity(building)} / 上流はBack Pressureで停止`,
+        });
       }
     }
 
@@ -122,6 +141,7 @@ export function analyzeFactory(game) {
 
   const counts = {};
   for (const building of buildings) counts[building.type] = Number(counts[building.type] || 0) + 1;
+  const power = computePowerSnapshot(game);
 
   return {
     totalBuildings: buildings.length,
@@ -131,6 +151,19 @@ export function analyzeFactory(game) {
     bufferedItems,
     logisticsNodes,
     logisticsCapacity,
+    storageUsed,
+    storageCapacity: storageTotalCapacity,
+    storageFull,
+    power: {
+      enabled: power.enabled,
+      status: power.status,
+      generation: power.generation,
+      demand: power.demand,
+      reserve: power.reserve || 0,
+      batteryStored: power.batteryStored || 0,
+      batteryCapacity: power.batteryCapacity || 0,
+      uncovered: power.uncoveredIds?.size || 0,
+    },
     counts,
     alerts,
   };
