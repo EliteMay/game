@@ -4,154 +4,151 @@ Date: 2026-09-05
 
 ## Current Milestone
 
-`Scrap Factory` は **Phase 5-B: Conveyor Mk.3 / Priority / Overflow Logistics** まで実装。
+`Scrap Factory` は **Phase 5-C: Configurable Drone Routes / Industrial Generator / Logistics Warehouse** まで実装。
 
 通常GameplayのRank Upは **Rank 1 → 7** まで接続済み。
 
-Phase 5-Aで軍事施設・Drone Control・Drone Port自動回収を接続した後、Phase 5-BではRank 6の正式解放要件である高速物流と優先分岐を既存Directional Logisticsへ追加した。
+Phase 5-CはRank 6の横拡張で、Rank 6→7 Mandatory自体は変更していない。
 
 ```text
 Rank 6
-→ Conveyor Mk.3
-→ Priority Splitter
-→ Overflow Splitter
-→ Storage優先 / 余剰販売Line
-→ Drone / Advanced Productionの高帯域物流へ利用
+→ Military Facility / Drone Control
+→ Drone Port
+→ Conveyor Mk.3 / Priority / Overflow
+→ Automation Console
+→ 複数Resource Point Drone Route
+→ Industrial Generator
+→ Logistics Warehouse / in-place Upgrade
 → Rank 7
 ```
-
-複数Drone Route / Advanced Power / Logistics Warehouseは今回のSliceには含めない。
 
 ---
 
 ## Implemented
 
-### 1. Conveyor Mk.3
+### 1. Configurable Drone Resource Point Routes
+
+既存探索報酬のResource Pointを利用:
+
+- `residential-copper-network`
+- `industrial-electronics-cache`
+- `military-alloy-cache`
+
+Route definition:
+
+| Resource Point | Output | Cycle | Capacity/min | Distance | Danger |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Residential Copper Network | Copper Wire ×1 | 8s | 7.5 | 620m | 1 |
+| Industrial Electronics Cache | E-Waste ×1 | 10s | 6 | 890m | 2 |
+| Military Alloy Cache | Rare Alloy ×1 | 12s | 5 | 1180m | 3 |
+
+Playerが攻略済みのResource Pointだけ選択できる。
+
+### 2. Automation Console
+
+`phase5c-automation-ui.js` を追加。
+
+機能:
+
+- Drone Port一覧
+- PortごとのResource Point選択
+- Output / Cycle / Capacity / Distance / Danger表示
+- Industrial Storage一覧
+- Logistics Warehouse Upgrade
+
+Route変更時:
+
+- `resourcePointId` 更新
+- compatibility runtime type更新
+- partial cycleだけ0へ戻す
+- existing output buffer保持
+- Save APIで保存
+- 即ReloadでMemory stateと再同期
+
+### 3. Legacy Drone Port Compatibility
+
+Phase 5-Aの既存Drone Portは`resourcePointId`を持たない。
+
+旧PortはMilitary Resource Pointが確保済みなら自動的に:
+
+```text
+military-alloy-cache
+→ 12s
+→ Rare Alloy
+```
+
+として解釈する。
+
+Save Schemaは1のまま維持。
+
+### 4. Rank 6→7 Mandatory Preservation
+
+Copper / E-Waste Routeへ変更したPortだけでは、既存Rank 6→7 Mandatoryを満たさない。
+
+Military Alloy Resource Pointへ割り当てられたDrone PortからFactory StorageへのDirectional Routeが必要。
+
+Target Storageは:
+
+- Small Storage
+- Industrial Storage
+- Logistics Warehouse
+
+### 5. Industrial Generator
 
 追加Building:
 
-- `conveyor_mk3`
+- `industrial_generator`
 - Rank 6
-- Cost `$55`
-- Throughput `6 items/sec`
-- 通常Conveyorと同じDirectional Forward搬送
-- 電力不要
+- Cost `$680`
+- 180 Power
+- Metal Scrap ×1 / 24秒
 
-Mk.1 / Mk.2と同じ既存Directional Contractを使い、Route throughputは経路上の最小値で決まる。
+既存Generator Runtimeを一般化し、別Power Simulationは作っていない。
 
-### 2. Priority Splitter
+### 6. Logistics Warehouse
 
 追加Building:
 
-- `priority_splitter`
+- `logistics_warehouse`
 - Rank 6
-- Cost `$260`
-- Throughput `6 items/sec`
-- Rear 1 input
-- Forward = Priority
-- Left / Right = Backup
+- Cost `$620`
+- Capacity `1800`
 
-挙動:
+既存Storage / Back Pressure helperを利用。
 
-```text
-Forward Routeが受入可能
-→ Forwardだけ使用
+### 7. In-place Storage Upgrade
 
-Forward Routeが詰まる / Targetが受入不可
-→ Left / Right Backupへ切替
-→ Backup同士は従来どおりRound-robin
-```
-
-### 3. Overflow Splitter
-
-追加Building:
-
-- `overflow_splitter`
-- Rank 6
-- Cost `$240`
-- Throughput `6 items/sec`
-- Rear 1 input
-- Forward = Main
-- Right = Overflow
-- Left outputなし
-
-代表的な用途:
+Industrial Storage → Logistics Warehouse:
 
 ```text
-Production
-→ Overflow Splitter
-├─ Forward → Industrial Storage
-└─ Right   → Seller
+Upgrade Cost = $620 - $240 = $380
 ```
 
-Storageに空きがある間はSellerへ流さず、Storageが満杯等で受入不可になった場合のみRight Overflowへ送る。
+維持:
 
-### 4. Priority-aware Directional Routing
+- Building ID
+- x / z / rotation
+- input / output
+- existing items
 
-`logistics.js` の既存Route graphを拡張した。
+撤去 / 再建を要求しない。
 
-各RouteにDerived `priority` costを追加:
+### 8. Visual Compatibility Layer
 
-- 通常Logistics: `0`
-- Priority Forward: `0`
-- Priority Left / Right: `+1`
-- Overflow Forward: `0`
-- Overflow Right: `+2`
+Phase 5-Bの検証済み`world-runtime.js`を:
 
-複数Routerを通るRouteではcostを加算する。
+- `world-runtime-phase5b.js`
 
-`selectDirectionalRoute()` は最小Priorityの現在利用可能Routeだけを選び、その同Priority集合の中で既存`logisticsCursor`を使ってRound-robinする。
+として固定。
 
-このため通常Splitterの3方向Round-robinは変更していない。
+新`world-runtime.js`はPhase 5-C Wrapperとして次だけ追加:
 
-### 5. Back Pressure / No Item Loss
+- Copper Route Drone Port
+- Electronics Route Drone Port
+- Industrial Generator
+- Logistics Warehouse
 
-Priority / Overflowも既存`canReceiveItem()` / Storage capacity判定を利用する。
-
-Targetが受入不可ならRoute候補から外れ、別Priority Routeへfallbackする。
-
-既存Contractどおり:
-
-- Target受入確認前にSource Outputを減らさない
-- Storage Full時にItemを消失させない
-- Legacy over-capacity Storageの既存Itemを削除しない
-
-### 6. Rank 6 Unlock Gate
-
-`progression-phase5b.js` を追加。
-
-```text
-conveyor_mk3      → Rank 6
-priority_splitter → Rank 6
-overflow_splitter → Rank 6
-```
-
-追加Researchは要求しない。
-
-既存Phase 5-A Progressionを包む形にし、Drone PortのResearch GateやRank 1→7定義を保持した。
-
-### 7. Dedicated Visuals
-
-`world-runtime.js` にPhase 5-B専用Visualを追加。
-
-Conveyor Mk.3:
-
-- Mk.2より強い二重Rail表現
-- 4つのForward arrow
-- 高帯域Tierを識別しやすいaccent
-
-Priority Splitter:
-
-- Forward Priority laneを強調
-- Left / Right Backupを副表示
-
-Overflow Splitter:
-
-- Forward Main
-- Right Overflow
-- Left laneを描かない
-
-Visual port方向とRuntime `logisticsOutputKeys()` を一致させている。
+既存Mk.3 / Priority / Overflow / Drone Port VisualはBase側をそのまま利用する。
 
 ---
 
@@ -164,18 +161,25 @@ Visual port方向とRuntime `logisticsOutputKeys()` を一致させている。
 - Existing Factory Layout
 - 2.5m Build Grid
 - Factory coordinate system
-- Quick Build 1〜5 order
-- Existing Rank 1 → 7 behavior
-- Conveyor Mk.1 / Mk.2 behavior
-- Existing Splitter Round-robin
-- Merger behavior
-- Smart Sorter category routing
-- Drone Port Research Gate
+- Quick Build 1〜5
+- Rank 1→7
+- Rank 6→7 Military Rare Alloy Mandatory
+- Conveyor Mk.1 / Mk.2 / Mk.3
+- Splitter Round-robin
+- Priority / Overflow
+- Smart Sorter
+- Drone Control Research Gate
 - Storage Back Pressure / no item loss
 - Power shortage state preservation
 - GitHub Pages relative paths
 
-Phase 5-BのRoute Priorityは現在Topologyから毎回導出し、Saveへ新しい設定値を追加していないためSchema変更なし。
+Additive Save field:
+
+```text
+building.resourcePointId
+```
+
+Resource Point performance metadataはSaveへ複製しない。
 
 ---
 
@@ -183,40 +187,43 @@ Phase 5-BのRoute Priorityは現在Topologyから毎回導出し、Saveへ新し
 
 追加:
 
-- `scripts/phase5b.test.mjs`
+- `scripts/phase5c.test.mjs`
 
 確認内容:
 
-- Conveyor Mk.3 throughput = 6
-- Priority Splitter throughput = 6
-- Overflow Splitter throughput = 6
-- Rank 5では3設備Lock
-- Rank 6で3設備Unlock
-- Mk.3のみのRoute = 6 items/sec
-- Priority Forward routeが常に優先
-- Forward unavailable時にBackupへfallback
-- Backup同Priority RouteはRound-robin
-- OverflowはForward + Rightだけ
-- Main Storage受入可能中はOverflow Sellerへ送らない
-- Main Storage受入不可時だけOverflow Sellerへ切替
+- Quick Build 1〜5維持
+- 3 secured Resource Point取得
+- Legacy Drone Port → Military fallback
+- Copper Route → 8秒 / Copper Wire
+- Electronics Route → 10秒 / E-Waste
+- Military Route → 12秒 / Rare Alloy
+- Route変更時partial progress reset
+- Route変更時existing output保持
+- non-Military PortだけではRank 6→7 mandatory不成立
+- Military Port追加でRank 6→7 route成立
+- Industrial Generator Rank 6 Gate
+- Logistics Warehouse Rank 6 Gate
+- Logistics Warehouse capacity 1800
+- Industrial Generator 180 Power
+- Generator fuel consume / 24秒
 
-既存Regressionも同じValidatorで継続実行する。
+既存Regressionも継続実行する。
 
 ---
 
 ## CI
 
-実装・Visual・Regression Head:
+最初のPhase 5-C Draft Head:
 
 ```text
-f818e8fbab7420f06abb18ecb8f31549a940af8b
-Validate Web Game / run #91
+04eba40e39f0cf9a26d0a078371a4e26858b5348
+Validate Web Game #96
 result: success
 ```
 
-この結果には既存Directional Logistics / Factory Management / Rank 1→7 / Power / Storage / Residential / Industrial / Military / Phase 4-B / Phase 5-Aと、新しいPhase 5-B testが含まれる。
+このCIにはPhase 5-Cだけでなく、既存Directional Logistics / Factory Management / Rank 1→7 / Power / Storage / Residential / Industrial / Military / Phase 4-B / Phase 5-A / Phase 5-B Regressionが含まれる。
 
-Documentation同期後の最終Headでも再度CIを確認する。
+一時Checkpoint削除・Documentation同期後の最終Headで再度CIを確認する。
 
 ---
 
@@ -224,27 +231,37 @@ Documentation同期後の最終Headでも再度CIを確認する。
 
 Static CIでは次を保証できない。
 
-- 実ブラウザPointer Lock
-- Conveyor Mk.3 Build Previewの見え方
-- Priority / Overflow arrowの一人称可読性
-- Priority / Overflow設備のplacement / collider feel
-- 高帯域Packet増加時のWebGL FPS
-- Machine Panelの新Router説明はConfig / Visualより簡略表示になっているため、実利用時の説明量
+- Automation Consoleの実ブラウザLayout
+- Factory Management buttonとの位置関係
+- Pointer Lock handoff / close時復帰
+- Route変更 / Storage Upgrade後のReload UX
+- Copper / Electronics Drone Portの一人称Visual
+- Industrial Generator / Logistics Warehouse Build Preview
+- Phase 5-C設備のCollider / placement feel
+- WebGL FPS
 
 これらはBrowser / User Validation対象。
 
 ---
 
+## Known UX Limitation
+
+Automation Consoleは現状`game.js`のModule-local Memory stateへ直接mutationできない。
+
+Saveだけ変更したままPlayを継続するとAutosaveが古いMemory stateで上書きするRiskがあるため、Route変更 / Upgrade適用時に即Reloadして同期する。
+
+これは機能上のData loss防止策であり、将来Runtime mutation APIを公開すればReloadなしへ改善可能。
+
+---
+
 ## Remaining Work
 
-### Phase 5-C候補
+### Phase 5 / Rank 6 horizontal
 
-- 複数Resource PointのDrone Route設定
-- Drone assignment / route management UI
-- Advanced / Industrial Generator
-- Power Tier拡張
-- Logistics Warehouse
-- Storage in-place upgrade
+- Runtime API経由のreload-free Drone Route変更
+- Advanced Generator / later Power tier
+- Drone route count / assignment upgrade
+- Factory Expansion / multi-floor logistics
 
 ### Rank 7 / Final Chapter
 
@@ -256,4 +273,4 @@ Static CIでは次を保証できない。
 - Autonomous Industrial Core
 - Mega Factory / Main Clear
 
-Phase 5-BでRank 6 Logisticsの主要3機能は実装したが、Phase 5全体やRank 7 Final Chapterまで完了した扱いにはしない。
+Phase 5-CでRank 6 horizontal systemsは大きく拡張したが、Rank 7 Final ChapterやMain Clearまで完了した扱いにはしない。

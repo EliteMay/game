@@ -104,6 +104,7 @@ function normalizeGame(candidate) {
       powerFuelSeconds: Number.isFinite(Number(b.powerFuelSeconds)) ? Math.max(0, Number(b.powerFuelSeconds)) : 0,
       powerStored: Number.isFinite(Number(b.powerStored)) ? Math.max(0, Number(b.powerStored)) : 0,
       logisticsCursor: Number.isFinite(Number(b.logisticsCursor)) ? Math.max(0, Math.floor(Number(b.logisticsCursor))) : 0,
+      resourcePointId: typeof b.resourcePointId === 'string' ? b.resourcePointId : null,
       permanent: Boolean(b.permanent),
     })) : structuredClone(base.buildings),
     tutorialStats: { ...base.tutorialStats, ...(isObject(candidate.tutorialStats) ? candidate.tutorialStats : {}) },

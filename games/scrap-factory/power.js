@@ -41,6 +41,15 @@ export function buildingPowerDischargeRate(building) {
   return Math.max(0, Number(BUILDINGS[building?.type]?.powerDischargeRate || 0));
 }
 
+export function generatorFuelItem(building) {
+  return String(BUILDINGS[building?.type]?.powerFuelItem || 'metal_scrap');
+}
+
+export function generatorFuelSeconds(building) {
+  const value = Number(BUILDINGS[building?.type]?.powerFuelSeconds || GENERATOR_FUEL_SECONDS);
+  return Number.isFinite(value) ? Math.max(1, value) : GENERATOR_FUEL_SECONDS;
+}
+
 export function generatorActive(building) {
   return buildingPowerGeneration(building) > 0 && Number(building?.powerFuelSeconds || 0) > 0;
 }
@@ -50,10 +59,12 @@ export function tickGeneratorFuel(buildings, delta) {
   for (const building of buildings || []) {
     if (buildingPowerGeneration(building) <= 0) continue;
     building.input ??= {};
+    const fuelItem = generatorFuelItem(building);
+    const fuelSeconds = generatorFuelSeconds(building);
     let remaining = Math.max(0, Number(building.powerFuelSeconds || 0));
-    if (remaining <= 0 && Number(building.input.metal_scrap || 0) > 0) {
-      building.input.metal_scrap -= 1;
-      remaining = GENERATOR_FUEL_SECONDS;
+    if (remaining <= 0 && Number(building.input[fuelItem] || 0) > 0) {
+      building.input[fuelItem] -= 1;
+      remaining = fuelSeconds;
     }
     building.powerFuelSeconds = Math.max(0, remaining - elapsed);
   }
@@ -93,7 +104,7 @@ function gridCovers(building, poles, connected) {
 }
 
 function consumerPriority(building) {
-  const priorities = { crusher: 10, smelter: 20, storage: 30, industrial_storage: 30 };
+  const priorities = { crusher: 10, smelter: 20, storage: 30, industrial_storage: 30, logistics_warehouse: 30 };
   return priorities[building?.type] ?? 50;
 }
 

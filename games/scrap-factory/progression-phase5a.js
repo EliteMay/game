@@ -1,4 +1,5 @@
 import { BUILDINGS, ITEMS } from './config.js';
+import { droneResourcePointForPort, isDronePortBuilding } from './drone-routes.js';
 import { findDirectionalRoutes } from './logistics.js';
 import * as core from './progression-core.js';
 import * as phase4b from './progression-phase4b.js';
@@ -36,17 +37,10 @@ export function buildingUnlockState(game, type) {
   const progression = core.ensureProgressionState(game);
   const requiredRank = 6;
   const requiredResearch = 'drone_control_systems';
-  if (progression.progressionRank < requiredRank) {
-    return { unlocked: false, reason: 'rank', requiredRank, requiredResearch };
-  }
+  if (progression.progressionRank < requiredRank) return { unlocked: false, reason: 'rank', requiredRank, requiredResearch };
   const researched = progression.completedResearch.includes(requiredResearch)
     || progression.unlocks.includes('building:drone_port');
-  return {
-    unlocked: researched,
-    reason: researched ? null : 'research',
-    requiredRank,
-    requiredResearch,
-  };
+  return { unlocked: researched, reason: researched ? null : 'research', requiredRank, requiredResearch };
 }
 
 export function isBuildingUnlocked(game, type) {
@@ -55,15 +49,16 @@ export function isBuildingUnlocked(game, type) {
 
 export function analyzeRank6DroneLine(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
-  const ports = buildings.filter((building) => building.type === 'drone_port');
-  const targets = buildings.filter((building) => ['storage', 'industrial_storage'].includes(building.type));
+  const ports = buildings.filter(isDronePortBuilding);
+  const targets = buildings.filter((building) => ['storage', 'industrial_storage', 'logistics_warehouse'].includes(building.type));
   const military = game?.exploration?.areas?.military || {};
-  const resourcePointSecured = Array.isArray(military.resourcePoints)
-    && military.resourcePoints.includes('military-alloy-cache');
+  const resourcePointSecured = Array.isArray(military.resourcePoints) && military.resourcePoints.includes('military-alloy-cache');
   let best = null;
 
   if (resourcePointSecured) {
     for (const port of ports) {
+      const point = droneResourcePointForPort(game, port);
+      if (point?.id !== 'military-alloy-cache' || point.itemId !== 'rare_alloy') continue;
       for (const target of targets) {
         for (const route of findDirectionalRoutes(buildings, port, 'rare_alloy', acceptsItem, target.id)) {
           const candidate = {
@@ -80,14 +75,7 @@ export function analyzeRank6DroneLine(game) {
     }
   }
 
-  return best || {
-    qualifies: false,
-    dronePortId: null,
-    storageId: null,
-    throughput: 0,
-    nodeTypes: [],
-    resourcePointSecured,
-  };
+  return best || { qualifies: false, dronePortId: null, storageId: null, throughput: 0, nodeTypes: [], resourcePointSecured };
 }
 
 function phase5Metrics(game) {
@@ -102,7 +90,7 @@ function phase5Metrics(game) {
     droneControlResearched: game?.progression?.completedResearch?.includes('drone_control_systems') || false,
     droneLine: droneLine.qualifies,
     droneThroughput: droneLine.throughput,
-    dronePorts: buildings.filter((building) => building.type === 'drone_port').length,
+    dronePorts: buildings.filter(isDronePortBuilding).length,
     rareAlloyDiscovered: discovered.has('rare_alloy'),
     rareAlloyBuffered: buildings.some((building) => Number(building?.output?.rare_alloy || 0) > 0),
   };
@@ -135,32 +123,14 @@ export function rankProgress(game) {
   const progression = core.ensureProgressionState(game);
   if (progression.progressionRank < 6) return core.rankProgress(game);
   if (progression.progressionRank >= PLAYABLE_MAX_RANK) {
-    return {
-      rank: progression.progressionRank,
-      phaseCap: true,
-      eligible: false,
-      mandatory: null,
-      optionals: [],
-      optionalDone: 0,
-      optionalRequired: 0,
-      definition: null,
-    };
+    return { rank: progression.progressionRank, phaseCap: true, eligible: false, mandatory: null, optionals: [], optionalDone: 0, optionalRequired: 0, definition: null };
   }
   const definition = getRankDefinition(6);
-  const m = phase5Metrics(game);
-  const mandatory = { ...definition.mandatory, done: Boolean(definition.mandatory.test(m)) };
-  const optionals = definition.optionals.map((goal) => ({ ...goal, done: Boolean(goal.test(m)) }));
+  const metrics = phase5Metrics(game);
+  const mandatory = { ...definition.mandatory, done: Boolean(definition.mandatory.test(metrics)) };
+  const optionals = definition.optionals.map((goal) => ({ ...goal, done: Boolean(goal.test(metrics)) }));
   const optionalDone = optionals.filter((goal) => goal.done).length;
-  return {
-    rank: progression.progressionRank,
-    phaseCap: false,
-    definition,
-    mandatory,
-    optionals,
-    optionalDone,
-    optionalRequired: definition.optionalRequired,
-    eligible: mandatory.done && optionalDone >= definition.optionalRequired,
-  };
+  return { rank: progression.progressionRank, phaseCap: false, definition, mandatory, optionals, optionalDone, optionalRequired: definition.optionalRequired, eligible: mandatory.done && optionalDone >= definition.optionalRequired };
 }
 
 export function claimRankUp(game) {
@@ -180,18 +150,10 @@ export function researchState(game, researchId) {
   if (researchId !== 'drone_control_systems') return core.researchState(game, researchId);
   const progression = core.ensureProgressionState(game);
   const definition = RESEARCH[researchId];
-  if (progression.completedResearch.includes(researchId)) {
-    return { ...definition, exists: true, completed: true, available: false, reason: 'completed' };
-  }
-  if (progression.progressionRank < definition.requiredRank) {
-    return { ...definition, exists: true, completed: false, available: false, reason: 'rank' };
-  }
-  if (!progression.blueprints.includes(definition.requiredBlueprint)) {
-    return { ...definition, exists: true, completed: false, available: false, reason: 'blueprint' };
-  }
-  if (progression.researchData < definition.researchDataCost) {
-    return { ...definition, exists: true, completed: false, available: false, reason: 'data' };
-  }
+  if (progression.completedResearch.includes(researchId)) return { ...definition, exists: true, completed: true, available: false, reason: 'completed' };
+  if (progression.progressionRank < definition.requiredRank) return { ...definition, exists: true, completed: false, available: false, reason: 'rank' };
+  if (!progression.blueprints.includes(definition.requiredBlueprint)) return { ...definition, exists: true, completed: false, available: false, reason: 'blueprint' };
+  if (progression.researchData < definition.researchDataCost) return { ...definition, exists: true, completed: false, available: false, reason: 'data' };
   return { ...definition, exists: true, completed: false, available: true, reason: null };
 }
 
@@ -202,9 +164,7 @@ export function completeResearch(game, researchId) {
   if (!state.available) return { changed: false, state, progression };
   progression.researchData -= state.researchDataCost;
   progression.completedResearch.push(researchId);
-  for (const unlock of state.unlocks || []) {
-    if (!progression.unlocks.includes(unlock)) progression.unlocks.push(unlock);
-  }
+  for (const unlock of state.unlocks || []) if (!progression.unlocks.includes(unlock)) progression.unlocks.push(unlock);
   progression.history.push({ type: 'research', id: researchId, at: new Date().toISOString() });
   progression.history = progression.history.slice(-100);
   return { changed: true, state: researchState(game, researchId), progression };
