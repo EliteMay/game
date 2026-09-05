@@ -122,7 +122,7 @@ Legacy Save normalize:
 - Residential / Industrial / Military stateは既存値を維持
 - unknown research component IDは除外
 
-`centralCoreUnlocked` / Research Facility `completed` はPhase 6-Aでは常に進行でtrueにしない。
+`centralCoreUnlocked` / Research Facility `completed` はPhase 6-Aでは進行でtrueにしない。
 
 既存Phase 5-C additive field:
 - Drone Port `resourcePointId`
@@ -138,11 +138,7 @@ Legacy Save normalize:
 
 ## 4. Research Facility State Contract
 
-Area ID:
-
-```text
-research
-```
+Area ID: `research`
 
 Unlock:
 - Progression Rank 7
@@ -319,13 +315,14 @@ Procedural visualでGameplay readabilityを優先しており、Final Hybrid Ass
 
 `npm run validate`
 
-`package.json`のvalidateは:
+Single entrypoint:
 
 ```text
-existing scripts/validate.mjs
-+
-scripts/phase6a.test.mjs
+package.json
+→ node scripts/validate.mjs
 ```
+
+`validate.mjs`がPhase 6-Aを正式に含み、Research Sceneの必須File / HTML local refs / Runtime marker / `scripts/phase6a.test.mjs`を既存Regressionと同じ経路で確認する。
 
 Phase 6-A regression:
 - Rank 6 research facility locked
@@ -350,7 +347,7 @@ Phase 6-A regression:
 Existing validator continues:
 - JS/MJS syntax
 - JSON parse
-- local HTML refs for existing scenes
+- local HTML refs
 - Rank 1→7 progression
 - Directional Logistics
 - Factory Management
