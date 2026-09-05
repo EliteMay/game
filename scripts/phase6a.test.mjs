@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   RESEARCH_AREA_ID,
   RESEARCH_COMPONENTS,
@@ -16,6 +19,8 @@ import {
   startExpedition,
 } from '../games/scrap-factory/exploration.js';
 import { makeDefaultProgression } from '../games/scrap-factory/progression.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 function gameAt(rank = 7) {
   return {
@@ -128,6 +133,18 @@ function gameAt(rank = 7) {
   assert.equal(state.recovered, true, 'Lab recovery persists across failed expedition');
   assert.equal(state.needsCollection, true, 'lost Special Cargo should be recollectable from the recovered Lab');
   assert.equal(collectResearchCargo(game, robotics.id).changed, true, 'recovered Lab must allow guaranteed recollection after loss');
+}
+
+{
+  const researchHtml = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research.html'), 'utf8');
+  const researchJs = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research.js'), 'utf8');
+  const explorationEntrypoint = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration.js'), 'utf8');
+  assert.match(researchHtml, /src="\.\/research\.js"/, 'research scene must load its runtime');
+  assert.match(researchHtml, /href="\.\/research\.css"/, 'research scene must load its dedicated visual layer');
+  for (const marker of ['RESEARCH_AREA_ID', 'advanceResearchObjective', 'collectResearchCargo', 'returnFromExpedition', 'abandonExpedition']) {
+    assert.ok(researchJs.includes(marker), `research runtime missing core integration marker: ${marker}`);
+  }
+  assert.ok(explorationEntrypoint.includes('exploration-core-v4.js'), 'exploration compatibility entrypoint must use the Phase 6-A core');
 }
 
 console.log('Phase 6-A research facility tests passed.');
