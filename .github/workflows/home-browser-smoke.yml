@@ -2,8 +2,7 @@ name: Home Browser Smoke
 
 on:
   push:
-    branches:
-      - feat/home-player-tutorial
+    branches: [feat/home-player-tutorial]
 
 permissions:
   contents: read
@@ -25,8 +24,7 @@ jobs:
         run: sed -i 's#https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js#/node_modules/three/build/three.module.js#' games/scrap-factory/index.html
       - name: Start local server
         run: |
-          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/game-http.log 2>&1 &
-          echo $! > /tmp/game-http.pid
+          python3 -m http.server 4173 --bind 127.0.0.1 >/tmp/game-http.log 2>&1 &
           sleep 2
       - name: Chromium smoke test
         shell: bash
@@ -37,44 +35,33 @@ jobs:
 
           const origin = 'http://127.0.0.1:4173';
           const url = `${origin}/games/scrap-factory/index.html`;
-          const launch = {
-            headless: true,
-            channel: 'chrome',
-            args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader'],
-          };
+          const browser = await chromium.launch({ headless: true, channel: 'chrome', args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader'] });
           const viewport = { width: 1440, height: 900 };
-          const browser = await chromium.launch(launch);
 
-          function collectBrowserErrors(page, bucket) {
-            page.on('pageerror', (error) => bucket.push(`pageerror: ${error.message}`));
-            page.on('console', (message) => {
-              const text = message.text();
-              if (message.type() === 'error' && !text.startsWith('Failed to load resource:')) bucket.push(`console: ${text}`);
+          function watch(page, errors) {
+            page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+            page.on('console', (m) => {
+              const text = m.text();
+              if (m.type() === 'error' && !text.startsWith('Failed to load resource:')) errors.push(`console: ${text}`);
             });
-            page.on('requestfailed', (request) => bucket.push(`requestfailed: ${request.url()} ${request.failure()?.errorText || ''}`));
-            page.on('response', (response) => {
-              if (response.status() < 400) return;
-              const responseUrl = response.url();
-              if (/\/favicon\.ico(?:\?|$)/.test(responseUrl)) return;
-              bucket.push(`http ${response.status()}: ${responseUrl}`);
+            page.on('requestfailed', (r) => errors.push(`requestfailed: ${r.url()} ${r.failure()?.errorText || ''}`));
+            page.on('response', (r) => {
+              if (r.status() >= 400 && !/\/favicon\.ico(?:\?|$)/.test(r.url())) errors.push(`http ${r.status()}: ${r.url()}`);
             });
+          }
+
+          async function waitForBoot(page) {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await page.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
+            await page.waitForSelector('#start-game:not([disabled])', { timeout: 10000 });
+            await page.waitForSelector('#home-system-panel', { state: 'attached', timeout: 10000 });
           }
 
           const context = await browser.newContext({ viewport });
           const page = await context.newPage();
           const errors = [];
-          collectBrowserErrors(page, errors);
-
-          await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-          try {
-            await page.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
-          } catch (error) {
-            await page.screenshot({ path: '/tmp/home-boot-failure.png', fullPage: true });
-            console.error('Boot diagnostics:', JSON.stringify({ errors, body: (await page.locator('body').innerText()).slice(0, 1200) }, null, 2));
-            throw error;
-          }
-          await page.waitForSelector('#start-game:not([disabled])', { timeout: 10000 });
-          await page.waitForSelector('#home-system-panel', { state: 'attached', timeout: 10000 });
+          watch(page, errors);
+          await waitForBoot(page);
 
           const initial = await page.evaluate(() => ({
             player: window.__scrapFactoryRuntime.getGame().player,
@@ -82,10 +69,10 @@ jobs:
             homePanel: Boolean(document.querySelector('#home-system-panel')),
             homeMarker: Boolean(document.querySelector('#home-marker-chip')),
           }));
-          assert.equal(initial.homeScene, true, 'Home 3D scene must be installed');
-          assert.equal(initial.homePanel, true, 'Home terminal panel must exist');
-          assert.equal(initial.homeMarker, true, 'Home marker HUD must exist');
-          assert.ok(Math.abs(initial.player.x - (-12.2)) < 0.01 && Math.abs(initial.player.z - 36.8) < 0.01, 'Fresh save must start at Home bed');
+          assert.equal(initial.homeScene, true);
+          assert.equal(initial.homePanel, true);
+          assert.equal(initial.homeMarker, true);
+          assert.ok(Math.abs(initial.player.x + 12.2) < 0.01 && Math.abs(initial.player.z - 36.8) < 0.01, 'fresh save starts at Home');
 
           await page.click('#start-game');
           await page.waitForFunction(() => !document.querySelector('#hud').hidden);
@@ -96,30 +83,27 @@ jobs:
           await page.evaluate(() => window.__scrapFactoryRuntime.world.setPlayerState({ x: -12.2, y: 1.7, z: 36.8, yaw: Math.PI }));
 
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'door', label: 'Home Door' }));
-          assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.homeController.doorOpen), true, 'Door should open');
-          assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.staticColliders.some((c) => c.homeColliderId === 'home-door')), false, 'Open door collider should be removed');
+          assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.homeController.doorOpen), true);
+          assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.staticColliders.some((c) => c.homeColliderId === 'home-door')), false);
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'door', label: 'Home Door' }));
-          await page.waitForTimeout(900);
-          assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.staticColliders.some((c) => c.homeColliderId === 'home-door')), true, 'Closed door collider should return');
+          await page.waitForFunction(() => window.__scrapFactoryRuntime.world.staticColliders.some((c) => c.homeColliderId === 'home-door'), null, { timeout: 3000 });
 
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'bed', label: 'Bed' }));
           await page.waitForTimeout(200);
           const bed = await page.evaluate(() => ({
-            respawnEnabled: window.__scrapFactoryRuntime.getGame().home.respawnEnabled,
-            bedUsedAt: window.__scrapFactoryRuntime.getGame().home.bedUsedAt,
-            saved: JSON.parse(localStorage.getItem('elitemay-game-hub-v1') || 'null')?.games?.['scrap-factory']?.home?.respawnEnabled,
+            home: window.__scrapFactoryRuntime.getGame().home,
+            saved: JSON.parse(localStorage.getItem('elitemay-game-hub-v1') || 'null')?.games?.['scrap-factory']?.home,
           }));
-          assert.equal(bed.respawnEnabled, true, 'Bed should enable Home respawn');
-          assert.ok(bed.bedUsedAt, 'Bed should record use time');
-          assert.equal(bed.saved, true, 'Bed manual save should persist');
+          assert.equal(bed.home.respawnEnabled, true);
+          assert.ok(bed.home.bedUsedAt);
+          assert.equal(bed.saved?.respawnEnabled, true, 'Bed manual save persists');
 
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'pc', label: 'Player Management PC' }));
           await page.waitForFunction(() => !document.querySelector('#home-system-panel').hidden);
           assert.equal(await page.locator('#home-system-title').innerText(), 'Player Management PC');
           assert.match(await page.locator('#home-system-content').innerText(), /BACKPACK/);
           assert.equal(await page.locator('[data-home-tab="tutorial"]').count(), 1);
-          const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
-          assert.equal(overflow, false, 'Home panel should not cause page-level horizontal overflow at 1440px');
+          assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1), false, 'no horizontal overflow');
           await page.screenshot({ path: '/tmp/home-pc.png', fullPage: true });
 
           const legacyRoot = await page.evaluate(() => {
@@ -129,38 +113,30 @@ jobs:
             game.player = { x: 5, y: 1.7, z: 5, yaw: 0.4 };
             return root;
           });
-          if (errors.length) throw new Error(`Browser errors:\n${errors.join('\n')}`);
+          if (errors.length) throw new Error(errors.join('\n'));
           await context.close();
 
           const legacyContext = await browser.newContext({
             viewport,
-            storageState: {
-              cookies: [],
-              origins: [{
-                origin,
-                localStorage: [{ name: 'elitemay-game-hub-v1', value: JSON.stringify(legacyRoot) }],
-              }],
-            },
+            storageState: { cookies: [], origins: [{ origin, localStorage: [{ name: 'elitemay-game-hub-v1', value: JSON.stringify(legacyRoot) }] }] },
           });
           const legacyPage = await legacyContext.newPage();
           const legacyErrors = [];
-          collectBrowserErrors(legacyPage, legacyErrors);
-          await legacyPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-          await legacyPage.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
-          await legacyPage.waitForSelector('#home-system-panel', { state: 'attached', timeout: 10000 });
+          watch(legacyPage, legacyErrors);
+          await waitForBoot(legacyPage);
           const legacy = await legacyPage.evaluate(() => ({
             player: window.__scrapFactoryRuntime.getGame().player,
             worldPlayer: window.__scrapFactoryRuntime.world.getPlayerState(),
             home: window.__scrapFactoryRuntime.getGame().home,
           }));
-          assert.ok(Math.abs(legacy.player.x - 5) < 0.01 && Math.abs(legacy.player.z - 5) < 0.01, 'Legacy migration must preserve old saved player position');
-          assert.ok(Math.abs(legacy.worldPlayer.x - 5) < 0.01 && Math.abs(legacy.worldPlayer.z - 5) < 0.01, 'Legacy world spawn must preserve old position');
-          assert.equal(legacy.home.introducedFromLegacy, true, 'Legacy save should be marked as introduced to Home');
-          if (legacyErrors.length) throw new Error(`Legacy browser errors:\n${legacyErrors.join('\n')}`);
-          await legacyContext.close();
+          assert.ok(Math.abs(legacy.player.x - 5) < 0.01 && Math.abs(legacy.player.z - 5) < 0.01, 'legacy saved position preserved');
+          assert.ok(Math.abs(legacy.worldPlayer.x - 5) < 0.01 && Math.abs(legacy.worldPlayer.z - 5) < 0.01, 'legacy world spawn preserved');
+          assert.equal(legacy.home.introducedFromLegacy, true);
+          if (legacyErrors.length) throw new Error(legacyErrors.join('\n'));
 
+          await legacyContext.close();
           await browser.close();
-          console.log('Home Chromium smoke passed: boot, Home scene, fresh spawn, door collider, Bed save, PC UI, legacy migration, overflow.');
+          console.log('Home Chromium smoke passed.');
           EOF
           node ./.tmp-home-browser-smoke.mjs
           rm -f .tmp-home-browser-smoke.mjs
