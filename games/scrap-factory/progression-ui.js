@@ -1,13 +1,13 @@
 import { BUILDINGS, BUILD_MENU_ORDER, HAND_CRAFTS, SAVE_KEY } from './config.js';
 import {
   RESEARCH,
+  buildingUnlockState,
   claimRankUp,
   completeResearch,
   isBuildingUnlocked,
   isHandCraftUnlocked,
   normalizeProgression,
   rankProgress,
-  requiredBuildingRank,
   researchState,
 } from './progression.js';
 
@@ -185,8 +185,8 @@ function renderPanel() {
     </section>
   ` : `
     <section class="progression-section progression-section--cap">
-      <div class="progression-section__head"><div><span>PHASE 1 CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>ACTIVE</strong></div>
-      <p>通常GameplayのRank Upは現在ここまでです。Phase 2-AのPower CoreはRank 4状態向けに実装済みで、自然なRank 4到達条件は探索Phaseで接続します。Splitter / Merger / Mk.2は次のPhase 2 sliceで追加します。</p>
+      <div class="progression-section__head"><div><span>PLAYABLE RANK-UP CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>ACTIVE</strong></div>
+      <p>通常GameplayのRank Upは現在Rank 3までです。Rank 4向けにはPower / Mk.2 / Splitter / Merger / Grid Storage Battery、Rank 5向けにはIndustrial Storageの基盤まで実装済みです。Rank 4へ自然に進む廃住宅街Objectiveは探索Phaseで接続します。</p>
     </section>
   `;
 
@@ -235,12 +235,12 @@ function applyBuildGate(game) {
   options.forEach((button, index) => {
     const type = BUILD_MENU_ORDER[index];
     if (!type) return;
-    const unlocked = isBuildingUnlocked(game, type);
-    if (!unlocked) {
+    const unlock = buildingUnlockState(game, type);
+    if (!unlock.unlocked) {
       button.disabled = true;
       button.dataset.progressionLocked = 'true';
       const cost = button.querySelector('.build-option__cost');
-      if (cost) cost.textContent = `RANK ${requiredBuildingRank(type)}`;
+      if (cost) cost.textContent = unlock.reason === 'research' ? 'RESEARCH' : `RANK ${unlock.requiredRank}`;
     } else if (button.dataset.progressionLocked) {
       delete button.dataset.progressionLocked;
       const cost = BUILDINGS[type]?.cost || 0;
