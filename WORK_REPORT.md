@@ -399,6 +399,7 @@ Main progressionのRequirement 1〜10は実装済み。
 - Home起点Basic Tutorial、Skip/Replay、Tutorial Library、Next Goal、Stuck Help
 - Machine / Logistics / Power / Storage / Drone / Home / Final Phase Diagnostics
 - Additive Save Migration（Schema v1維持）とHome regression tests
+- Home外観へ玄関フレーム、窓、軒、外灯、`HOME 01 / PLAYER QUARTERS`サインを追加し、Factory設備と視覚的に区別
 
 ### Preserved Contracts
 
@@ -407,6 +408,55 @@ Main progressionのRequirement 1〜10は実装済み。
 - 既存Save Schema v1と旧Player位置
 - BackpackはSlot制のみ。重量制・Weight Penaltyは追加していない。
 
-### Validation
+### Static Validation
 
-このReport追加はHome integration workflow内で `npm run validate` 成功後にのみ実行される。GitHub通常PR Validationも別途通過させる。実ブラウザ操作・WebGL見た目確認はCI Static Validationとは別判定として扱う。
+Home統合後の `npm run validate` はGitHub Actionsで成功。
+
+確認範囲:
+
+- 75 JS/MJS files / 7 HTML targets
+- Logistics / Management / Progression / Power / Storage
+- Residential / Industrial / Military / Research exploration
+- Phase 4-B / Phase 5-A / Phase 5-B / Phase 5-C / Phase 6-A / Phase 6-B / Phase 6-C
+- Final Phase / Mega Factory / Main Clear
+- `scripts/home-system.test.mjs`
+- Backpack Migration / Atomic Upgrade purchase / Secure Case / Tutorial progression
+
+### Chromium Browser Validation
+
+Temporary CI browser harnessでChrome + WebGL/SwiftShaderを使い、production Runtimeを実際に起動して確認した。
+
+Final successful run:
+
+```text
+Home Browser Smoke #8
+Run: 33996946432
+Head: 205f425b3ea777aa14b1d99ca1be98d66f5b8270
+Result: success
+```
+
+確認済み:
+
+- Game boot / Home 3D scene生成
+- Fresh SaveがHome Bed付近から開始
+- Backpack初期容量 12 Slot
+- Home Door open時Collider解除 / close完了後Collider復帰
+- Bed使用でHome Respawn有効化
+- Bed Manual SaveがlocalStorageへ永続化
+- Player Management PC表示
+- Tutorial Library tab接続
+- 1440×900でpage-level horizontal overflowなし
+- Home未導入の旧Saveを別Browser Contextへ投入し、旧Player座標 `(5, 5)` をGame state / World spawn双方で保持
+- Migration後 `introducedFromLegacy = true`
+
+CIではThree.js CDN依存による不安定さを避けるため、Smokeのcheckout内だけ同一version `three@0.185.0` をlocal配信した。ProductionのCDN設定自体は変更していない。
+
+### Visual Review
+
+Noto CJKを導入したChromium Screenshotを確認。
+
+- Player Management PC: 日本語表示、6 tabs、status cards、3-column Upgrade Tree、disabled state、縦scroll、横overflowに大きな崩れなし
+- Home exterior: 最初の暗い箱状外観を不採用とし、corrugated wall / windows / yellow entrance frame / porch / exterior light / Home signを追加後に再Screenshot Review
+- 改善後HomeはFactory設備と区別でき、入口が視認できる状態
+
+Browser Smoke用Workflowとintegration patch scriptsは検証後に削除し、PRへ恒久実装だけ残す。
