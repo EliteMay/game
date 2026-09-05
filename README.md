@@ -12,7 +12,7 @@
 
 `Scrap Factory` のPlayable MVPを、Steam掲載相当を目標に継続改善しています。
 
-現在は長期ロードマップの **Phase 3-A: Residential Exploration Progression** まで実装しています。Rank 1 → 2 → 3のFactory進行、Power / Advanced Logistics / Battery / Storage基盤を維持したまま、Transport Terminalから独立Sceneの廃住宅街へ出発し、Main Objectiveを完了してRank 4へ自然に進める最初の探索Progressionを接続しました。
+現在は長期ロードマップの **Phase 3-B: Rank 5 Production / Power Progression** まで実装しています。Rank 1 → 5を通常Gameplayで進められ、廃住宅街の探索からRank 4へ進んだ後、Splitter / Mergerを含む複数加工品ラインと自前発電を成立させることでRank 5へ到達できます。
 
 主要ループ:
 
@@ -24,7 +24,8 @@ Factory / Scrap Yard
 → 独立探索エリア
 → Objective / Loot / Resource Point
 → 正常帰還
-→ Factory強化
+→ Advanced Logistics / Power
+→ Rank 5 / Industrial Storage
 ```
 
 Rank 4では次の工場要素が実際の通常Progressionから利用可能になります。
@@ -46,14 +47,15 @@ HUD右上の `RANK` から進行画面を開けます。
 - Rank 1 → 2: Hopper → Crusher → SellerのDirectional自動ラインが必須。
 - Rank 2 → 3: Crusher → Smelterを含む鉄インゴット完全自動ラインが必須。
 - Rank 3 → 4: **廃住宅街Main Objective完了**が必須。さらに探索区画・持帰りLoot・製品発見・売上等から2目標を達成する。
+- Rank 4 → 5: **Splitter / Mergerを使う2種類の加工品ライン + 自前発電30秒分以上**が必須。Mk.2帯域、Grid Storage、燃料余裕、発電余力等から2目標を達成する。
 - Rank 2でSmelter / StorageとResearch Tier 2を解放。
 - Rank 4でSplitter / Merger / Conveyor Mk.2 / Generator / Power Poleを解放。
+- Rank 5でIndustrial Storageを通常Progressionから利用可能にする。
 - Research Dataを消費して技術を研究する。
 - `Basic Fabrication`研究で鉄板の手作業Recipeを解放。
 - 廃住宅街Main Objectiveで`Scrap Yard Survey`用BlueprintとResearch Dataを保証入手する。
 - `Grid Storage`研究でBatteryを解放する。
-- Industrial StorageはRank 5状態向けに先行実装済み。
-- 通常GameplayのRank Up上限は現在Rank 4。Rank 4 → 5条件は後続Phaseで接続予定。
+- 通常GameplayのRank Up上限は現在Rank 5。Rank 5 → 6の廃工場復旧 / Assemblerは後続Phase。
 
 Legacy Saveでは既に使っていたSmelter / Storage / 鉄板Craftを検出し、必要な最低Rank / Unlockを補完します。既存Factory LayoutやAchievementは削除しません。
 
@@ -92,7 +94,7 @@ Phase 2-Cでは「発電が一瞬足りない」「倉庫が満杯でItemが消�
 - **Battery Coverage** — Starter Gridまたは接続済みPower Poleの給電範囲内だけGridへ参加する。未接続Batteryは充放電しない。
 - **Battery Persistence** — 保存するのはBuilding単位の`powerStored`だけ。発電量・需要・充放電量・Shortage状態は毎Frame導出する。
 - **Small Storage** — 最大120個。満杯時は新しいItemを受け取らず、上流へBack Pressureをかける。
-- **Industrial Storage** — Rank 5 / `$240` / 最大600個。将来のRank 5 Factory向け大容量Buffer。
+- **Industrial Storage** — Rank 5 / `$240` / 最大600個。Rank 4 → 5進行完了後に利用可能な大容量Buffer。
 - **No Item Loss** — 手動投入・自動搬送とも残容量を超えて投入せず、旧Saveに容量超過Storageがあっても既存Itemを削除しない。
 - **Factory Management** — Storage使用量 / 容量 / 満杯Alert、Power供給/需要、Battery残量をコンソールへ表示。
 - **Visual** — BatteryとIndustrial Storageに専用Procedural Silhouetteを追加。Batteryは残量GaugeがRuntime stateへ連動する。
@@ -142,6 +144,33 @@ Main Objective:
 - `Abandon Expedition`では今回拾った通常Lootだけ失い、永続探索Progressは維持
 
 このPhaseでは探索基盤とRank 4への進行を優先しています。廃住宅街の本格的な建物内部、敵、HP、環境Hazardは後続Exploration拡張として残しています。
+
+## Phase 3-B: Rank 5 Production / Power Progression
+
+Rank 4で解放されたAdvanced LogisticsとPowerを、Rank 5へ進むための実際の工場条件へ接続します。
+
+必須条件:
+
+```text
+同じFactory内で
+Crushed Metal + Iron Ingot の2種類を自動搬送
++
+Route上でSplitter / Mergerを実際に使用
++
+稼働中Scrap Generatorの自前発電がMachine需要を上回る
++
+現在燃焼分 + Generator投入済み燃料で30秒以上のRunwayを確保
+```
+
+- Rank判定は既存`findDirectionalRoutes()`のRoute graphを再利用し、別のProgression用Route状態を保存しない。
+- Mk.2使用と実効帯域3.0個/秒を選択目標として評価する。
+- `Grid Storage`研究、120秒分のGenerator燃料余裕、自前発電10 Power以上の余力も選択目標になる。
+- Starter Gridの55 Powerは「自前発電」達成には加算しない。
+- Generatorが停止している場合、Inputに燃料が積まれていても自前発電成立とは扱わない。
+- Rank 5到達後、Industrial Storageを通常Gameplayから建築可能になる。
+- Root Save Schema / Progression Schemaは変更せず、判定値は現在のBuilding / Route / Power stateから導出する。
+
+次のRank 5 → 6では、要件上の廃工場復旧、Assembler、Advanced Productionを接続する予定です。
 
 ## Scrap Factory 操作
 
@@ -232,7 +261,7 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - Generatorの燃焼途中はBuilding単位の`powerFuelSeconds`として保存
 - Battery残量はBuilding単位の`powerStored`として保存
 - Splitter等の安定した分配位置はBuilding単位の`logisticsCursor`として保存
-- Power Snapshot / Storage残容量は保存せず、Building Dataから導出
+- Power Snapshot / Storage残容量 / Rank 4→5判定値は保存せず、Building Dataから導出
 - Factoryは30秒、Residential Expeditionは5秒ごとにオートセーブ
 - 画面非表示・主要変更時にも保存
 - Hub / ゲーム設定からJSON Export可能
@@ -273,7 +302,7 @@ npm run test:exploration
 
 - `test:logistics` — Directional Port / 逆流 / Splitter / Merger / Round-robin / Mk.1-Mk.2 Throughput Regression
 - `test:management` — Factory alert / Logistics / Storage / Power analysis / Quick Build ordering / Challenge / Production planner Regression
-- `test:progression` — Rank条件 / Directional Line / Rank 4〜5 Building Gate / Research Gate / Blueprint Gate / Legacy Migration Regression
+- `test:progression` — Rank 1→5条件 / Directional Line / Rank 4→5 Advanced Logistics + Own Power / Building Gate / Research Gate / Blueprint Gate / Legacy Migration Regression
 - `test:power` — Starter Grid / Shortage / Generator / Pole / Battery充放電 / 未接続Battery / Buffer非破壊 / Deterministic allocation Regression
 - `test:storage` — Storage容量 / 残容量 / Full Back Pressure / Legacy over-capacity preservation Regression
 - `test:exploration` — Rank 3 Area Gate / Session Loot / Zone persistence / Objective順序 / Guaranteed reward / Return / Abandon / Depot / Rank 3→4 Regression
