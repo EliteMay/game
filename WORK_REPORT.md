@@ -16,6 +16,7 @@ Date: 2026-09-05
 6. Phase 1 Progression Rank / Research
 7. Phase 2-A Power Core
 8. Phase 2-B Logistics Expansion
+9. Phase 2-C Power Buffer & Storage
 
 ## Current Gameplay
 
@@ -25,296 +26,339 @@ Date: 2026-09-05
 - 12-slot backpack
 - Direct selling
 - Free building on 2.5m grid
-- Hopper / Seller / Crusher / Smelter / Storage
-- Conveyor Mk.1 / Conveyor Mk.2
-- Splitter / Merger
-- Rank 4 Power definitions: Scrap Generator / Power Pole
-- Directional Logistics with explicit advanced-node ports
-- Mk.1 / Mk.2 route throughput
+- Hopper / Seller / Crusher / Smelter
+- Small Storage / Industrial Storage
+- Conveyor Mk.1 / Mk.2 / Splitter / Merger
+- Scrap Generator / Power Pole / Grid Battery
+- Directional Logistics / Route Throughput
 - Splitter deterministic round-robin
-- Conveyor / Logistics rotation and reverse after placement
-- Safe dismantle mode with full build-cost refund
-- Machine input/output buffers and processing cycles
+- Storage finite capacity / Back Pressure
+- Battery automatic charge / discharge
+- Safe dismantle / full build-cost refund
+- Machine buffers / processing cycles
 - Hand crafting
-- Cash / Revenue
-- Tutorial contract / free-play transition
-- Progression Rank 1 → 2 → 3
+- Tutorial / Free Play
+- Progression Rank 1 → 2 → 3 playable
+- Rank 4〜5 future-state systems
 - Research Data / Research unlock
-- Rank 4 Power / Logistics core for future progression connection
-- Autosave / recovery / reset / JSON export
-- Graphics / sensitivity / volume / FPS / shortcut settings
-- In-game Field Manual / Codex
+- Autosave / Recovery / JSON Export
+- Factory Management / Codex / Planner / Alerts
+
+通常Gameplayの自然なRank UpはまだRank 3まで。Rank 4〜5機能はProgression Save state上で実装済みだが、探索Objective経由の自然な到達は後続Phase。
 
 ## Visual Foundation
 
-- Gradient sky / cloud / fog
-- Procedural concrete / dirt surfaces
-- Oil stain / lane marking / hazard stripe
-- Chain-link fence / gate / workshop / awning / floodlight
-- Scrap-yard props: container / tire / barrel / spool / vehicle / crane / piles
-- Distant silo / chimney / pipe bridge / industrial silhouette
-- Dedicated collectible shapes
-- Purpose-specific machine silhouettes for Phase 1 machines
-- Dedicated runtime floor visuals for Conveyor Mk.2 / Splitter / Merger
+- Procedural sky / ground / industrial surfaces
+- Factory fence / gate / workshop / floodlight
+- Scrap-yard props / distant industrial background
+- Purpose-specific Phase 1 machine silhouettes
+- Conveyor Mk.2 / Splitter / Merger dedicated floor visuals
+- Grid Battery dedicated cabinet / terminal / charge gauge visual
+- Industrial Storage dedicated large-container visual
 - Interaction marker / head bob / sprint FOV
-- Static scenery collision with build placement
 
-Scrap Generator / Power PoleはCore先行で、専用Silhouetteは後続Visual pass。Generic fallback geometryのまま完成扱いしない。
+Scrap Generator / Power PoleはCore先行で専用Silhouette改善が残る。
 
-## Directional Logistics / QoL
+## Existing Directional Logistics Contract
 
-User playtest feedbackから導入した既存Contract:
+User playtest由来の既存Contract:
 
-- Conveyor can be dismantled with `F`
-- Direction can be edited after placement with `E`
-- Crusher output does not follow an input-side Conveyor backward
-- Yellow arrow is actual output direction
-- Build / dismantle contextual hints
-- Static shortcut HUD
-- Detailed machine description / recipe flow / processing time
-- `O` re-openable field manual
+- `F`で設備解体
+- `E`で設置後の物流方向編集
+- Visual Arrow = Runtime Output direction
+- Crusher outputはInput側へ逆走しない
+- Source→First ConveyorはRear接続を確認
+- Line途中のMk.1 / Mk.2はLegacy corner互換でSide entry許可
+- Splitter / Mergerは明示Portを厳密適用
+- Tutorial / Progression / Factory Managementも同じRoute Source of Truthを使用
 
-Phase 2-BでもこのContractを維持した。
+Phase 2-CではこのContractを変更していない。
 
 ## Factory Management Pack
 
 `P`で工場管理コンソールを開く。
 
-主要機能:
+現在の主な分析:
 
-- Factory summary
-- material wait / output stall / logistics dead-end alerts
-- Splitter underused branch alert
-- Logistics node count / defined capacity analysis
-- 8 challenges / achievements
-- Challenge HUD pinning
-- Factory Title
-- Production Planner
-- Searchable Codex
-- Session event log
-- HUD alert-count badge
+- Cash / Revenue / session revenue per minute
+- equipment / active-waiting machine / buffers
+- logistics node / defined throughput capacity
+- storage used / total capacity / full storage count
+- power generation / demand / reserve / coverage
+- battery stored / total capacity
+- material wait / output stall / logistics dead end / underused splitter / full storage alerts
+- Challenges / Factory Title / HUD tracking
+- Production Planner / Codex / Session Log
 - `1〜5` Quick Build
 
-Quick Buildの既存割当はPhase 2-Bでも固定:
+Quick Build Public Contract:
 
 1. Crusher
 2. Smelter
 3. Conveyor Mk.1
-4. Storage
+4. Small Storage
 5. Seller
 
-Advanced LogisticsをBuild Menuへ追加したことで一度IndexずれRiskを検出したため、`BUILD_MENU_ORDER`の先頭5件をRegression Testで固定した。
+Advanced設備を追加してもこの順番は変更しない。
 
-## Phase 1 Progression Rank / Research — 2026-09-05
+## Phase 1 Progression Rank / Research
 
 ### Added
 
 - `progressionRank` 1〜7保存構造
-- Playable Rank Up: Rank 1 → 2 / Rank 2 → 3
-- 必須目標 + 選択目標2つ方式
+- Playable Rank Up: 1→2 / 2→3
+- Mandatory + Optional goals
 - Directional Routeを使う必須Line判定
-- Rank 2: Smelter / Storage / Research Tier 2 / Research Data +1
-- Rank 3: Research Data +2 / Exploration Research入口
-- `Basic Fabrication` / `Scrap Yard Survey`
+- Rank2 Smelter / Storage / Research
+- Basic Fabrication / Scrap Yard Survey
 - Blueprint Gate
-- HUD `RANK`
-- Rank Goal / Research Panel
+- HUD Rank / Research panel
 - Core + UI Build/Craft Guard
-- Achievement由来称号を`FACTORY TITLE`へ分離
+- Achievement由来称号をFactory Titleへ分離
 
 ### Legacy Compatibility
 
-- Smelter usage → Rank 2 minimum / Legacy Unlock
-- Storage usage → Rank 2 minimum / Legacy Unlock
-- Directional Iron Line → Rank 3 inference
-- Iron Plate / Tool Kit Craft evidence → `Basic Fabrication` complete
-- Existing Achievement / Layout / Economy / Inventoryを初期化しない
+- Smelter / Storage usage evidenceから最低Rank補完
+- Directional Iron LineからRank3推定
+- Iron Plate / Tool Kit evidenceからBasic Fabrication補完
+- Existing Layout / Economy / Inventory / Achievementを初期化しない
 
-## Phase 2-A Power Core — 2026-09-05
+## Phase 2-A Power Core
 
 ### Added
 
-- `games/scrap-factory/power.js`
-- Power activation: `progressionRank >= 4`
-- Rank 1〜3 no-power compatibility
-- Starter Grid 55 Power / 17.5m
-- Scrap Generator: Rank 4 / `$260` / Scrap 1 / 24秒 / +80 Power
-- Power Pole: Rank 4 / `$45` / 12.5m link / 10m coverage
-- Crusher 18 Power / Smelter 30 Power
-- Shortage stop / automatic recovery
-- Buffer / processing progress preservation
-- Manual + logistics Generator fuel supply
-- `building.powerFuelSeconds` persistence
-- Deterministic power allocation
-
-### Power Regression
-
-`scripts/power.test.mjs`:
-
-- Rank 3以前 Power disabled
-- Starter Grid
-- shortage
-- generator fuel / recovery
-- coverage / pole chain
-- buffer non-mutation
+- `power.js`
+- Rank4 activation / Rank1〜3 no-power compatibility
+- Starter Grid: 55 Power / radius17.5m
+- Scrap Generator: Rank4 / `$260` / Scrap1 / 24秒 / +80 Power
+- Power Pole: Rank4 / `$45` / link12.5m / coverage10m
+- Crusher18 / Smelter30 Power
+- Shortage stop / recovery
+- Buffer / progress preservation
+- `powerFuelSeconds` persistence
 - deterministic allocation
 
-## Phase 2-B Logistics Expansion — 2026-09-05
+## Phase 2-B Logistics Expansion
 
-### Added Buildings
+### Added
 
-- Conveyor Mk.2
-  - Rank 4
-  - `$28`
-  - 3 items/sec
-- Splitter
-  - Rank 4
-  - `$85`
-  - Rear 1 Input
-  - Forward / Left / Right 3 Output
-  - deterministic round-robin
-- Merger
-  - Rank 4
-  - `$85`
-  - Rear / Left / Right 3 Input
-  - Forward 1 Output
+- Conveyor Mk.2: Rank4 / `$28` / 3 items/sec
+- Splitter: Rank4 / `$85` / 1 Input → 3 Output / round-robin
+- Merger: Rank4 / `$85` / 3 Input → 1 Output
+- Route throughput = minimum Node throughput
+- `delta × throughput` Transport Credit
+- `logisticsCursor` persistence
+- Advanced Logistics visuals
+- Factory Management logistics analysis
 
-Conveyor Mk.1は`$12` / 1.5 items/secとして既存互換を維持。
+### CIで検出した重要Regression
 
-### Routing Architecture
+PR #7初版では新Port制約を途中Conveyorにも厳密適用し、既存の直進→90°カーブLineを破壊した。
 
-`games/scrap-factory/logistics.js`をDirectional Conveyor専用helperから、明示的Logistics NodeのSource of Truthへ拡張した。
-
-追加Pure Logic:
-
-- `isLogisticsNode`
-- `logisticsThroughput`
-- `logisticsInputKeys`
-- `logisticsOutputKeys`
-- `logisticsAcceptsFrom`
-- `findDirectionalRoutes`
-- `selectDirectionalRoute`
-
-Contract:
-
-- Sourceから最初のConveyor / Mk.2はRear側接続が必要
-- 既存Conveyor / Mk.2はLine途中のSide entryを許可し、従来の曲がりLineを維持
-- Splitter / Mergerは途中でも明示Input Portを厳密適用
-- Splitterは暗黙の多方向探索ではなく明示3 Output
-- Mergerは明示3 Input / 1 Output
-- CycleをRoute単位で防止
-- Progression / Tutorial / Factory Managementも同じRoute Source of Truthを使用
-
-### Throughput
-
-以前の固定約0.65秒Transport Tickから、`delta × route throughput`のTransport Creditへ変更。
-
-- Mk.1: 1.5 items/sec
-- Mk.2 / Splitter / Merger: 3 items/sec
-- Route throughput = Route上の最小Node throughput
-- Mixed `Mk.2 → Mk.1`は1.5へClamp
-- 1 frame当たりのSource移動回数に上限を設定
-- Packet animationも高速Routeで速度を上げる
-
-現段階はRoute-level modelで、per-segment physical occupancy / queue / Back Pressureまでは未実装。
-
-### Save Compatibility
-
-- Root key: `elitemay-game-hub-v1`
-- Root Schema Version: `1`
-- additive building field: `logisticsCursor`
-- missing cursorは`0`へNormalize
-- route graph / throughputはSaveせずBuilding layoutから導出
-- direction変更時はcursorを0へReset
-
-### Visual
-
-`world-runtime.js`へAdvanced Logisticsの明示的Visual extensionを追加。
-
-- Conveyor Mk.2: high-speed belt / distinct rail / arrows
-- Splitter: branching floor silhouette / 3 output markers
-- Merger: merging floor silhouette / one output marker
-- Advanced LogisticsはPlayer collisionを持たない
-- Build PreviewにもAdvanced shapeを追加
-
-実ブラウザでのPort readability確認は未実施。
-
-### Factory Management
-
-- Advanced Logistics dead-end detection
-- Splitter one-branch-only info alert
-- `logisticsNodes`
-- `logisticsCapacity`
-- new Route logicをMachine output-stall detectionでも使用
-
-### CIで検出した互換Bug
-
-PR #7の最初の`project-contract` CIは失敗した。
-
-Failure:
+CI failure:
 
 - `scripts/logistics.test.mjs`
 - `east then north route should resolve`
 
-原因:
+Testを弱めず実装を修正し、Mk.1 / Mk.2のLegacy corner entryを維持、Splitter / MergerだけStrict Portにした。
 
-- Phase 2-B初版で新しい明示Input Port制約をConveyor Mk.1にもLine途中で適用した。
-- 既存Contractでは「最初のConveyor接続はRear確認、途中Conveyorは横から入って曲がれる」ため、既存の直進→北カーブを破壊していた。
+## Phase 2-C Power Buffer & Storage — 2026-09-05
 
-修正:
+### Scope Decision
 
-- Conveyor Mk.1 / Mk.2はSource ConnectionだけRear側を要求
-- Line途中のConveyorはLegacy corner entryを維持
-- Splitter / Mergerだけ明示Input Portを厳密適用
-- Factory Managementの接続判定も同じ`logisticsAcceptsFrom`を使用
+REQUIREMENTS再確認後、Phase 2-Bの次SliceをBattery / Storageへ決定。
 
-互換修正後のPR CIは成功した。
+理由:
+
+- BatteryはRank4→5の中間目標候補としてRequirementsに存在
+- Industrial StorageはRank5 Unlock
+- 既存Power / Logistics基盤へ追加できる
+- Rank3→4探索Progressionを無理に同Sliceへ混ぜず責務を分離できる
+
+### Grid Storage Research
+
+新Research:
+
+- ID: `grid_storage`
+- Name: 電力蓄電技術
+- Category: Power
+- Rank4
+- Research Data 2
+- Unlock: `building:battery`
+
+BatteryはRank4だけではBuild不可。`buildingUnlockState()`でRank lock / Research lockを分離した。
+
+### Grid Battery
+
+Building:
+
+- ID: `battery`
+- Cost: `$220`
+- Capacity: 960 Energy
+- Max charge: 60 Power
+- Max discharge: 80 Power
+
+Runtime:
+
+- Starter GridまたはConnected Power Pole coverage内でのみGrid参加
+- surplus = `baseGeneration - coveredDemand`
+- surplusだけを自動充電
+- shortfallだけを自動放電
+- stored energy / rate / current deltaで供給可能量をClamp
+- Batteryが不足を埋め切れなければ既存Power allocationへShortageを残す
+- Disconnected Batteryは充放電しない
+
+Persistence:
+
+- additive `building.powerStored`
+- Snapshot自体はSaveしない
+- `computePowerSnapshot()`はnon-mutating
+- `tickPowerStorage()`だけがRuntime時間経過で残量を変更
+
+### Storage Capacity / Back Pressure
+
+Small Storage:
+
+- Capacity 120
+
+Industrial Storage:
+
+- Rank5
+- Cost `$240`
+- Capacity 600
+
+新Pure module:
+
+`games/scrap-factory/storage-capacity.js`
+
+- `storageCapacity`
+- `storageAmount`
+- `storageRemaining`
+- `storageFillRatio`
+- `storageCanReceive`
+- `storageTransferAmount`
+
+Manual Deposit:
+
+- 残容量だけ移動
+- 超過分はInventoryへ残す
+- Full時は0移動
+
+Automatic Transport:
+
+- Full StorageをFinal Target候補から除外
+- Transfer直前もRemainingを再確認
+- Target受入確認後にだけSource Outputを減らす
+- 有効RouteがなければSource BufferへItemを保持
+- Splitterに別の有効Routeがあれば再Route selection可能
+
+Legacy Save:
+
+- Over-capacity contentsを削除しない
+- Remaining 0として新規Inputだけ拒否
+- Player回収でCapacity以下に戻れば通常動作
+
+### Factory Management
+
+追加:
+
+- Storage used / total capacity
+- Full Storage count
+- Full Storage warning
+- Power generation / demand / reserve
+- Battery stored / capacity
+- uncovered consumer count
+
+### Visual
+
+`world-runtime.js`に専用Visual追加:
+
+Grid Battery:
+- Cell cabinet
+- terminals
+- charge gauge
+- status light
+
+Industrial Storage:
+- Small Storageより大型のcontainer silhouette
+- frame
+- front door
+- safety markings
+
+Battery Gaugeは`world.updateBuildingState()`のprogressへ接続する。
+
+### Save Compatibility
+
+Root:
+
+- key: `elitemay-game-hub-v1`
+- Schema Version: `1`
+
+Optional Building fields:
+
+- `powerFuelSeconds`
+- `powerStored`
+- `logisticsCursor`
+
+Derived stateはSaveしない。
 
 ### Regression Coverage
 
-`scripts/logistics.test.mjs`:
+`scripts/power.test.mjs`:
 
-- old rotation mapping
-- old corner route
-- reverse-flow rejection
-- Splitter ports / 3 target routes
-- deterministic round-robin
-- Merger 3 input / 1 output
-- Merger output-side rejection
-- Mk.2 throughput
-- mixed-tier bottleneck
+- existing Starter Grid / Generator / Pole regression
+- Battery exact-shortfall output
+- pure snapshot non-mutation
+- discharge energy consumption
+- surplus charging
+- capacity clamp
+- disconnected battery
+- low-energy sustainable discharge
 
-`scripts/factory-management.test.mjs`:
+`scripts/storage-capacity.test.mjs`:
 
-- existing alerts/challenges/planner
-- advanced logistics metrics
-- Splitter underuse alert
-- Quick Build 1〜5 ordering
+- Small Storage capacity
+- Industrial Storage capacity
+- used / remaining / fill ratio
+- transfer clamp
+- Full Back Pressure
+- Legacy over-capacity preservation
 
 `scripts/progression.test.mjs`:
 
-- existing Rank / Research / migration
-- Rank 4 Advanced Logistics / Power building gates
+- Battery Rank4 + Research Gate
+- Grid Storage completion unlock
+- Industrial Storage Rank5 Gate
 
-`scripts/power.test.mjs`を継続し、Phase 2-A回帰も同時に確認する。
+`scripts/factory-management.test.mjs`:
+
+- Storage aggregation
+- Full alert
+- Battery / Power metrics
+
+`npm run validate`へStorage testと`tickPowerStorage` / `storageRemaining` integration markerを追加。
+
+### Initial PR CI
+
+PR #8 implementation-only headで`Validate Web Game` run #43: **success**。
+
+Documentation同期後に最新Headで再Validationする。
 
 ## Save / Compatibility
 
-Core save:
+Core Save:
 
 - Root key: `elitemay-game-hub-v1`
 - Root Schema Version: `1`
-- Progression internal Version: `1`
-- Optional building fields:
+- Progression Version: `1`
+- Optional Building fields:
   - `powerFuelSeconds`
+  - `powerStored`
   - `logisticsCursor`
 
-Factory Management preferences:
+Factory Management preference key:
 
-- key: `scrap-factory-management-v1`
-- challenge unlock IDs
-- pinned challenge ID
-- planner target/rate
+- `scrap-factory-management-v1`
 
 ## Validation
 
@@ -322,72 +366,49 @@ Factory Management preferences:
 
 - JavaScript syntax baseline
 - JSON parse baseline
-- Local HTML ref validation
-- Required project files
+- Local HTML reference validation
+- Required files
 - Directional Logistics regression
 - Factory Management regression
 - Progression regression
-- Power regression
-
-PR #7 branch validation after legacy-corner compatibility fix: success.
+- Power / Battery regression
+- Storage capacity regression
 
 ### Browser / Visual — 未確認
 
-- Progression HUD位置 / Pointer Lock
-- Rank / Research Reload flow
-- Legacy Save実データMigration
+- Progression HUD / Research reload / Pointer Lock
 - Generator fuel → shortage → recovery
 - Power Pole placement readability
-- Splitter / MergerのInput / Output方向の見分けやすさ
-- Mk.1 / Mk.2の体感速度差
-- Logistics Rotate / Reverse後のPointer Lock flow
-- Nested Splitterの大規模Factory distribution
+- Splitter / Merger port readability
+- Mk.1 / Mk.2 perceived speed
+- Battery live surplus charge → shortage discharge → empty
+- Battery charge gauge readability
+- Storage fill → Full → upstream Back Pressure
+- Industrial Storage scale / collision / readability
+- Nested Splitter distribution at large scale
 
 Static CI成功をBrowser / Visual Validationへ読み替えない。
 
 ## Known Limits / Next Large Features
 
-Not yet implemented:
+Not yet implemented / connected:
 
-- Rank 4への自然なProgression path
-- Blueprint取得元になる独立探索Area
-- Battery基盤
-- Storage拡張
-- Phase 2新Recipe / Assembler
+- natural Rank3→4 Progression path
+- independent exploration area / Blueprint acquisition
+- natural Rank4→5 Progression path
+- Assembler / Phase 2 advanced recipes
 - Smart Sorter / Priority / Overflow
-- Per-segment belt occupancy / queue / Back Pressure
-- Factory Management Power専用Dashboard / persistent Alert
-- Scrap Generator / Power Pole dedicated visual
-- New exploration areas
+- per-segment physical belt occupancy / queue
+- multiple independent Power Network components
+- Power persistent dashboard beyond current console metrics
+- Scrap Generator / Power Pole final dedicated visuals
 - Combat / weapons / enemies
-- Authored external 3D assets
+- authored external 3D assets
 
-Phase 2の次Sliceでは **Battery / Storage Expansion / Production Recipe拡張** を候補とし、REQUIREMENTSの順序と現在実装を再確認して決める。
+次SliceはREQUIREMENTSを再確認し、**ExplorationによるRank3→4接続** または **Production Recipe / Assembler前段** のうち、依存関係が自然な方を選ぶ。
 
-## Requirements Planning Update — 2026-09-05
+## Requirements Planning Update
 
 `REQUIREMENTS.md` はゲーム内容・進行・探索・自動化の長期Source of Truth。
 
-確定済みの主な方向:
-
-- Rank 1〜7
-- Rank / Research / Explorationの役割分担
-- Factory + current Scrap Yard same Scene
-- independent exploration Scenes
-- Slot + Weight Backpack / Secure Case
-- combat / HP / exploration failure contract
-- Research / Blueprint / Research Data
-- Power / Generator / Battery
-- Splitter / Merger / Smart Sorter / Priority / Overflow / Conveyor Tier
-- Assembler / Fabricator / Recipe hierarchy
-- Drone resource collection
-- Economy / Optional Order / Factory Expansion
-- Move / Upgrade / Quick Build / Elevated Logistics / small Blueprint
-- Factory Management / Alerts / Planner / Bottleneck
-- Challenge / Achievement
-- Tutorial / UI / Difficulty / Accessibility
-- Save / Exploration Session / Backup / Migration
-- Mega Factory / Main Clear / post-clear optimization
-- Browser performance / scale target
-
-現行Playable MVP、Root Save Schema Version 1、2.5m Grid、Factory座標系は維持する。
+現行Playable MVP、Root Schema Version 1、Directional Logistics、2.5m Grid、Factory座標系を維持する。

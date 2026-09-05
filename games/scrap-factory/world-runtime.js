@@ -4,6 +4,7 @@ import { ScrapWorld as BaseScrapWorld } from './world.js?base=v2';
 const FENCE_ALPHA_TEST = 0.12;
 const GROUND_CLEARANCE = 0.025;
 const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger']);
+const INFRASTRUCTURE_VISUALS = new Set(['battery', 'industrial_storage']);
 
 function isFencePanel(node) {
   if (!node?.isMesh || node.geometry?.type !== 'PlaneGeometry') return false;
@@ -56,9 +57,30 @@ function material(color, { preview = false, metalness = 0.5, roughness = 0.7 } =
   });
 }
 
+function statusMaterial(preview = false) {
+  return new THREE.MeshStandardMaterial({
+    color: 0x3c4849,
+    emissive: new THREE.Color(0x31383a),
+    emissiveIntensity: 0.55,
+    metalness: 0.28,
+    roughness: 0.42,
+    transparent: preview,
+    opacity: preview ? 0.58 : 1,
+    depthWrite: !preview,
+  });
+}
+
 function addBox(group, size, mat, position) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
   mesh.position.set(...position);
+  group.add(mesh);
+  return mesh;
+}
+
+function addCylinder(group, radiusTop, radiusBottom, height, segments, mat, position, rotation = [0, 0, 0]) {
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), mat);
+  mesh.position.set(...position);
+  mesh.rotation.set(...rotation);
   group.add(mesh);
   return mesh;
 }
@@ -122,6 +144,54 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
   root.add(group);
 }
 
+function addInfrastructureVisual(root, type, preview = false) {
+  if (!root || !INFRASTRUCTURE_VISUALS.has(type) || root.userData.infrastructureVisual) return;
+  root.userData.infrastructureVisual = true;
+
+  if (!preview) {
+    for (const child of root.children) child.visible = false;
+  }
+
+  const group = new THREE.Group();
+  group.userData.infrastructureArt = true;
+  const frame = material(0x293234, { preview, metalness: 0.72, roughness: 0.56 });
+  const body = material(type === 'battery' ? 0x52636f : 0x435660, { preview, metalness: 0.48, roughness: 0.7 });
+  const dark = material(0x20282a, { preview, metalness: 0.58, roughness: 0.68 });
+  const accent = material(0xd3b23e, { preview, metalness: 0.34, roughness: 0.48 });
+
+  if (type === 'battery') {
+    addBox(group, [1.75, 0.18, 1.55], frame, [0, 0.11, 0]);
+    addBox(group, [1.48, 1.38, 1.18], body, [0, 0.88, 0]);
+    for (const x of [-0.52, -0.17, 0.17, 0.52]) addBox(group, [0.22, 0.88, 1.23], dark, [x, 0.87, 0]);
+    addBox(group, [1.58, 0.14, 1.28], frame, [0, 1.58, 0]);
+    addCylinder(group, 0.12, 0.12, 0.28, 10, accent, [-0.42, 1.78, -0.28]);
+    addCylinder(group, 0.12, 0.12, 0.28, 10, accent, [0.42, 1.78, -0.28]);
+    const gaugeBack = addBox(group, [1.02, 0.14, 0.08], dark, [0, 1.28, -0.64]);
+    gaugeBack.rotation.x = 0;
+    const gauge = addBox(group, [0.92, 0.08, 0.04], accent, [0, 1.28, -0.69]);
+    gauge.scale.x = 0.02;
+    root.userData.gauge = gauge;
+    const light = addBox(group, [0.18, 0.18, 0.05], statusMaterial(preview), [0.58, 1.52, -0.65]);
+    root.userData.statusLight = light;
+  } else {
+    addBox(group, [2.18, 0.18, 1.95], frame, [0, 0.12, 0]);
+    addBox(group, [1.96, 1.92, 1.72], body, [0, 1.12, 0]);
+    for (const x of [-0.78, -0.39, 0, 0.39, 0.78]) addBox(group, [0.08, 1.7, 1.78], frame, [x, 1.12, 0]);
+    addBox(group, [2.04, 0.13, 1.82], frame, [0, 2.09, 0]);
+    addBox(group, [1.52, 1.4, 0.08], dark, [0, 1.05, -0.9]);
+    addBox(group, [0.1, 1.42, 0.05], accent, [-0.78, 1.05, -0.95]);
+    addBox(group, [0.1, 1.42, 0.05], accent, [0.78, 1.05, -0.95]);
+    addBox(group, [0.64, 0.16, 0.05], accent, [0, 1.82, -0.96]);
+  }
+
+  group.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = !preview;
+    node.receiveShadow = !preview;
+  });
+  root.add(group);
+}
+
 export class ScrapWorld extends BaseScrapWorld {
   constructor(...args) {
     super(...args);
@@ -155,12 +225,14 @@ export class ScrapWorld extends BaseScrapWorld {
       addAdvancedLogisticsVisual(mesh, building.type, false);
       this.buildingColliders?.delete(building.id);
     }
+    if (INFRASTRUCTURE_VISUALS.has(building?.type)) addInfrastructureVisual(mesh, building.type, false);
     return mesh;
   }
 
   startBuild(type) {
     super.startBuild(type);
     if (ADVANCED_LOGISTICS.has(type)) addAdvancedLogisticsVisual(this.buildPreview, type, true);
+    if (INFRASTRUCTURE_VISUALS.has(type)) addInfrastructureVisual(this.buildPreview, type, true);
   }
 
   animateTransfer(path, itemId, speed = 5.8) {

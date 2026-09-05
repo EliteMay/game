@@ -12,7 +12,7 @@
 
 `Scrap Factory` のPlayable MVPを、Steam掲載相当を目標に継続改善しています。
 
-現在は長期ロードマップの **Phase 2-B: Logistics Expansion** まで実装しています。Phase 1のRank 1 → 2 → 3進行とPhase 2-A Power Coreを維持したまま、将来のRank 4 Factory向けにSplitter / Merger / Conveyor Mk.2 / Throughputを追加しました。
+現在は長期ロードマップの **Phase 2-C: Power Buffer & Storage** まで実装しています。Phase 1のRank 1 → 2 → 3進行、Phase 2-A Power Core、Phase 2-B Logistics Expansionを維持したまま、将来のRank 4〜5 Factory向けにGrid Battery / Storage Capacity / Back Pressure / Industrial Storage基盤を追加しました。
 
 主要ループ:
 
@@ -23,9 +23,9 @@
 Rank 4以降では次の要素が加わります。
 
 ```text
-Power構築
+Power構築 → 余剰電力をBatteryへ蓄電 → 不足時に自動放電
 +
-Mk.2高速搬送 → Splitterで分岐 → Mergerで合流 → 複数ライン最適化
+Mk.2高速搬送 → Splitterで分岐 → Mergerで合流 → Storage Buffer → 複数ライン最適化
 ```
 
 Hubではゲームごとの進行、所持金、累計売上、プレイ時間を表示します。未完成ゲームは起動導線を出さず `PLANNED` として扱います。
@@ -44,6 +44,8 @@ HUD右上の `RANK` から進行画面を開けます。
 - Blueprint必須Researchは、Blueprint未発見では研究不可。
 - 通常GameplayのRank Up上限は現在Rank 3。Rank 4への自然な到達条件は探索Phaseで接続予定。
 - Rank 4状態ではPower Coreに加えてSplitter / Merger / Conveyor Mk.2が解放される。
+- Rank 4 + `Grid Storage`研究でBatteryを解放する。
+- Industrial StorageはRank 5状態向けに先行実装済み。
 
 Legacy Saveでは既に使っていたSmelter / Storage / 鉄板Craftを検出し、必要な最低Rank / Unlockを補完します。既存Factory LayoutやAchievementは削除しません。
 
@@ -73,7 +75,21 @@ PowerはRank 4から有効化されます。Rank 3以前の既存Factoryはこ�
 - **Factory Alerts** — 新物流Nodeの行き止まりと、Splitterの分岐先が1本しかない状態を検出する。
 - **Visual** — Mk.2 / Splitter / Mergerは専用の床置きProcedural形状を持ち、搬送方向を黄色いMarkingで示す。
 
-Phase 2の残りではBattery基盤 / Storage拡張 / 新Recipe / Assemblerへの前段を追加します。
+## Phase 2-C: Power Buffer & Storage
+
+Phase 2-Cでは「発電が一瞬足りない」「倉庫が満杯でItemが消える」といった大規模化前の問題を扱います。
+
+- **Grid Storage Research** — Rank 4 / Research Data 2。BatteryのBuild UnlockをResearchへ分離。
+- **Grid Battery** — `$220` / 960 Energy。余剰電力を最大60 Powerで自動充電し、不足時は最大80 Powerで自動放電。
+- **Battery Coverage** — Starter Gridまたは接続済みPower Poleの給電範囲内だけGridへ参加する。未接続Batteryは充放電しない。
+- **Battery Persistence** — 保存するのはBuilding単位の`powerStored`だけ。発電量・需要・充放電量・Shortage状態は毎Frame導出する。
+- **Small Storage** — 最大120個。満杯時は新しいItemを受け取らず、上流へBack Pressureをかける。
+- **Industrial Storage** — Rank 5 / `$240` / 最大600個。将来のRank 5 Factory向け大容量Buffer。
+- **No Item Loss** — 手動投入・自動搬送とも残容量を超えて投入せず、旧Saveに容量超過Storageがあっても既存Itemを削除しない。
+- **Factory Management** — Storage使用量 / 容量 / 満杯Alert、Power供給/需要、Battery残量をコンソールへ表示。
+- **Visual** — BatteryとIndustrial Storageに専用Procedural Silhouetteを追加。Batteryは残量GaugeがRuntime stateへ連動する。
+
+通常GameplayはまだRank 3までのため、Rank 4への自然な到達条件とRank 5への進行条件は後続の探索・Progression Sliceで接続します。
 
 ## Scrap Factory 操作
 
@@ -102,6 +118,13 @@ Phase 2の残りではBattery基盤 / Storage拡張 / 新Recipe / Assemblerへ�
 - 粉砕機などの出力は、Input Portが接続していない逆向き物流Nodeへは流れない。
 - 既存Rank 1〜3の自動化判定も同じDirectional Route Logicを使用する。
 
+### Storage / Back Pressure
+
+- Small Storageは120個、Industrial Storageは600個まで保管する。
+- Storageが満杯になると、そのStorageを最終搬送先とするRouteは一時的に使用不可になる。
+- Splitterに別の有効な搬送先があればそちらを利用できる。
+- 手動投入も残容量だけを移動し、バッグ側の超過Itemは残す。
+
 ### 解体
 
 `F`で解体モードへ入り、設備を狙って左クリック。
@@ -115,9 +138,10 @@ Phase 2の残りではBattery基盤 / Storage拡張 / 新Recipe / Assemblerへ�
 
 `P`で工場管理コンソールを開きます。
 
-- **コンソール** — 資金 / 売上 / セッション売上毎分 / 設備数 / 稼働可能機械 / Buffer量 / 発見数 / Play時間
-- **Factory Alerts** — 素材待ち、Machine出力滞留、物流Node行き止まり、Splitter分岐不足を検出
+- **コンソール** — 資金 / 売上 / セッション売上毎分 / 設備数 / 稼働可能機械 / Buffer量 / Storage容量 / Power / Battery / 発見数 / Play時間
+- **Factory Alerts** — 素材待ち、Machine出力滞留、物流Node行き止まり、Splitter分岐不足、Storage満杯を検出
 - **物流分析** — Logistics Node数と定義上の総帯域をPure Analysis結果として集計
+- **Power分析** — 供給 / 需要 / 余力 / 給電範囲外 / Battery残量をPure Power Snapshotから表示
 - **チャレンジ / 実績** — 回収、加工、自動化、建築、売上、発見、Play時間の8項目
 - **Factory Title** — Achievement解除数から作る称号。Progression Rankとは別物
 - **HUD追跡** — 任意のChallengeを画面上へ固定
@@ -135,7 +159,8 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - `O`でゲーム内ガイドを開き、基本ループ / 操作 / 物流 / 加工 / 解体を確認可能。
 - Machine Panelには用途、Recipe、Input / Output、処理時間を表示。
 - Logistics Panelでは向き / Port構成 / Throughputを表示。
-- Rank 4 Power Machineでは発電量 / 消費量 / 給電範囲外 / 発電不足 / Generator残燃料を表示。
+- Power Machineでは発電量 / 消費量 / 給電範囲外 / 発電不足 / Generator残燃料 / Battery残量を表示。
+- Storage Panelでは現在量 / 最大容量 / 満杯状態を表示。
 - Tutorial Contractは単語だけでなく「次に何をどう操作するか」を表示。
 - `P`の管理コンソールでは、工場が大きくなった後の問題発見・計画を補助する。
 - `RANK` HUDから現在Rankの必須 / 選択目標とResearch状態を確認可能。
@@ -147,12 +172,15 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - Root Schema Version: `1`
 - Scrap Factory内に `progression.version: 1` を保持
 - Generatorの燃焼途中はBuilding単位の`powerFuelSeconds`として保存
+- Battery残量はBuilding単位の`powerStored`として保存
 - Splitter等の安定した分配位置はBuilding単位の`logisticsCursor`として保存
+- Power Snapshot / Storage残容量は保存せず、Building Dataから導出
 - 30秒ごとのオートセーブ
 - 画面非表示・主要変更時にも保存
 - Hub / ゲーム設定からJSON Export可能
 - Import前に現在セーブのRecovery Backupを作成
 - Root Schema Versionは変更せず、旧SaveはNormalize時にProgression / Power / Logistics追加Fieldを安全に補完
+- 旧Saveの容量超過Storageは中身を削除せず保持し、新規投入だけ停止
 - Directional Logistics / Guide / Factory Managementの既存Contractを維持
 
 詳細は [`SPEC.md`](SPEC.md) を正本とします。
@@ -180,12 +208,14 @@ npm run test:logistics
 npm run test:management
 npm run test:progression
 npm run test:power
+npm run test:storage
 ```
 
 - `test:logistics` — Directional Port / 逆流 / Splitter / Merger / Round-robin / Mk.1-Mk.2 Throughput Regression
-- `test:management` — Factory alert / Logistics analysis / Quick Build ordering / Challenge / Production planner Regression
-- `test:progression` — Rank条件 / Directional Line / Rank 4 Building Gate / Research / Blueprint Gate / Legacy Migration Regression
-- `test:power` — Starter Grid / Shortage / Generator燃料 / Recovery / Pole Coverage / Buffer非破壊 / Deterministic allocation Regression
+- `test:management` — Factory alert / Logistics / Storage / Power analysis / Quick Build ordering / Challenge / Production planner Regression
+- `test:progression` — Rank条件 / Directional Line / Rank 4〜5 Building Gate / Research Gate / Blueprint Gate / Legacy Migration Regression
+- `test:power` — Starter Grid / Shortage / Generator / Pole / Battery充放電 / 未接続Battery / Buffer非破壊 / Deterministic allocation Regression
+- `test:storage` — Storage容量 / 残容量 / Full Back Pressure / Legacy over-capacity preservation Regression
 
 加えてAccount共通のReusable Web Baselineを固定Commit SHAで利用します。
 

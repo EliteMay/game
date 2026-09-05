@@ -273,6 +273,7 @@ function renderConsole() {
   const game = state.latestGame || {};
   const factory = state.factory || analyzeFactory(game);
   const alerts = factory.alerts || [];
+  const power = factory.power || {};
   const typeRows = Object.entries(factory.counts || {})
     .sort((a, b) => b[1] - a[1])
     .map(([type, count]) => `<div><span>${BUILDINGS[type]?.name || type}</span><strong>${count}</strong></div>`)
@@ -282,6 +283,11 @@ function renderConsole() {
       <strong>${alert.title}</strong><span>${alert.detail}</span>
     </article>
   `).join('') || '<p class="management-empty">現在検出できる問題はありません。</p>';
+  const storageNote = factory.storageCapacity > 0 ? `満杯 ${factory.storageFull || 0}台` : 'Storage未設置';
+  const powerNote = !power.enabled ? 'Rank 4で有効' : power.status === 'shortage' ? `ALERT / 範囲外 ${power.uncovered || 0}` : `余力 ${Math.floor(power.reserve || 0)}`;
+  const batteryCard = Number(power.batteryCapacity || 0) > 0
+    ? summaryCard('Battery', `${Math.floor(power.batteryStored || 0)} / ${Math.floor(power.batteryCapacity || 0)}`)
+    : '';
 
   return `
     <section class="management-stat-grid">
@@ -291,13 +297,16 @@ function renderConsole() {
       ${summaryCard('設置設備', factory.totalBuildings, `自作 ${factory.playerBuilt}`)}
       ${summaryCard('稼働可能', factory.activeMachines, `素材待ち ${factory.waitingMachines}`)}
       ${summaryCard('設備内アイテム', factory.bufferedItems)}
+      ${summaryCard('Storage', `${factory.storageUsed || 0} / ${factory.storageCapacity || 0}`, storageNote)}
+      ${summaryCard('Power 供給/需要', `${Math.floor(power.generation || 0)} / ${Math.floor(power.demand || 0)}`, powerNote)}
+      ${batteryCard}
       ${summaryCard('発見アイテム', (game.discoveredItems || []).length, `${Object.keys(ITEMS).length}種類中`)}
       ${summaryCard('プレイ時間', formatDuration(game.playTimeSeconds || 0))}
     </section>
     <div class="management-two-column">
       <section class="management-section">
         <div class="management-section__head"><div><span>FACTORY HEALTH</span><h3>工場アラート</h3></div><strong>${alerts.length}</strong></div>
-        <p class="management-help">素材不足は情報、出力滞留は要確認です。コンベアの矢印と搬送先を確認してください。</p>
+        <p class="management-help">素材不足、物流の行き止まり、Storage満杯、Power不足をまとめて確認できます。満杯StorageはBack Pressureで上流を止め、Itemを消失させません。</p>
         <div class="factory-alert-list">${alertRows}</div>
       </section>
       <section class="management-section">

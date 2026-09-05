@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  buildingUnlockState,
   claimRankUp,
   completeResearch,
   hasAutomatedCrushedMetalLine,
@@ -91,7 +92,7 @@ function rankTwoLineGame() {
 {
   const game = rankTwoLineGame();
   game.progression.progressionRank = 3;
-  for (const type of ['conveyor_mk2', 'splitter', 'merger', 'generator', 'power_pole']) {
+  for (const type of ['conveyor_mk2', 'splitter', 'merger', 'generator', 'power_pole', 'battery']) {
     assert.equal(requiredBuildingRank(type), 4, `${type} should be a Rank 4 building`);
     assert.equal(isBuildingUnlocked(game, type), false, `${type} must stay locked at Rank 3`);
   }
@@ -99,7 +100,27 @@ function rankTwoLineGame() {
   for (const type of ['conveyor_mk2', 'splitter', 'merger', 'generator', 'power_pole']) {
     assert.equal(isBuildingUnlocked(game, type), true, `${type} should unlock at Rank 4`);
   }
+  assert.equal(isBuildingUnlocked(game, 'battery'), false, 'Battery also requires Grid Storage research at Rank 4');
+  assert.equal(buildingUnlockState(game, 'battery').reason, 'research');
+  assert.equal(isBuildingUnlocked(game, 'industrial_storage'), false, 'Industrial Storage must remain locked until Rank 5');
+  assert.equal(requiredBuildingRank('industrial_storage'), 5);
   assert.equal(isBuildingUnlocked(game, 'conveyor'), true, 'Mk.1 conveyor must remain available before and after Rank 4');
+}
+
+{
+  const game = rankTwoLineGame();
+  game.progression.progressionRank = 4;
+  game.progression.researchData = 2;
+  const research = researchState(game, 'grid_storage');
+  assert.equal(research.available, true, 'Grid Storage should become researchable at Rank 4 with enough data');
+  const result = completeResearch(game, 'grid_storage');
+  assert.equal(result.changed, true);
+  assert.equal(game.progression.researchData, 0);
+  assert.equal(isBuildingUnlocked(game, 'battery'), true, 'Grid Storage research should unlock the Battery');
+  assert.ok(game.progression.unlocks.includes('building:battery'));
+
+  game.progression.progressionRank = 5;
+  assert.equal(isBuildingUnlocked(game, 'industrial_storage'), true, 'Industrial Storage should unlock at Rank 5');
 }
 
 {

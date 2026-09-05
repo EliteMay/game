@@ -17,6 +17,7 @@ const required = [
   'games/scrap-factory/config.js',
   'games/scrap-factory/logistics.js',
   'games/scrap-factory/power.js',
+  'games/scrap-factory/storage-capacity.js',
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
   'games/scrap-factory/progression.js',
@@ -29,6 +30,7 @@ const required = [
   'scripts/factory-management.test.mjs',
   'scripts/progression.test.mjs',
   'scripts/power.test.mjs',
+  'scripts/storage-capacity.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -65,6 +67,7 @@ for (const [name, script] of [
   ['Factory management', 'scripts/factory-management.test.mjs'],
   ['Progression', 'scripts/progression.test.mjs'],
   ['Power', 'scripts/power.test.mjs'],
+  ['Storage capacity', 'scripts/storage-capacity.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -106,7 +109,7 @@ const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/f
 if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push('Factory management must load progression-ui.js in browser runtime');
 
 const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
-for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
+for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'tickPowerStorage', 'storageRemaining', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
   if (!gameRuntime.includes(marker)) failures.push(`Scrap Factory runtime missing core integration: ${marker}`);
 }
 
@@ -137,4 +140,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage tests.`);
