@@ -106,7 +106,7 @@ function acquireOverlayCarrier() {
   return true;
 }
 
-function showClearOverlay(game) {
+function showClearOverlay() {
   const panel = ensureClearOverlay();
   if (!panel || !panel.hidden || !acquireOverlayCarrier()) return false;
   panel.hidden = false;
@@ -129,7 +129,22 @@ function formatSeconds(value) {
   return minutes ? `${minutes}:${String(rest).padStart(2, '0')}` : `${rest}s`;
 }
 
-function renderHud(game) {
+function statusFromAdvance(result) {
+  const stableSeconds = Math.max(0, Number(result?.state?.megaFactoryStableSeconds || 0));
+  return {
+    state: result.state,
+    analysis: result.analysis,
+    cleared: Boolean(result.cleared),
+    acknowledged: Boolean(result?.state?.clearAcknowledgedAt),
+    stableSeconds,
+    bestSeconds: Math.max(0, Number(result?.state?.megaFactoryBestSeconds || 0)),
+    targetSeconds: MEGA_FACTORY_STABLE_SECONDS,
+    progress: Number(result.progress || 0),
+    remainingSeconds: Number(result.remainingSeconds || 0),
+  };
+}
+
+function renderHud(game, status) {
   ensureHud();
   const hud = document.querySelector('#final-phase-hud');
   if (!hud || !game) return;
@@ -138,29 +153,30 @@ function renderHud(game) {
     hud.hidden = true;
     return;
   }
-  const status = finalPhaseStatus(game);
   hud.hidden = false;
+  let html = '';
   if (status.cleared) {
-    hud.innerHTML = '<span>FINAL PHASE</span><strong>MAIN CLEAR</strong><small>Optimization継続可能</small><div class="final-phase-meter"><i style="--final-progress:100%"></i></div>';
-    return;
+    html = '<span>FINAL PHASE</span><strong>MAIN CLEAR</strong><small>Optimization継続可能</small><div class="final-phase-meter"><i style="--final-progress:100%"></i></div>';
+  } else if (!status.analysis.finalAutomation.qualifies) {
+    html = '<span>FINAL PHASE</span><strong>STEP 8 / AUTOMATION</strong><small>最終Line完成が必要</small><div class="final-phase-meter"><i style="--final-progress:0%"></i></div>';
+  } else {
+    const percent = Math.round(status.progress * 100);
+    const detail = status.analysis.stable
+      ? `連続稼働 ${formatSeconds(status.stableSeconds)} / ${formatSeconds(status.targetSeconds)}`
+      : status.analysis.missing[0]?.label || '安定条件を確認中';
+    html = `<span>MEGA FACTORY</span><strong>${status.analysis.stable ? 'STABLE RUN' : 'INTERRUPTED'}</strong><small>${detail}</small><div class="final-phase-meter"><i style="--final-progress:${percent}%"></i></div>`;
   }
-  if (!status.analysis.finalAutomation.qualifies) {
-    hud.innerHTML = '<span>FINAL PHASE</span><strong>STEP 8 / AUTOMATION</strong><small>最終Line完成が必要</small><div class="final-phase-meter"><i style="--final-progress:0%"></i></div>';
-    return;
-  }
-  const percent = Math.round(status.progress * 100);
-  const detail = status.analysis.stable
-    ? `連続稼働 ${formatSeconds(status.stableSeconds)} / ${formatSeconds(status.targetSeconds)}`
-    : status.analysis.missing[0]?.label || '安定条件を確認中';
-  hud.innerHTML = `<span>MEGA FACTORY</span><strong>${status.analysis.stable ? 'STABLE RUN' : 'INTERRUPTED'}</strong><small>${detail}</small><div class="final-phase-meter"><i style="--final-progress:${percent}%"></i></div>`;
+  if (hud.innerHTML !== html) hud.innerHTML = html;
 }
 
-function patchProgressionPanel(game) {
+function patchProgressionPanel(game, status) {
   const section = document.querySelector('#progression-panel .progression-section--cap');
   if (!section || !game) return;
-  const status = finalPhaseStatus(game);
   const headStatus = section.querySelector('.progression-section__head > strong');
-  if (headStatus) headStatus.textContent = status.cleared ? 'MAIN CLEAR' : status.analysis.finalAutomation.qualifies ? 'STEP 9 ACTIVE' : headStatus.textContent;
+  if (headStatus) {
+    const next = status.cleared ? 'MAIN CLEAR' : status.analysis.finalAutomation.qualifies ? 'STEP 9 ACTIVE' : headStatus.textContent;
+    if (headStatus.textContent !== next) headStatus.textContent = next;
+  }
 
   let inline = section.querySelector('[data-final-phase-status]');
   if (!inline) {
@@ -191,7 +207,7 @@ function patchProgressionPanel(game) {
   });
 }
 
-function patchAutomationConsole(game) {
+function patchAutomationConsole(game, status) {
   const section = [...document.querySelectorAll('.automation-console-section--wide')]
     .find((candidate) => candidate.querySelector('h3')?.textContent?.trim() === 'Final Automation Contract');
   if (!section || !game) return;
@@ -202,7 +218,6 @@ function patchAutomationConsole(game) {
     inline.dataset.megaFactoryConsole = 'true';
     section.append(inline);
   }
-  const status = finalPhaseStatus(game);
   const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
   const html = `
     <div class="final-phase-inline__head"><span>MEGA FACTORY STABILITY</span><strong>${status.cleared ? 'MAIN CLEAR' : `${Math.round(status.progress * 100)}%`}</strong></div>
@@ -211,12 +226,19 @@ function patchAutomationConsole(game) {
   if (inline.innerHTML !== html) inline.innerHTML = html;
 }
 
-function renderAll() {
+function renderAll(status = null) {
   const game = getRuntimeGame();
   if (!game) return;
-  renderHud(game);
-  patchProgressionPanel(game);
-  patchAutomationConsole(game);
+  ensureHud();
+  if (Number(game?.progression?.progressionRank || 1) < 7) {
+    const hud = document.querySelector('#final-phase-hud');
+    if (hud) hud.hidden = true;
+    return;
+  }
+  const resolved = status || finalPhaseStatus(game);
+  renderHud(game, resolved);
+  patchProgressionPanel(game, resolved);
+  patchAutomationConsole(game, resolved);
 }
 
 function maybePersist(result) {
@@ -237,20 +259,22 @@ function tick() {
   const game = getRuntimeGame();
   if (!game) return;
 
-  if (!gameplayReady() || document.visibilityState !== 'visible') {
+  if (!gameplayReady() || document.visibilityState !== 'visible') return;
+
+  if (Number(game?.progression?.progressionRank || 1) < 7) {
     renderAll();
     return;
   }
 
   const result = advanceMegaFactoryStability(game, rawDelta);
   maybePersist(result);
-  renderAll();
+  renderAll(statusFromAdvance(result));
 
   if (result.justCleared) {
     persistRuntimeGame();
-    showClearOverlay(game);
+    showClearOverlay();
   } else if (result.cleared && !result.state.clearAcknowledgedAt && clearOverlay?.hidden !== false) {
-    showClearOverlay(game);
+    showClearOverlay();
   }
 }
 
@@ -262,9 +286,11 @@ function waitForGame() {
   ensureStyles();
   ensureHud();
   ensureClearOverlay();
-  renderAll();
   const game = getRuntimeGame();
-  if (game) lastPersistBucket = Math.floor(Number(game.finalChapter?.megaFactoryStableSeconds || 0) / PERSIST_BUCKET_SECONDS);
+  if (game) {
+    lastPersistBucket = Math.floor(Number(game.finalChapter?.megaFactoryStableSeconds || 0) / PERSIST_BUCKET_SECONDS);
+    if (gameplayReady()) renderAll();
+  }
   window.setInterval(tick, TICK_MS);
 }
 
