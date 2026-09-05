@@ -558,3 +558,27 @@ objective completion / mastered timestamp
 ```
 
 これによりClear後にFactoryを自由に組み替えられ、既存Save Contractを膨らませずEndgame Challengeを継続できる。
+
+## Destructive reset must block late lifecycle writes
+
+Reset / Deleteは「新しいDefaultを書けば終わり」ではない。Web Appでは `beforeunload`、`visibilitychange`、Autosave、別Moduleのpolling等が直後に走り、削除前runtime stateを再保存できる。
+
+今回のScrap Factoryでは `resetGameSave()` がDefault Saveを書いた直後、Reloadに伴うpage lifecycle saveが古い `game` objectを再保存し、Resetを取り消していた。
+
+再発防止Pattern:
+
+```text
+confirm destructive reset
+→ canonical reset write succeeds
+→ mark reset-pending / write barrier
+→ reject all stale late writes
+→ clear feature-local auxiliary storage
+→ reload / recreate runtime
+```
+
+重要点:
+
+- Reset後のwrite barrierはUI event単位ではなくStorage layerに置くと、複数のsave入口をまとめて防げる。
+- Reset本体の書込が失敗した場合に先にauxiliary stateだけ消さない。Canonical Save成功後にbarrierとcleanupを有効化する。
+- Regression TestではReset結果だけでなく、**Reset後に意図的にstale saveを1回実行しても旧Dataが復活しないこと**を確認する。
+- Browser Smokeでは実際のReset button → reload → 再読込を通し、lifecycle eventを含めて検証する。

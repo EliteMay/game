@@ -514,3 +514,41 @@ Result: success
 Noto CJKを導入したChromium Screenshotを確認。既存Factory OSの工業UIと整合し、4 Objectiveのタイトル・進捗バー・現在条件が判読可能で、横overflowや大きなレイアウト崩れは見られなかった。
 
 Browser Smoke用Workflowは検証後に削除し、恒久実装だけをPRへ残す。
+
+## 2026-09-06 — Save Reset Resurrection Bug Fix
+
+### Symptom
+
+Settingsの「Scrap Factoryのセーブを初期化」で確認後にReloadしても、削除前の進行データが復活することがあった。
+
+### Root Cause
+
+`resetGameSave()` 自体はDefault Saveを書き込んでいたが、その直後の `window.location.reload()` で `beforeunload` / `visibilitychange` が発火し、`game.js` が保持している削除前のruntime objectを `saveGameSave()` で再保存していた。
+
+```text
+Reset button
+→ Default Save write
+→ reload
+→ page lifecycle autosave
+→ stale runtime state write
+→ old progress resurrected
+```
+
+### Fix
+
+- `storage.js` に `resetPendingReload` guardを追加
+- Reset成功後からReload完了まで `saveGameSave()` のlate writeを拒否
+- `scrap-factory-management-v1` のFactory Management補助stateもReset時に削除
+- Save key / Schema v1 / Rank 1〜7 / Main Clear等の既存Contractは変更しない
+- `scripts/reset-save.test.mjs` を通常Validationへ追加
+
+### Verification
+
+- PR #22の `npm run validate`: success
+- Chromium Browser Smoke Run `33998751546`: success
+- 進行済みfixture（$9999 / Revenue 12345 / Scrap 77 / Main Clear済み）を保存
+- Reset buttonを実行し自動Reload
+- Reload後 `$40 / Revenue 0 / Scrap 0 / Main Clear null` を確認
+- Factory Management補助state削除を確認
+- さらに2回目Reload後も `$40` のままで旧Saveが復活しないことを確認
+- temporary Browser Smoke workflowは検証後に削除
