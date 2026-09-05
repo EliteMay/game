@@ -54,7 +54,9 @@ jobs:
           await page.evaluate(() => {
             const runtime = window.__scrapFactoryRuntime;
             const game = runtime.getGame();
+            game.progression.progressionRank = 7;
             game.finalChapter.mainClearedAt = '2026-09-06T00:00:00.000Z';
+            game.finalChapter.clearAcknowledgedAt = '2026-09-06T00:00:05.000Z';
             runtime.persist();
             runtime.renderAll();
           });
@@ -63,7 +65,9 @@ jobs:
             const button = document.querySelector('#post-clear-optimization-hud');
             return button && button.hidden === false && document.querySelector('#post-clear-optimization-count')?.textContent?.trim() === '0 / 4';
           }, null, { timeout: 8000 });
-          assert.equal(await page.isVisible('#post-clear-optimization-hud'), true, 'optimization HUD must be visible after Main Clear');
+          assert.equal(await page.isVisible('#post-clear-optimization-hud'), true, 'optimization HUD must be visible after acknowledged Main Clear');
+          const blockers = await page.evaluate(() => [...document.querySelectorAll('.overlay-panel')].filter((panel) => !panel.hidden).map((panel) => panel.id || panel.className));
+          assert.deepEqual(blockers, [], 'acknowledged post-clear state must not leave a blocking overlay open');
           await page.click('#post-clear-optimization-hud', { force: true });
           await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === false, null, { timeout: 5000 });
           const text = await page.textContent('#post-clear-optimization-panel');
