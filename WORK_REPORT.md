@@ -194,13 +194,14 @@ Coverage:
 - research HTML / CSS / JS integration markers
 - compatibility entrypoint uses Core v4
 
-`package.json`:
+Final validation architecture:
 
 ```text
 npm run validate
-= existing scripts/validate.mjs
-+ scripts/phase6a.test.mjs
+→ node scripts/validate.mjs
 ```
+
+`validate.mjs`へPhase 6-Aを正式統合し、Research Sceneの必須File、HTML local refs、Runtime markers、`scripts/phase6a.test.mjs`を既存Regressionと同じ入口で検証する。
 
 Existing Rank 1→7 / Logistics / Factory Management / Power / Storage / Residential / Industrial / Military / Phase 4-B / Phase 5-A / Phase 5-B / Phase 5-C regressionsも継続する。
 
@@ -224,7 +225,15 @@ Validate Web Game #104
 result: success
 ```
 
-Documentation同期後の最終Headで再度CIを確認してからMergeする。
+Documentation同期 head:
+
+```text
+6703218a323f5f9aeb0dfe237bc3bea8c869f14a
+Validate Web Game #107
+result: success
+```
+
+Validator統合・最終Documentation同期後のHeadでも再度CIを確認してからMergeする。
 
 ---
 
@@ -241,6 +250,25 @@ Static CIでは次を保証しない。
 - Transport Terminalの4 Area表示時の実Layout
 
 これらはBrowser / User Validation対象。
+
+---
+
+## Reusable Learning
+
+Final ChapterのProgression-critical lootは1つのBooleanへ潰さず、次を分離すると安全。
+
+```text
+Objective recovered
+Current expedition carrying
+Factory secured
+```
+
+- Objective progressは失敗で巻き戻さない
+- Carrying stateは探索Riskとして失う
+- Secured stateだけが後続Craft / ResearchのSource of Truth
+- Lost cargoはRecovered ObjectiveからGuaranteed recollectする
+
+この3段階により、探索Riskを維持しつつRandom drop周回・永久消失・soft-lockを避けられる。
 
 ---
 
