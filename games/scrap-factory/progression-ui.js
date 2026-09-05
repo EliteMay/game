@@ -186,7 +186,7 @@ function renderPanel() {
   ` : `
     <section class="progression-section progression-section--cap">
       <div class="progression-section__head"><div><span>PLAYABLE RANK-UP CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>ACTIVE</strong></div>
-      <p>通常GameplayのRank Upは現在Rank 3までです。Rank 4向けにはPower / Mk.2 / Splitter / Merger / Grid Storage Battery、Rank 5向けにはIndustrial Storageの基盤まで実装済みです。Rank 4へ自然に進む廃住宅街Objectiveは探索Phaseで接続します。</p>
+      <p>通常GameplayのRank Upは現在Rank 4まで接続済みです。次のRank 4 → 5では、Splitter / Mergerを使った複数製品ラインと自前電力の安定稼働を本格的な進行条件へ接続します。</p>
     </section>
   `;
 

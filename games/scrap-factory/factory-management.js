@@ -1,4 +1,7 @@
-if (typeof window !== 'undefined') import('./progression-ui.js');
+if (typeof window !== 'undefined') {
+  import('./progression-ui.js');
+  import('./exploration-ui.js');
+}
 import { BUILDINGS, ITEMS, RECIPES, positionKey } from './config.js';
 import {
   findDirectionalRoute,

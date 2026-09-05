@@ -6,24 +6,31 @@
 
 現在のPlayable Game:
 
-- **Scrap Factory** — 一人称3D / スクラップ回収 / 加工 / 販売 / 自由配置 / Directional Logistics / 工場管理 / Progression Rank / Research / Power
+- **Scrap Factory** — 一人称3D / スクラップ回収 / 独立探索エリア / 加工 / 販売 / 自由配置 / Directional Logistics / 工場管理 / Progression Rank / Research / Power
 
 ## 現在の状態
 
 `Scrap Factory` のPlayable MVPを、Steam掲載相当を目標に継続改善しています。
 
-現在は長期ロードマップの **Phase 2-C: Power Buffer & Storage** まで実装しています。Phase 1のRank 1 → 2 → 3進行、Phase 2-A Power Core、Phase 2-B Logistics Expansionを維持したまま、将来のRank 4〜5 Factory向けにGrid Battery / Storage Capacity / Back Pressure / Industrial Storage基盤を追加しました。
+現在は長期ロードマップの **Phase 3-A: Residential Exploration Progression** まで実装しています。Rank 1 → 2 → 3のFactory進行、Power / Advanced Logistics / Battery / Storage基盤を維持したまま、Transport Terminalから独立Sceneの廃住宅街へ出発し、Main Objectiveを完了してRank 4へ自然に進める最初の探索Progressionを接続しました。
 
 主要ループ:
 
 ```text
-探索 → スクラップ回収 → 拠点へ帰還 → 加工 → 販売 → 設備購入 → コンベア自動化 → Rank Up / Research → 工場管理 → セーブ
+Factory / Scrap Yard
+→ 回収・加工・自動化
+→ Rank Up / Research
+→ Transport Terminal
+→ 独立探索エリア
+→ Objective / Loot / Resource Point
+→ 正常帰還
+→ Factory強化
 ```
 
-Rank 4以降では次の要素が加わります。
+Rank 4では次の工場要素が実際の通常Progressionから利用可能になります。
 
 ```text
-Power構築 → 余剰電力をBatteryへ蓄電 → 不足時に自動放電
+Power構築 → Generator / Power Pole → Battery Research
 +
 Mk.2高速搬送 → Splitterで分岐 → Mergerで合流 → Storage Buffer → 複数ライン最適化
 ```
@@ -38,14 +45,15 @@ HUD右上の `RANK` から進行画面を開けます。
 - Rank Upは **必須目標 + 選択目標2つ** を基本とする。
 - Rank 1 → 2: Hopper → Crusher → SellerのDirectional自動ラインが必須。
 - Rank 2 → 3: Crusher → Smelterを含む鉄インゴット完全自動ラインが必須。
+- Rank 3 → 4: **廃住宅街Main Objective完了**が必須。さらに探索区画・持帰りLoot・製品発見・売上等から2目標を達成する。
 - Rank 2でSmelter / StorageとResearch Tier 2を解放。
+- Rank 4でSplitter / Merger / Conveyor Mk.2 / Generator / Power Poleを解放。
 - Research Dataを消費して技術を研究する。
 - `Basic Fabrication`研究で鉄板の手作業Recipeを解放。
-- Blueprint必須Researchは、Blueprint未発見では研究不可。
-- 通常GameplayのRank Up上限は現在Rank 3。Rank 4への自然な到達条件は探索Phaseで接続予定。
-- Rank 4状態ではPower Coreに加えてSplitter / Merger / Conveyor Mk.2が解放される。
-- Rank 4 + `Grid Storage`研究でBatteryを解放する。
+- 廃住宅街Main Objectiveで`Scrap Yard Survey`用BlueprintとResearch Dataを保証入手する。
+- `Grid Storage`研究でBatteryを解放する。
 - Industrial StorageはRank 5状態向けに先行実装済み。
+- 通常GameplayのRank Up上限は現在Rank 4。Rank 4 → 5条件は後続Phaseで接続予定。
 
 Legacy Saveでは既に使っていたSmelter / Storage / 鉄板Craftを検出し、必要な最低Rank / Unlockを補完します。既存Factory LayoutやAchievementは削除しません。
 
@@ -89,7 +97,51 @@ Phase 2-Cでは「発電が一瞬足りない」「倉庫が満杯でItemが消�
 - **Factory Management** — Storage使用量 / 容量 / 満杯Alert、Power供給/需要、Battery残量をコンソールへ表示。
 - **Visual** — BatteryとIndustrial Storageに専用Procedural Silhouetteを追加。Batteryは残量GaugeがRuntime stateへ連動する。
 
-通常GameplayはまだRank 3までのため、Rank 4への自然な到達条件とRank 5への進行条件は後続の探索・Progression Sliceで接続します。
+## Phase 3-A: Residential Exploration Progression
+
+Rank 3からTransport Terminalで最初の独立探索エリア **廃住宅街** へ出発できます。
+
+### Transport Terminal
+
+Factory HUDの `T / TERMINAL` から開きます。
+
+表示内容:
+
+- エリア危険度
+- Main Loot
+- Main Objective
+- 推奨状態
+- 区画発見率
+- Resource Point状態
+- 成功帰還回数 / 持帰りLoot数
+- Transport Depot
+
+Factory Sceneと探索Sceneを同時にフルロードせず、探索開始時に独立ページへ遷移します。
+
+### 廃住宅街
+
+Main Objective:
+
+```text
+西側ガレージで予備ヒューズを回収
+→ SUBSTATIONの変電盤を復旧
+→ 調査Terminalを起動
+→ Blueprint / Research Dataを確保
+→ 入口Transport Terminalへ正常帰還
+```
+
+- 4つの永続区画: Entry Point / Row Houses / West Garage / Substation
+- 銅線 / 廃プラスチック / 電子ジャンクを探索Lootとして回収
+- 探索用12 Slot Session PackをFactory Backpackと分離
+- Main Objective進行と発見区画は探索を中断・放棄しても保持
+- Main Objective報酬はRandom Dropではなく保証取得
+- Objective完了で`Scrap Yard Survey Blueprint`、Research Data +1、住宅街のCopper Resource Pointを記録
+- 正常帰還で今回LootをTransport Depotへ確定
+- DepotからFactory Backpackの空き分だけ受取可能
+- Game Hubへ戻ってもActive Expedition Sessionを保持
+- `Abandon Expedition`では今回拾った通常Lootだけ失い、永続探索Progressは維持
+
+このPhaseでは探索基盤とRank 4への進行を優先しています。廃住宅街の本格的な建物内部、敵、HP、環境Hazardは後続Exploration拡張として残しています。
 
 ## Scrap Factory 操作
 
@@ -97,14 +149,15 @@ Phase 2-Cでは「発電が一瞬足りない」「倉庫が満杯でItemが消�
 | --- | --- |
 | WASD | 移動 |
 | Shift | ダッシュ |
-| Space | ジャンプ |
-| E | 拾う / 設備操作 / 物流設備の向き設定 |
+| Space | ジャンプ（Factory） |
+| E | 拾う / 設備操作 / 探索Objective操作 |
 | B | 建築メニュー |
 | R | 建築中の90°回転 |
 | F | 解体モード ON / OFF |
 | Tab | インベントリ / 簡易クラフト |
 | O | ゲーム内ガイド |
 | P | Factory Management / 工場管理コンソール |
+| T | Transport Terminal / 独立探索エリア |
 | 1〜5 | 粉砕機 / 精錬炉 / Mk.1コンベア / 倉庫 / 販売機をクイック建築 |
 | Esc | ポーズ / 建築終了 / 管理画面を閉じる |
 
@@ -116,7 +169,7 @@ Phase 2-Cでは「発電が一瞬足りない」「倉庫が満杯でItemが消�
 - Mergerは背面 + 左右から入り、正面へ合流する。
 - 設置後も物流設備を見て `E` → `90°回転` / `向きを反転` で修正可能。
 - 粉砕機などの出力は、Input Portが接続していない逆向き物流Nodeへは流れない。
-- 既存Rank 1〜3の自動化判定も同じDirectional Route Logicを使用する。
+- Rank必須Automation判定も同じDirectional Route Logicを使用する。
 
 ### Storage / Back Pressure
 
@@ -157,6 +210,7 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - HUD下部に主要Shortcutを常時表示（設定で非表示可能）。
 - Build Mode中は配置 / 回転 / 終了操作と物流Port方向を動的表示。
 - `O`でゲーム内ガイドを開き、基本ループ / 操作 / 物流 / 加工 / 解体を確認可能。
+- `T`のTransport Terminalから探索エリアの目的・Loot・進捗を確認可能。
 - Machine Panelには用途、Recipe、Input / Output、処理時間を表示。
 - Logistics Panelでは向き / Port構成 / Throughputを表示。
 - Power Machineでは発電量 / 消費量 / 給電範囲外 / 発電不足 / Generator残燃料 / Battery残量を表示。
@@ -170,16 +224,20 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - 保存先: `localStorage`
 - Root key: `elitemay-game-hub-v1`
 - Root Schema Version: `1`
-- Scrap Factory内に `progression.version: 1` を保持
+- Scrap Factory内に `progression.version: 1` / `exploration.version: 1` を保持
+- Explorationは`areas / depot / activeSession`をAdditive Dataとして保存
+- 発見済み区画 / Main Objective / Resource Point / 帰還統計は永続化
+- Active ExpeditionではSession Loot / 回収済みLoot ID / Player位置を保存
+- 正常帰還までSession LootをFactory Inventoryへ混ぜない
 - Generatorの燃焼途中はBuilding単位の`powerFuelSeconds`として保存
 - Battery残量はBuilding単位の`powerStored`として保存
 - Splitter等の安定した分配位置はBuilding単位の`logisticsCursor`として保存
 - Power Snapshot / Storage残容量は保存せず、Building Dataから導出
-- 30秒ごとのオートセーブ
+- Factoryは30秒、Residential Expeditionは5秒ごとにオートセーブ
 - 画面非表示・主要変更時にも保存
 - Hub / ゲーム設定からJSON Export可能
 - Import前に現在セーブのRecovery Backupを作成
-- Root Schema Versionは変更せず、旧SaveはNormalize時にProgression / Power / Logistics追加Fieldを安全に補完
+- Root Schema Versionは変更せず、旧SaveはNormalize時にProgression / Exploration / Power / Logistics追加Fieldを安全に補完
 - 旧Saveの容量超過Storageは中身を削除せず保持し、新規投入だけ停止
 - Directional Logistics / Guide / Factory Managementの既存Contractを維持
 
@@ -190,6 +248,7 @@ Factory Management側のChallenge追跡設定は `scrap-factory-management-v1` �
 - HTML / CSS / JavaScript ES Modules
 - Three.js `r185` (`three@0.185.0`) — jsDelivr CDN
 - GitHub Pages
+- Factoryと独立探索エリアを別Three.js Scene / Pageとして分離
 - 外部画像・3Dモデル・フォントなし。ゲーム内VisualはThree.js Geometry / CSSで生成
 
 Three.jsはMIT Licenseです。詳細は [`CREDITS.md`](CREDITS.md) を参照してください。
@@ -209,6 +268,7 @@ npm run test:management
 npm run test:progression
 npm run test:power
 npm run test:storage
+npm run test:exploration
 ```
 
 - `test:logistics` — Directional Port / 逆流 / Splitter / Merger / Round-robin / Mk.1-Mk.2 Throughput Regression
@@ -216,6 +276,7 @@ npm run test:storage
 - `test:progression` — Rank条件 / Directional Line / Rank 4〜5 Building Gate / Research Gate / Blueprint Gate / Legacy Migration Regression
 - `test:power` — Starter Grid / Shortage / Generator / Pole / Battery充放電 / 未接続Battery / Buffer非破壊 / Deterministic allocation Regression
 - `test:storage` — Storage容量 / 残容量 / Full Back Pressure / Legacy over-capacity preservation Regression
+- `test:exploration` — Rank 3 Area Gate / Session Loot / Zone persistence / Objective順序 / Guaranteed reward / Return / Abandon / Depot / Rank 3→4 Regression
 
 加えてAccount共通のReusable Web Baselineを固定Commit SHAで利用します。
 

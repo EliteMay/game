@@ -1,4 +1,5 @@
 import { SAVE_KEY, SAVE_SCHEMA_VERSION } from './config.js';
+import { makeDefaultExploration, normalizeExploration } from './exploration.js';
 import { makeDefaultProgression, normalizeProgression } from './progression.js';
 
 const DEFAULT_BUILDINGS = [
@@ -48,6 +49,7 @@ export function makeDefaultGameSave() {
       automationComplete: false,
     },
     progression: makeDefaultProgression(),
+    exploration: makeDefaultExploration(),
     player: { x: 0, y: 1.7, z: 8, yaw: 0 },
     settings: {
       mouseSensitivity: 0.0022,
@@ -106,6 +108,7 @@ function normalizeGame(candidate) {
     discoveredItems: Array.isArray(candidate.discoveredItems) ? [...new Set(candidate.discoveredItems.map(String))] : base.discoveredItems,
   };
   normalized.progression = normalizeProgression(candidate.progression, normalized);
+  normalized.exploration = normalizeExploration(candidate.exploration);
   return normalized;
 }
 

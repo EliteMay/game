@@ -2,7 +2,9 @@ import { BUILDINGS, ITEMS } from './config.js';
 import { findDirectionalRoute } from './logistics.js';
 
 export const PROGRESSION_VERSION = 1;
-export const PHASE_ONE_MAX_RANK = 3;
+export const PLAYABLE_MAX_RANK = 4;
+// Compatibility export retained for existing callers/tests while Phase 3 extends the playable cap.
+export const PHASE_ONE_MAX_RANK = PLAYABLE_MAX_RANK;
 
 export const RESEARCH = {
   basic_fabrication: {
@@ -23,7 +25,7 @@ export const RESEARCH = {
     requiredRank: 3,
     researchDataCost: 1,
     requiredBlueprint: 'scrap_yard_survey_blueprint',
-    description: '探索Researchの入口。Blueprint未発見では研究できない。',
+    description: '廃住宅街の調査Terminalから持ち帰ったBlueprintを解析し、Exploration Research Iを確立する。',
     unlocks: ['research:exploration_i'],
   },
   grid_storage: {
@@ -57,6 +59,7 @@ const BUILDING_RESEARCH_UNLOCK = {
 const RANK_REWARDS = {
   2: { researchData: 1 },
   3: { researchData: 2 },
+  4: { researchData: 1 },
 };
 
 function isObject(value) {
@@ -240,6 +243,8 @@ export function isHandCraftUnlocked(game, craftId) {
 function metrics(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
   const discovered = new Set(game?.discoveredItems || []);
+  const residential = game?.exploration?.areas?.residential || {};
+  const discoveredZones = Array.isArray(residential.discoveredZones) ? residential.discoveredZones.length : 0;
   return {
     collected: Number(game?.tutorialStats?.collected || 0),
     processed: Number(game?.tutorialStats?.processed || 0),
@@ -249,8 +254,12 @@ function metrics(game) {
     smelters: buildings.filter((building) => building.type === 'smelter').length,
     discoveredCount: discovered.size,
     discoveredIronIngot: discovered.has('iron_ingot'),
+    discoveredCableBundle: discovered.has('cable_bundle'),
     autoCrushedLine: hasAutomatedCrushedMetalLine(game),
     autoIronLine: hasAutomatedIronLine(game),
+    residentialObjective: Boolean(residential?.objective?.completed),
+    residentialZones: discoveredZones,
+    residentialReturnedLoot: Number(residential?.returnedLootTotal || 0),
   };
 }
 
@@ -286,7 +295,24 @@ export function getRankDefinition(rank) {
         { id: 'process_10', label: '粉砕を10回完了', test: (m) => m.processed >= 10 },
         { id: 'smelter_2', label: 'Smelterを2台設置', test: (m) => m.smelters >= 2 },
       ],
-      rewards: ['Rank 3 Progression', 'Research Data +2', 'Exploration Research入口'],
+      rewards: ['Rank 3 Progression', 'Research Data +2', '廃住宅街 / Exploration入口'],
+    };
+  }
+  if (rank === 3) {
+    return {
+      rank: 3,
+      nextRank: 4,
+      title: '新素材と探索',
+      mandatory: { id: 'residential_objective', label: '廃住宅街のMain Objectiveを完了', test: (m) => m.residentialObjective },
+      optionalRequired: 2,
+      optionals: [
+        { id: 'residential_zones_3', label: '廃住宅街の4区画中3区画を発見', test: (m) => m.residentialZones >= 3 },
+        { id: 'residential_return_10', label: '廃住宅街から素材を累計10個持ち帰る', test: (m) => m.residentialReturnedLoot >= 10 },
+        { id: 'discover_cable', label: 'ケーブル束を発見 / 製作', test: (m) => m.discoveredCableBundle },
+        { id: 'revenue_1200', label: '累計売上 $1,200', test: (m) => m.revenue >= 1200 },
+        { id: 'discover_6', label: '6種類のアイテムを発見', test: (m) => m.discoveredCount >= 6 },
+      ],
+      rewards: ['Splitter', 'Merger', 'Conveyor Mk.2', 'Generator', 'Power Pole', 'Research Data +1'],
     };
   }
   return null;
@@ -298,7 +324,7 @@ export function rankProgress(game) {
   if (!definition) {
     return {
       rank: progression.progressionRank,
-      phaseCap: progression.progressionRank >= PHASE_ONE_MAX_RANK,
+      phaseCap: progression.progressionRank >= PLAYABLE_MAX_RANK,
       eligible: false,
       mandatory: null,
       optionals: [],
@@ -325,7 +351,7 @@ export function rankProgress(game) {
 
 export function claimRankUp(game) {
   const progression = ensureProgressionState(game);
-  if (progression.progressionRank >= PHASE_ONE_MAX_RANK) {
+  if (progression.progressionRank >= PLAYABLE_MAX_RANK) {
     return { changed: false, reason: 'phase-cap', progression };
   }
   const progress = rankProgress(game);

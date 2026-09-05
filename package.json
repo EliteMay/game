@@ -8,6 +8,7 @@
     "test:management": "node scripts/factory-management.test.mjs",
     "test:progression": "node scripts/progression.test.mjs",
     "test:power": "node scripts/power.test.mjs",
-    "test:storage": "node scripts/storage-capacity.test.mjs"
+    "test:storage": "node scripts/storage-capacity.test.mjs",
+    "test:exploration": "node scripts/exploration.test.mjs"
   }
 }

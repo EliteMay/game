@@ -243,3 +243,78 @@ PR #8 implementation-only headで次のRegressionを追加し、`Validate Web Ga
 - Battery charge gauge / Industrial Storage scale / collision / Pointer LockはStatic CIでは評価できない。
 - `world-runtime.js`のCustom Visualが増えてきたため、次のVisual architecture整理では`industrial-art.js`への責務移動を検討する。
 - Generator / Pole final visuals、Assembler / advanced recipes、Smart Sorter / Priority / Overflowは後続Slice。
+
+## 2026-09-05 / Phase 3-A Residential Exploration Progression
+
+### Problem
+
+- Rank4のPower / Advanced Logisticsを先に実装しても、通常GameplayがRank3で止まる限りPlayerは自然に利用できない。
+- Factory Sceneへ探索Areaを追加し続けるとWorld / Collider / Draw Costが肥大化し、探索ごとの状態管理も複雑になる。
+- 探索中Lootを直接Factory Inventoryへ入れると「正常帰還で初めて持帰り確定」という探索Riskが作れず、Inventory Full時のItem lossも起こしやすい。
+- 進行必須BlueprintをRandom Lootへ置くと、運次第でRank進行が止まる。
+- Nested stateをNormalizeする関数が内部でObjectを差し替えると、呼び出し側が掴んだ古い参照へMutationしてもAuthoritative stateへ反映されない。
+
+### Evidence
+
+PR #9初回CI `Validate Web Game` run #49でExploration regressionが失敗した。
+
+- duplicate Loot IDが`collected`にならず、同じLoot Nodeを再回収できる状態だった。
+- `collectExplorationLoot()`は最初に`session`参照を取得した後、容量確認のため`canAddExplorationLoot()`を呼んでいた。
+- `canAddExplorationLoot()`内の`ensureExplorationState()`が`activeSession`をNormalize済み別Objectへ差し替えた。
+- その後のLoot / `collectedLootIds`更新はStale Sessionへ書き込まれ、Authoritative stateへ残らなかった。
+
+### Root Cause
+
+- Outer `exploration` objectのidentityは維持していたが、Nested `activeSession` identityまでは維持していなかった。
+- 容量確認のようなRead-only判定が再Normalizeを発生させる設計だったため、同じOperation内で参照が無効化された。
+- Progressionで過去に経験したState identity問題をNested Sessionへ再適用できていなかった。
+
+### Keep
+
+- FactoryとIndependent Exploration Areaは別Scene / Pageとして切り替え、同時フルロードしない。
+- Exploration persistent stateとCurrent Expedition Sessionを分離する。
+- Session LootはNormal ReturnまでFactory Inventoryへ混ぜない。
+- Normal ReturnではLootをTransport Depotへ確定し、Factory Backpack overflowからItemを守る。
+- Hub ExitはSessionを保持し、AbandonだけCurrent Session Lootを失う。
+- Zone discovery / Main Objective / Resource PointはAbandon後も保持する。
+- 進行必須Blueprint / Research DataはMain ObjectiveからGuaranteeし、Random Dropへ依存させない。
+- Objective rewardは`rewardClaimed`でidempotentにする。
+- Rank3→4はResidential Main ObjectiveをMandatoryにし、探索・経済・製品のOptionalから2つを要求する。
+- Area Launch GateとRank Up Gateは別にする。Rank3になれば探索を繰り返せるが、Rank4にはMain Objective + Optionalsが必要。
+- Loot NodeはStable IDを持ち、Current Session内の再取得を明示的に防ぐ。
+- Session Pack Full時はWorld Lootを消さず回収拒否する。
+- **同一Operation内のRead-only判定でNormalizeを再実行しない。** 容量確認はSession objectだけを受け取るPure `canAddSessionLoot()`へ分離する。
+- State NormalizationがObjectを差し替える可能性がある場合、Normalize前に取得したNested referenceをMutationへ使わない。
+- CIがState identity regressionを検出した場合、Testを弱めず参照/責務設計を修正する。
+
+### Evidence After Fix
+
+修正後 `Validate Web Game` run #50:
+
+- project-contract: success
+- `npm run validate`: success
+- reusable baseline: success
+
+探索Regressionは以下を固定した。
+
+- Rank3 Area gate
+- Session start
+- duplicate Loot prevention
+- Zone idempotence
+- Fuse → Power → Survey dependency
+- Guaranteed reward
+- Reward idempotence
+- Normal Return → Depot
+- Abandon loot loss / persistent progress
+- Rank3→4 eligibility
+
+### Watch
+
+- Residential SceneはPhase 3-AのVertical Sliceで、建物内部の深さ・敵・HP・環境Hazardはまだ不足している。
+- Danger表示は現在1だが、実Gameplay上のThreatへ完全接続していない。今後Danger値と敵/環境Riskを一致させる。
+- Simple AABB collision / objective interaction distanceはStatic CIではPlayabilityを保証できない。実ブラウザでGarage / Substation / Return Terminalへの到達性を確認する。
+- Factory→Terminal→Residential→FactoryのPointer Lock遷移とSave順序はBrowserで確認する。
+- Transport Terminalを開く前のFactory state同期は既存`save-now` Handlerを利用している。将来は公開Runtime save APIへ整理できる。
+- Residential Procedural GeometryのDraw Cost、Fog、Landmark readability、Loot visibilityは実FPS / Screenshotで評価する。
+- Active ExpeditionをHubからどうResume導線へ見せるかは、現在TerminalのResume button中心。Hub cardへSession indicatorを出す余地がある。
+- 今後複数Areaを追加するときは`EXPLORATION_AREAS`を増やしてもResidential固有ObjectiveをGeneric化しすぎず、AreaごとのGameplay差を維持する。
