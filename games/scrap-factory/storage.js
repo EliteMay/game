@@ -2,8 +2,8 @@ import { SAVE_KEY, SAVE_SCHEMA_VERSION } from './config.js';
 import { makeDefaultProgression, normalizeProgression } from './progression.js';
 
 const DEFAULT_BUILDINGS = [
-  { id: 'starter-hopper', type: 'hopper', x: -5, z: 0, rotation: 0, input: {}, output: {}, progress: 0, permanent: true },
-  { id: 'starter-seller', type: 'seller', x: 7.5, z: 0, rotation: Math.PI, input: {}, output: {}, progress: 0, permanent: true },
+  { id: 'starter-hopper', type: 'hopper', x: -5, z: 0, rotation: 0, input: {}, output: {}, progress: 0, powerFuelSeconds: 0, logisticsCursor: 0, permanent: true },
+  { id: 'starter-seller', type: 'seller', x: 7.5, z: 0, rotation: Math.PI, input: {}, output: {}, progress: 0, powerFuelSeconds: 0, logisticsCursor: 0, permanent: true },
 ];
 
 export function makeDefaultRootSave() {
@@ -96,6 +96,7 @@ function normalizeGame(candidate) {
       output: isObject(b.output) ? b.output : {},
       progress: Number.isFinite(Number(b.progress)) ? Math.max(0, Number(b.progress)) : 0,
       powerFuelSeconds: Number.isFinite(Number(b.powerFuelSeconds)) ? Math.max(0, Number(b.powerFuelSeconds)) : 0,
+      logisticsCursor: Number.isFinite(Number(b.logisticsCursor)) ? Math.max(0, Math.floor(Number(b.logisticsCursor))) : 0,
       permanent: Boolean(b.permanent),
     })) : structuredClone(base.buildings),
     tutorialStats: { ...base.tutorialStats, ...(isObject(candidate.tutorialStats) ? candidate.tutorialStats : {}) },

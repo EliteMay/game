@@ -56,9 +56,24 @@ export const BUILDINGS = {
     color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron', powerUse: 30,
   },
   conveyor: {
-    id: 'conveyor', name: 'コンベア', cost: 12, category: 'logistics', buildable: true,
-    description: '黄色い矢印の方向へだけアイテムを送る物流設備。Rで設置方向を変更し、設置後もEで90°回転・反転できる。',
-    color: 0x4a555a, accepts: [],
+    id: 'conveyor', name: 'コンベア Mk.1', cost: 12, category: 'logistics', buildable: true,
+    description: '黄色い矢印の方向へ1.5個/秒で搬送する基本ベルト。Rで設置方向を変更し、設置後もEで回転・反転できる。',
+    color: 0x4a555a, accepts: [], throughput: 1.5,
+  },
+  conveyor_mk2: {
+    id: 'conveyor_mk2', name: 'コンベア Mk.2', cost: 28, category: 'logistics', buildable: true,
+    description: 'Rank 4で解放される高速ベルト。黄色い矢印の方向へ3個/秒で搬送し、Mk.1の2倍の帯域を持つ。',
+    color: 0x48656b, accepts: [], throughput: 3,
+  },
+  splitter: {
+    id: 'splitter', name: 'スプリッター', cost: 85, category: 'logistics', buildable: true,
+    description: 'Rank 4物流設備。背面1入力を正面・左・右の有効な搬送先へ順番に分配する。最大3個/秒。',
+    color: 0x6b6548, accepts: [], throughput: 3,
+  },
+  merger: {
+    id: 'merger', name: 'マージャー', cost: 85, category: 'logistics', buildable: true,
+    description: 'Rank 4物流設備。背面・左・右の3入力を受け、正面1方向へ合流させる。最大3個/秒。',
+    color: 0x65566b, accepts: [], throughput: 3,
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
@@ -83,7 +98,19 @@ export const HAND_CRAFTS = {
   tool_kit: { id: 'tool_kit', name: '工具セット', input: { iron_plate: 2, copper_wire: 1 }, output: { tool_kit: 1 } },
 };
 
-export const BUILD_MENU_ORDER = ['crusher', 'smelter', 'conveyor', 'storage', 'seller', 'generator', 'power_pole'];
+// Keep the first five entries stable: Factory Management quick-build 1-5 is a public control contract.
+export const BUILD_MENU_ORDER = [
+  'crusher',
+  'smelter',
+  'conveyor',
+  'storage',
+  'seller',
+  'conveyor_mk2',
+  'splitter',
+  'merger',
+  'generator',
+  'power_pole',
+];
 
 export const SCRAP_SPAWNS = [
   { item: 'metal_scrap', weight: 48 },

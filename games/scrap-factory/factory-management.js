@@ -1,6 +1,12 @@
 if (typeof window !== 'undefined') import('./progression-ui.js');
-import { BUILDINGS, ITEMS, RECIPES } from './config.js';
-import { conveyorOutputKey, findDirectionalRoute } from './logistics.js';
+import { BUILDINGS, ITEMS, RECIPES, positionKey } from './config.js';
+import {
+  findDirectionalRoute,
+  isLogisticsNode,
+  logisticsAcceptsFrom,
+  logisticsOutputKeys,
+  logisticsThroughput,
+} from './logistics.js';
 
 export const CHALLENGES = [
   { id: 'collector_10', title: '廃材回収員', description: 'スクラップを10個回収する', target: 10, metric: 'collected' },
@@ -47,13 +53,25 @@ function bufferAmount(buffer) {
   return Object.values(buffer || {}).reduce((sum, value) => sum + Math.max(0, Number(value || 0)), 0);
 }
 
+function connectedLogisticsOutputs(building, byCell) {
+  const sourceKey = positionKey(building?.x || 0, building?.z || 0);
+  return logisticsOutputKeys(building).filter((nextKey) => {
+    const next = byCell.get(nextKey);
+    if (!next) return false;
+    if (!isLogisticsNode(next.type)) return true;
+    return logisticsAcceptsFrom(next, sourceKey);
+  });
+}
+
 export function analyzeFactory(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
-  const byCell = new Map(buildings.map((b) => [`${Math.round(Number(b.x || 0) / 2.5)},${Math.round(Number(b.z || 0) / 2.5)}`, b]));
+  const byCell = new Map(buildings.map((building) => [positionKey(building.x, building.z), building]));
   const alerts = [];
   let activeMachines = 0;
   let waitingMachines = 0;
   let bufferedItems = 0;
+  let logisticsNodes = 0;
+  let logisticsCapacity = 0;
 
   for (const building of buildings) {
     bufferedItems += bufferAmount(building.input) + bufferAmount(building.output);
@@ -80,10 +98,24 @@ export function analyzeFactory(game) {
       }
     }
 
-    if (building.type === 'conveyor') {
-      const nextKey = conveyorOutputKey(building);
-      if (!byCell.has(nextKey)) {
-        alerts.push({ severity: 'info', buildingId: building.id, title: 'コンベア: 行き止まり', detail: '矢印の先に設備または次のコンベアがありません' });
+    if (isLogisticsNode(building.type)) {
+      logisticsNodes += 1;
+      logisticsCapacity += logisticsThroughput(building.type);
+      const connected = connectedLogisticsOutputs(building, byCell);
+      if (!connected.length) {
+        alerts.push({
+          severity: 'info',
+          buildingId: building.id,
+          title: `${def?.name || '物流設備'}: 行き止まり`,
+          detail: '有効な出力先に設備または次の物流ノードがありません',
+        });
+      } else if (building.type === 'splitter' && connected.length < 2) {
+        alerts.push({
+          severity: 'info',
+          buildingId: building.id,
+          title: `${def.name}: 分岐先が1本のみ`,
+          detail: 'Splitterの利点を使うには2本以上の有効な出力先へ接続します',
+        });
       }
     }
   }
@@ -97,6 +129,8 @@ export function analyzeFactory(game) {
     activeMachines,
     waitingMachines,
     bufferedItems,
+    logisticsNodes,
+    logisticsCapacity,
     counts,
     alerts,
   };

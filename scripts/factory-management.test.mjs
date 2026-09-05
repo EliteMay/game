@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict';
+import { BUILD_MENU_ORDER } from '../games/scrap-factory/config.js';
 import { analyzeFactory, CHALLENGES, challengeState, planProduction } from '../games/scrap-factory/factory-management.js';
+
+assert.deepEqual(
+  BUILD_MENU_ORDER.slice(0, 5),
+  ['crusher', 'smelter', 'conveyor', 'storage', 'seller'],
+  'quick-build 1-5 ordering is a public control contract',
+);
 
 const game = {
   lifetimeRevenue: 1200,
@@ -25,6 +32,32 @@ assert.equal(factory.playerBuilt, 10);
 assert.ok(factory.activeMachines >= 1);
 assert.ok(factory.alerts.some((alert) => alert.title.includes('行き止まり')), 'dead-end conveyor should be reported');
 assert.ok(factory.alerts.some((alert) => alert.title.includes('出力が滞留')), 'blocked crusher output should be reported');
+
+const logisticsFactory = analyzeFactory({
+  buildings: [
+    { id: 'splitter', type: 'splitter', x: 0, z: 0, rotation: 0, input: {}, output: {} },
+    { id: 'east-mk2', type: 'conveyor_mk2', x: 2.5, z: 0, rotation: 0, input: {}, output: {} },
+    { id: 'north-mk2', type: 'conveyor_mk2', x: 0, z: -2.5, rotation: Math.PI / 2, input: {}, output: {} },
+  ],
+});
+assert.equal(logisticsFactory.logisticsNodes, 3);
+assert.equal(logisticsFactory.logisticsCapacity, 9);
+assert.equal(
+  logisticsFactory.alerts.some((alert) => alert.title.includes('分岐先が1本のみ')),
+  false,
+  'splitter with two connected output ports should not be reported as a one-branch splitter',
+);
+
+const underusedSplitter = analyzeFactory({
+  buildings: [
+    { id: 'splitter', type: 'splitter', x: 0, z: 0, rotation: 0, input: {}, output: {} },
+    { id: 'east-mk2', type: 'conveyor_mk2', x: 2.5, z: 0, rotation: 0, input: {}, output: {} },
+  ],
+});
+assert.ok(
+  underusedSplitter.alerts.some((alert) => alert.title.includes('分岐先が1本のみ')),
+  'splitter with only one valid output should be reported',
+);
 
 const ironPlan = planProduction('iron_ingot', 20);
 const smelter = ironPlan.lines.find((line) => line.kind === 'machine' && line.machine === 'smelter');
