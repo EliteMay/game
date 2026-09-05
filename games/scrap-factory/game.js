@@ -10,8 +10,12 @@ import {
 import {
   directionFromRotation,
   findDirectionalRoute,
+  findDirectionalRoutes,
+  isLogisticsNode,
+  logisticsThroughput,
   reverseRotation,
   rotateQuarter,
+  selectDirectionalRoute,
 } from './logistics.js';
 import {
   isBuildingUnlocked,
@@ -32,7 +36,6 @@ import { loadGameSave, saveGameSave, resetGameSave, exportSaveText } from './sto
 import { ScrapWorld } from './world.js';
 
 const MAX_SLOTS = 12;
-const TRANSPORT_INTERVAL = 0.65;
 const AUTOSAVE_INTERVAL = 30;
 const $ = (selector) => document.querySelector(selector);
 
@@ -111,12 +114,12 @@ let started = false;
 let currentPanel = 'boot';
 let selectedMachineId = null;
 let dismantleMode = false;
-let transportAccumulator = 0;
 let autosaveAccumulator = 0;
 let unsavedPlaySeconds = 0;
 let tutorialCheckAccumulator = 0;
 let audio = null;
 let beforeUnloadSaved = false;
+const transportCredits = new Map();
 
 function makeId(prefix = 'id') {
   if (globalThis.crypto?.randomUUID) return `${prefix}-${crypto.randomUUID()}`;
@@ -194,8 +197,8 @@ function initializeUi() {
     const building = getBuilding(selectedMachineId);
     if (building) collectFromBuilding(building);
   });
-  ui.machineRotate.addEventListener('click', () => rotateSelectedConveyor(false));
-  ui.machineReverse.addEventListener('click', () => rotateSelectedConveyor(true));
+  ui.machineRotate.addEventListener('click', () => rotateSelectedLogistics(false));
+  ui.machineReverse.addEventListener('click', () => rotateSelectedLogistics(true));
   ui.machineRemove.addEventListener('click', () => {
     const building = getBuilding(selectedMachineId);
     if (building) removeBuildingSafely(building, { resumeAfter: true });
@@ -411,9 +414,9 @@ function renderInteractionPrompt(entity) {
     const name = BUILDINGS[entity.type]?.name ?? entity.type;
     if (entity.type === 'hopper') label = `[E] ${name}へ持ち物を投入`;
     else if (entity.type === 'seller') label = `[E] ${name}で持ち物を売却`;
-    else if (entity.type === 'conveyor') {
+    else if (isLogisticsNode(entity.type)) {
       const d = directionFromRotation(building?.rotation);
-      label = `[E] ${name}を設定 — 搬送方向 ${d.name} ${d.symbol}`;
+      label = `[E] ${name}を設定 — 基準方向 ${d.name} ${d.symbol}`;
     } else label = `[E] ${name}を開く${building?.progress > 0 ? ' — 稼働中' : ''}`;
   }
   ui.interact.textContent = label;
@@ -555,6 +558,7 @@ function handleBuildPlacement({ type, x, z, rotation }) {
     output: {},
     progress: 0,
     powerFuelSeconds: 0,
+    logisticsCursor: 0,
     permanent: false,
   };
   game.buildings.push(building);
@@ -563,7 +567,7 @@ function handleBuildPlacement({ type, x, z, rotation }) {
   world.addBuilding(building);
   sound('build');
   const d = directionFromRotation(rotation);
-  toast(`${def.name}を設置 -$${def.cost}${type === 'conveyor' ? ` / ${d.name} ${d.symbol}` : ''}`, 'success');
+  toast(`${def.name}を設置 -$${def.cost}${isLogisticsNode(type) ? ` / 基準方向 ${d.name} ${d.symbol}` : ''}`, 'success');
   game.tutorialStats.automationComplete = detectAutomationComplete();
   advanceTutorial();
   persist('設備設置');
@@ -574,9 +578,10 @@ function handleBuildPlacement({ type, x, z, rotation }) {
 function renderBuildDirection(type, rotation) {
   if (!ui.buildDirection) return;
   const d = directionFromRotation(rotation);
-  ui.buildDirection.textContent = type === 'conveyor'
-    ? `搬送方向: ${d.name} ${d.symbol}（黄色い矢印）`
-    : `設置向き: ${d.name} ${d.symbol}`;
+  if (type === 'splitter') ui.buildDirection.textContent = `入力: 背面 / 出力基準: ${d.name} ${d.symbol} + 左右`;
+  else if (type === 'merger') ui.buildDirection.textContent = `入力: 背面 + 左右 / 出力: ${d.name} ${d.symbol}`;
+  else if (isLogisticsNode(type)) ui.buildDirection.textContent = `搬送方向: ${d.name} ${d.symbol}（黄色い矢印）`;
+  else ui.buildDirection.textContent = `設置向き: ${d.name} ${d.symbol}`;
 }
 
 function renderBuildMenu() {
@@ -588,7 +593,7 @@ function renderBuildMenu() {
     button.type = 'button';
     button.className = 'build-option';
     button.disabled = !unlocked || game.money < def.cost;
-    const extra = type === 'conveyor' ? '矢印の方向へ1方向搬送。設置後もEで変更可能。' : '';
+    const extra = isLogisticsNode(type) ? `帯域 ${logisticsThroughput(type).toFixed(1)}個/秒。設置後もEで向きを変更可能。` : '';
     button.innerHTML = `
       <span class="build-option__main"><strong>${def.name}</strong><small>${def.description}${extra ? `<br>${extra}` : ''}</small></span>
       <span class="build-option__cost">${unlocked ? `$${def.cost}` : `RANK ${requiredBuildingRank(type)}`}</span>
@@ -671,7 +676,7 @@ function renderMachinePanel() {
   if (!building) return;
   const def = BUILDINGS[building.type];
   const recipe = def.recipe ? RECIPES[def.recipe] : null;
-  const isConveyor = building.type === 'conveyor';
+  const logisticsNode = isLogisticsNode(building.type);
   const isGenerator = Number(def.powerGeneration || 0) > 0;
   const isPowerPole = building.type === 'power_pole';
   const powered = isBuildingPowered(game, building, powerSnapshot);
@@ -680,9 +685,17 @@ function renderMachinePanel() {
 
   ui.machineTitle.textContent = def.name;
   ui.machineDescription.textContent = def.description;
-  if (isConveyor) {
-    ui.machineFlow.innerHTML = `<span>現在の搬送方向</span><strong>${d.name} ${d.symbol}</strong><span>黄色い矢印と同じ方向へ1個ずつ送ります</span>`;
-    ui.machineStatus.textContent = '前のコンベア・機械から受け取り、矢印方向の次マスへ搬送';
+  if (logisticsNode) {
+    if (building.type === 'splitter') {
+      ui.machineFlow.innerHTML = `<span>背面 1 INPUT</span><span class="flow-arrow">→</span><strong>${d.name} + 左 + 右</strong><span>3 OUTPUT</span>`;
+      ui.machineStatus.textContent = `有効な搬送先へRound-robin分配 / 最大 ${logisticsThroughput(building.type).toFixed(1)}個/秒`;
+    } else if (building.type === 'merger') {
+      ui.machineFlow.innerHTML = `<span>背面 + 左 + 右</span><span class="flow-arrow">→</span><strong>${d.name} ${d.symbol}</strong><span>1 OUTPUT</span>`;
+      ui.machineStatus.textContent = `3方向の入力を合流 / 最大 ${logisticsThroughput(building.type).toFixed(1)}個/秒`;
+    } else {
+      ui.machineFlow.innerHTML = `<span>現在の搬送方向</span><strong>${d.name} ${d.symbol}</strong><span>${logisticsThroughput(building.type).toFixed(1)}個/秒</span>`;
+      ui.machineStatus.textContent = '黄色い矢印方向へ搬送。Route上で最も遅い物流設備が実効帯域になります。';
+    }
   } else if (isGenerator) {
     ui.machineFlow.innerHTML = `<span>鉄くず ×1</span><span class="flow-arrow">→</span><strong>${def.powerGeneration} Power</strong><span>${GENERATOR_FUEL_SECONDS}秒</span>`;
     ui.machineStatus.textContent = generatorActive(building)
@@ -712,13 +725,13 @@ function renderMachinePanel() {
     ui.machineStatus.textContent = '設備';
   }
 
-  ui.machineBuffers.hidden = isConveyor || isPowerPole;
+  ui.machineBuffers.hidden = logisticsNode || isPowerPole;
   ui.machineInput.textContent = bufferText(building.input);
   ui.machineOutput.textContent = bufferText(building.output);
-  ui.machineDeposit.hidden = isConveyor || isPowerPole || !(def.accepts || []).length;
-  ui.machineCollect.hidden = isConveyor || isPowerPole || isGenerator;
-  ui.machineRotate.hidden = !isConveyor;
-  ui.machineReverse.hidden = !isConveyor;
+  ui.machineDeposit.hidden = logisticsNode || isPowerPole || !(def.accepts || []).length;
+  ui.machineCollect.hidden = logisticsNode || isPowerPole || isGenerator;
+  ui.machineRotate.hidden = !logisticsNode;
+  ui.machineReverse.hidden = !logisticsNode;
   ui.machineDeposit.textContent = building.type === 'storage' ? '持ち物を保管' : isGenerator ? '鉄くずを燃料投入' : '対応素材を投入';
   ui.machineDeposit.disabled = !Object.entries(game.inventory).some(([itemId, amount]) => amount > 0 && acceptsItem(building, itemId));
   ui.machineCollect.disabled = !Object.values(building.output || {}).some((amount) => amount > 0);
@@ -726,16 +739,17 @@ function renderMachinePanel() {
   if (!building.permanent) ui.machineRemove.textContent = `撤去 +$${def.cost || 0}（100%返金）`;
 }
 
-function rotateSelectedConveyor(reverse = false) {
+function rotateSelectedLogistics(reverse = false) {
   const building = getBuilding(selectedMachineId);
-  if (!building || building.type !== 'conveyor') return;
+  if (!building || !isLogisticsNode(building.type)) return;
   building.rotation = reverse ? reverseRotation(building.rotation) : rotateQuarter(building.rotation);
+  building.logisticsCursor = 0;
   world.setBuildingRotation?.(building.id, building.rotation);
   const d = directionFromRotation(building.rotation);
   game.tutorialStats.automationComplete = detectAutomationComplete();
-  persist(reverse ? 'コンベア反転' : 'コンベア回転');
+  persist(reverse ? '物流設備反転' : '物流設備回転');
   sound('click');
-  toast(`コンベア方向：${d.name} ${d.symbol}`, 'success');
+  toast(`${BUILDINGS[building.type]?.name || '物流設備'}：基準方向 ${d.name} ${d.symbol}`, 'success');
   renderMachinePanel();
   renderInteractionPrompt(world.currentTarget);
 }
@@ -849,6 +863,10 @@ function findRoute(source, itemId, specificTargetId = null) {
   return findDirectionalRoute(game.buildings, source, itemId, acceptsItem, specificTargetId);
 }
 
+function findRoutes(source, itemId, specificTargetId = null) {
+  return findDirectionalRoutes(game.buildings, source, itemId, acceptsItem, specificTargetId);
+}
+
 function hasConveyorPath(source, target, itemId) {
   return Boolean(findRoute(source, itemId, target.id));
 }
@@ -864,28 +882,57 @@ function detectAutomationComplete() {
   ));
 }
 
-function transportTick() {
+function transferOne(source, itemId, route) {
+  const target = route.target;
+  source.output[itemId] -= 1;
+  if (target.type === 'seller') {
+    addRevenue(ITEMS[itemId]?.value || 0);
+    sound('sell');
+  } else if (target.type === 'storage') {
+    target.output ??= {};
+    target.output[itemId] = Number(target.output[itemId] || 0) + 1;
+  } else {
+    target.input ??= {};
+    target.input[itemId] = Number(target.input[itemId] || 0) + 1;
+  }
+  const animationSpeed = route.throughput >= 3 ? 9.5 : 5.8;
+  world.animateTransfer(route.path, itemId, animationSpeed);
+}
+
+function transportTick(delta) {
+  let movedAny = false;
   for (const source of game.buildings) {
     source.output ??= {};
     const itemEntry = Object.entries(source.output).find(([, amount]) => Number(amount) > 0);
     if (!itemEntry) continue;
     const [itemId] = itemEntry;
-    const route = findRoute(source, itemId);
-    if (!route) continue;
-    const target = route.target;
-    source.output[itemId] -= 1;
-    if (target.type === 'seller') {
-      addRevenue(ITEMS[itemId]?.value || 0);
-      sound('sell');
-    } else if (target.type === 'storage') {
-      target.output ??= {};
-      target.output[itemId] = Number(target.output[itemId] || 0) + 1;
-    } else {
-      target.input ??= {};
-      target.input[itemId] = Number(target.input[itemId] || 0) + 1;
+    const routes = findRoutes(source, itemId);
+    const creditKey = `${source.id}:${itemId}`;
+    if (!routes.length) {
+      transportCredits.set(creditKey, 0);
+      continue;
     }
-    world.animateTransfer(route.path, itemId);
+
+    const firstChoice = selectDirectionalRoute(routes, source.logisticsCursor);
+    const rate = Math.max(0.1, Number(firstChoice.route?.throughput || logisticsThroughput('conveyor')));
+    let credit = Math.min(4, Number(transportCredits.get(creditKey) || 0) + delta * rate);
+    let moved = 0;
+
+    while (credit >= 1 && Number(source.output[itemId] || 0) > 0 && moved < 4) {
+      const choice = selectDirectionalRoute(routes, source.logisticsCursor);
+      if (!choice.route) break;
+      source.logisticsCursor = choice.nextCursor;
+      transferOne(source, itemId, choice.route);
+      credit -= 1;
+      moved += 1;
+      movedAny = true;
+    }
+
+    if (Number(source.output[itemId] || 0) <= 0) credit = 0;
+    transportCredits.set(creditKey, credit);
   }
+
+  if (!movedAny) return;
   game.tutorialStats.automationComplete = detectAutomationComplete();
   advanceTutorial();
   renderHud();
@@ -1086,13 +1133,9 @@ function update(delta) {
   if (!started) return;
   unsavedPlaySeconds += delta;
   autosaveAccumulator += delta;
-  transportAccumulator += delta;
   tutorialCheckAccumulator += delta;
+  transportTick(delta);
 
-  if (transportAccumulator >= TRANSPORT_INTERVAL) {
-    transportAccumulator %= TRANSPORT_INTERVAL;
-    transportTick();
-  }
   if (autosaveAccumulator >= AUTOSAVE_INTERVAL) {
     autosaveAccumulator = 0;
     persist('オートセーブ');
