@@ -1,6 +1,7 @@
 import { SAVE_KEY, SAVE_SCHEMA_VERSION } from './config.js';
 import { makeDefaultExploration, normalizeExploration } from './exploration.js';
 import { makeDefaultProgression, normalizeProgression } from './progression.js';
+import { HOME_RESPAWN_POSITION, makeDefaultHomeState, normalizeHomeState } from './home-system.js';
 
 const DEFAULT_BUILDINGS = [
   { id: 'starter-hopper', type: 'hopper', x: -5, z: 0, rotation: 0, input: {}, output: {}, progress: 0, powerFuelSeconds: 0, powerStored: 0, logisticsCursor: 0, permanent: true },
@@ -88,13 +89,20 @@ export function makeDefaultGameSave() {
     progression: makeDefaultProgression(),
     exploration: makeDefaultExploration(),
     finalChapter: makeDefaultFinalChapter(),
-    player: { x: 0, y: 1.7, z: 8, yaw: 0 },
+    home: makeDefaultHomeState({ existingSave: false }),
+    player: { ...HOME_RESPAWN_POSITION },
     settings: {
       mouseSensitivity: 0.0022,
       masterVolume: 0.55,
       quality: 'high',
       showShortcuts: true,
       showFps: false,
+      tutorialObjectives: true,
+      contextualHints: true,
+      stuckHelp: true,
+      nextGoal: true,
+      homeMarker: true,
+      scannerKey: 'KeyQ',
     },
     discoveredItems: ['metal_scrap'],
     sessionCount: 0,
@@ -143,6 +151,7 @@ function normalizeGame(candidate) {
     })) : structuredClone(base.buildings),
     tutorialStats: { ...base.tutorialStats, ...(isObject(candidate.tutorialStats) ? candidate.tutorialStats : {}) },
     finalChapter: normalizeFinalChapter(candidate.finalChapter),
+    home: normalizeHomeState(candidate.home, { existingSave: !isObject(candidate.home), legacyGame: candidate }),
     player: { ...base.player, ...(isObject(candidate.player) ? candidate.player : {}) },
     settings: { ...base.settings, ...(isObject(candidate.settings) ? candidate.settings : {}) },
     discoveredItems: Array.isArray(candidate.discoveredItems) ? [...new Set(candidate.discoveredItems.map(String))] : base.discoveredItems,

@@ -1,4 +1,5 @@
 import { ITEMS, usedSlots } from './config.js';
+import { HOME_RESPAWN_POSITION, backpackSlotCapacity, ensureHomeState } from './home-system.js';
 
 export const EXPLORATION_VERSION = 1;
 export const RESIDENTIAL_AREA_ID = 'residential';
@@ -380,20 +381,20 @@ export function discoverExplorationZone(game, zoneId) {
   return { changed: true, zoneId, discovered: area.discoveredZones.length };
 }
 
-function canAddSessionLoot(session, itemId, amount = 1) {
+function canAddSessionLoot(game, session, itemId, amount = 1) {
   if (!session || !ITEMS[itemId]) return false;
   const simulated = { ...session.loot };
   for (let index = 0; index < Math.max(0, nonNegativeInt(amount)); index += 1) {
     const def = ITEMS[itemId];
     const current = Number(simulated[itemId] || 0);
-    if (!(current > 0 && current % def.stack !== 0) && usedSlots(simulated) >= EXPLORATION_MAX_SLOTS) return false;
+    if (!(current > 0 && current % def.stack !== 0) && usedSlots(simulated) >= backpackSlotCapacity(game, EXPLORATION_MAX_SLOTS)) return false;
     simulated[itemId] = current + 1;
   }
   return true;
 }
 
 export function canAddExplorationLoot(game, itemId, amount = 1) {
-  return canAddSessionLoot(ensureExplorationState(game).activeSession, itemId, amount);
+  return canAddSessionLoot(game, ensureExplorationState(game).activeSession, itemId, amount);
 }
 
 export function collectExplorationLoot(game, lootId, itemId, amount = 1) {
@@ -403,7 +404,7 @@ export function collectExplorationLoot(game, lootId, itemId, amount = 1) {
   if (!session) return { changed: false, reason: 'no-session' };
   if (!ITEMS[itemId]) return { changed: false, reason: 'unknown-item' };
   if (session.collectedLootIds.includes(String(lootId))) return { changed: false, reason: 'collected' };
-  if (!canAddSessionLoot(session, itemId, count)) return { changed: false, reason: 'full' };
+  if (!canAddSessionLoot(game, session, itemId, count)) return { changed: false, reason: 'full' };
   session.loot[itemId] = Number(session.loot[itemId] || 0) + count;
   session.collectedLootIds.push(String(lootId));
   return { changed: true, itemId, amount: count, total: session.loot[itemId] };
@@ -602,15 +603,17 @@ export function abandonExpedition(game) {
   if (!session) return { changed: false, reason: 'no-session', lost: 0 };
   const lost = lootCount(session.loot) + (session.researchCargo?.length || 0);
   exploration.activeSession = null;
+  const home = ensureHomeState(game);
+  if (home.respawnEnabled) game.player = { ...HOME_RESPAWN_POSITION };
   return { changed: true, lost };
 }
 
-function canAddFactoryInventory(inventory, itemId) {
+function canAddFactoryInventory(game, inventory, itemId) {
   const def = ITEMS[itemId];
   if (!def) return false;
   const current = Number(inventory[itemId] || 0);
   if (current > 0 && current % def.stack !== 0) return true;
-  return usedSlots(inventory) < EXPLORATION_MAX_SLOTS;
+  return usedSlots(inventory) < backpackSlotCapacity(game, EXPLORATION_MAX_SLOTS);
 }
 
 export function claimExplorationDepot(game) {
@@ -619,7 +622,7 @@ export function claimExplorationDepot(game) {
   let moved = 0;
   for (const itemId of Object.keys(exploration.depot)) {
     let remaining = nonNegativeInt(exploration.depot[itemId]);
-    while (remaining > 0 && canAddFactoryInventory(game.inventory, itemId)) {
+    while (remaining > 0 && canAddFactoryInventory(game, game.inventory, itemId)) {
       game.inventory[itemId] = Number(game.inventory[itemId] || 0) + 1;
       remaining -= 1;
       moved += 1;

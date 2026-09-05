@@ -535,3 +535,12 @@ result: success
 - Automation ConsoleのRoute / Recipe変更はcurrent module-local runtimeとの整合のためreloadを使う。将来runtime mutation APIを用意できればreload dependencyを外す。
 - Static CIではAutomation Consoleのlayout、Pointer Lock、Build Preview、Collider、Advanced Drone / Experimental Powerの一人称Scale、WebGL FPS、Final line balanceを確認できない。
 - Requirements step 9のMega Factory stable-operationは履歴時間を持つObjectiveになる可能性が高い。現在のPhase 6-C derived topology stateと安易に同じpersistent flagへまとめない。
+
+## 2026-09-06 — Home / Tutorial Migration Learnings
+
+- New GameのSpawn変更と既存SaveのPlayer座標Migrationは分離する。DefaultだけHomeに変え、normalizeでは旧座標を上書きしない。
+- Backpack容量はFactoryとExplorationで別定数を持たず、同じSlot capacity関数を参照する。UIだけ容量を増やす実装はSave/探索挙動と不整合になる。
+- Tutorial完了は売上額などの代理指標ではなく、要求された実イベント（今回ならcrushed_metalがSellerへ実搬送・自動販売された瞬間）を記録する。
+- Optional Player UpgradeはMain Progressionと別状態に置き、取得判定をRank/Main Clear条件へ混ぜない。
+- Secure Caseのような保護機能は「何を保護できないか」を先に固定し、Main Objective CargoやFinal progression itemを自動保護しない。
+- System Diagnosticsは既存Runtime/Analyzerを再利用し、別の真実を保存しない。原因候補と確認先を提示し、自動修正はしない。

@@ -701,3 +701,30 @@ Documentation-inclusive final head / merge commit must be revalidated before完�
 - final automated line gameplay feel
 - Firefox / Chromium real operation
 - final Visual Review / Screenshot Review
+
+## 2026-09-06 Home / Player Upgrade / Tutorial Runtime
+
+### Home Contract
+
+- 固定HomeはFactory北側・Factory建築範囲外に配置し、既存の2.5m Grid、Factory Layout、Directional Logisticsを変更しない。
+- Bed / PC / Home Storage / Exploration Workbenchは固定設備で、Factory設備として建築・解体・Conveyor接続しない。
+- New GameはHome Bed付近から開始する。既存SaveはMigration時にPlayer座標を保持し、Bed使用後だけHome Respawnを有効化する。
+- Bed Manual Saveは既存Auto Saveを置換しない。
+
+### Player Convenience State
+
+既存Root/Game Save Schema v1を維持し、game.home.version=1を加算する。主な永続状態はPlayer Upgrade、Home Storage、Secure Case、Loadout Preset、Material Tracking、Tutorial Library既読/進行、Home Respawn登録である。
+
+BackpackはSlot制を唯一の容量Contractとして維持する。Base 12 Slot、Backpack I=16、II=20、III=24。旧Saveに既存Backpack容量/Unlockがある場合は対応UpgradeへMigrationし、容量を減らさず再購入も要求しない。
+
+PC Upgrade購入はRank/前提/Cash/素材を検証した後、まとめて消費してUnlockしSaveする。Factory Network Link取得前はBackpack+Home Storage、取得後のみFactory StorageをCost参照対象へ追加する。PC UpgradeはRank 1〜7のMain Progression条件にはしない。
+
+Secure Caseは探索Session LootからPlayerが明示選択した通常Lootだけを保護する。Main Objective CargoとFinal系Itemは保護対象外。失敗時もCase内容は永続する。
+
+### Tutorial / Diagnostics
+
+Basic TutorialはHome Bed → 移動 → PC → Door → Scrap Yard → 回収 → Backpack → Factory Return → 手動販売 → Build → Hopper → Conveyor → Crusher → Seller接続 → crushed_metalの実自動販売で完了する。Scanner購入はTutorial必須条件ではない。既存SaveにはBasic Tutorialを強制しない。
+
+Tutorial Objectives / Contextual Hints / Stuck Help / Next GoalはSettingsで個別制御できる。PC Tutorial LibraryとO Guideは同じTutorial定義を使用する。
+
+DiagnosticsはMachine Input/Output、Directional Logistics、Power、Storage/Backpressure、Drone、Home/Player、Final Automation/Mega Factoryを既存Runtime stateから派生表示し、自動修正・自動建築は行わない。

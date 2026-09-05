@@ -46,8 +46,16 @@ import {
 } from './storage-capacity.js';
 import { loadGameSave, saveGameSave, resetGameSave, exportSaveText } from './storage.js';
 import { ScrapWorld } from './world.js';
+import {
+  advanceHomeTutorial,
+  backpackSlotCapacity,
+  hasPlayerUpgrade,
+  homeTutorialObjective,
+  recordTutorialEvent,
+} from './home-system.js';
 
-const MAX_SLOTS = 12;
+const BASE_MAX_SLOTS = 12;
+function maxSlots() { return backpackSlotCapacity(game, BASE_MAX_SLOTS); }
 const AUTOSAVE_INTERVAL = 30;
 const $ = (selector) => document.querySelector(selector);
 
@@ -140,6 +148,7 @@ function makeId(prefix = 'id') {
 
 const world = new ScrapWorld(ui.canvas, {
   getSensitivity: () => Number(game.settings.mouseSensitivity || 0.0022),
+  getSprintMultiplier: () => hasPlayerUpgrade(game, 'sprint_efficiency') ? 1.08 : 1,
   isOverlayOpen: () => Boolean(currentPanel),
   onTargetChange: renderInteractionPrompt,
   onInteract: handleInteraction,
@@ -162,6 +171,8 @@ world.setPlayerState(game.player);
 world.loadBuildings(game.buildings);
 world.setQuality(game.settings.quality);
 world.run();
+
+window.__scrapFactoryRuntime = { world, getGame: () => game, persist, renderAll, toast, getPowerSnapshot: () => powerSnapshot };
 
 initializeUi();
 renderAll();
@@ -189,7 +200,7 @@ function initializeUi() {
   ui.openSettingsFromPause.addEventListener('click', () => openPanel('settings'));
   ui.openGuidePause.addEventListener('click', () => openPanel('guide'));
   ui.openGuideHud.addEventListener('click', () => openPanel('guide'));
-  ui.openBuild.addEventListener('click', () => openPanel('build'));
+  ui.openBuild.addEventListener('click', () => { recordTutorialEvent(game, 'buildMenuOpened', true); advanceTutorial(); openPanel('build'); });
   ui.closeBuild.addEventListener('click', closePanelAndResume);
   ui.closeInventory.addEventListener('click', closePanelAndResume);
   ui.closeMachine.addEventListener('click', closePanelAndResume);
@@ -357,8 +368,8 @@ function handleWorldKey(code) {
     return;
   }
   if (code === 'KeyE' && !currentPanel && !world.buildMode && !dismantleMode) world.interact();
-  if (code === 'KeyB' && !currentPanel && !dismantleMode) openPanel('build');
-  if (code === 'Tab' && !currentPanel && !dismantleMode) openPanel('inventory');
+  if (code === 'KeyB' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'buildMenuOpened', true); advanceTutorial(); openPanel('build'); }
+  if (code === 'Tab' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'inventoryOpened', true); advanceTutorial(); openPanel('inventory'); }
 }
 
 function setDismantleMode(enabled) {
@@ -460,6 +471,7 @@ function handleInteraction(entity) {
   if (building.type === 'hopper') {
     const moved = depositPlayerInventoryToHopper(building);
     if (moved > 0) {
+      recordTutorialEvent(game, 'hopperDeposit', true);
       toast(`${moved}個を投入ホッパーへ移動`, 'success');
       sound('click');
       persist('ホッパー投入');
@@ -470,7 +482,8 @@ function handleInteraction(entity) {
   if (building.type === 'seller') {
     const value = sellPlayerInventory();
     if (value > 0) {
-      toast(`売却 +$${value}`, 'success');
+      recordTutorialEvent(game, 'manualSale', true);
+      toast(`売却 +${value}`, 'success');
       sound('sell');
       persist('直接売却');
     } else toast('売却できるアイテムがありません', 'info');
@@ -493,7 +506,7 @@ function canAddInventory(itemId, inventory = game.inventory) {
   if (!def) return false;
   const current = Number(inventory[itemId] || 0);
   if (current > 0 && current % def.stack !== 0) return true;
-  return usedSlots(inventory) < MAX_SLOTS;
+  return usedSlots(inventory) < maxSlots();
 }
 
 function addInventory(itemId, amount = 1) {
@@ -948,6 +961,7 @@ function transferOne(source, itemId, route) {
   source.output[itemId] -= 1;
   if (target.type === 'seller') {
     addRevenue(ITEMS[itemId]?.value || 0);
+    if (itemId === 'crushed_metal') recordTutorialEvent(game, 'autoSale', true);
     sound('sell');
   } else if (isStorageBuilding(target)) {
     target.output ??= {};
@@ -1017,20 +1031,10 @@ function tutorialSatisfied(step) {
 }
 
 function advanceTutorial() {
-  let advanced = false;
-  while (game.tutorialStep < TUTORIAL.length && tutorialSatisfied(game.tutorialStep)) {
-    game.tutorialStep += 1;
-    advanced = true;
-    if (game.tutorialStep < TUTORIAL.length) toast(`次の目標：${TUTORIAL[game.tutorialStep].title}`, 'objective');
-  }
-  if (advanced) {
-    persist('目標進行');
-    if (game.tutorialStep >= TUTORIAL.length && ui.objectiveDone.hidden) {
-      world.unlockPointer();
-      currentPanel = 'objective';
-      ui.objectiveDone.hidden = false;
-      sound('sell');
-    }
+  const result = advanceHomeTutorial(game);
+  if (result.changed) {
+    persist('Tutorial Progress');
+    if (result.completed) toast('BASIC TUTORIAL COMPLETE / +$50', 'success');
   }
   renderTutorial();
 }
@@ -1050,22 +1054,16 @@ function tutorialProgressValue(step) {
 }
 
 function renderTutorial() {
-  if (game.tutorialStep >= TUTORIAL.length) {
-    ui.tutorialTitle.textContent = '工場オーナー — 自由開発';
-    ui.tutorialBody.textContent = '初期目標達成。Oでガイドを確認しながら、探索・自動化・製品クラフトを自由に伸ばせます。';
-    ui.tutorialProgress.textContent = 'MVP CLEAR';
-    return;
-  }
-  const goal = TUTORIAL[game.tutorialStep];
-  ui.tutorialTitle.textContent = goal.title;
+  const goal = homeTutorialObjective(game);
+  ui.tutorialTitle.textContent = `${goal.kind}: ${goal.title}`;
   ui.tutorialBody.textContent = goal.body;
-  ui.tutorialProgress.textContent = `${tutorialProgressValue(game.tutorialStep)} / ${goal.target}`;
+  ui.tutorialProgress.textContent = goal.progress;
 }
 
 function renderHud() {
   ui.money.textContent = `$${Math.floor(game.money).toLocaleString('ja-JP')}`;
   ui.revenue.textContent = `$${Math.floor(game.lifetimeRevenue).toLocaleString('ja-JP')}`;
-  ui.inventorySlots.textContent = `${usedSlots(game.inventory)} / ${MAX_SLOTS}`;
+  ui.inventorySlots.textContent = `${usedSlots(game.inventory)} / ${maxSlots()}`;
   ui.fps.hidden = !game.settings.showFps;
   ui.shortcutBar.hidden = dismantleMode || game.settings.showShortcuts === false;
 }

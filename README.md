@@ -405,3 +405,14 @@ Final progression regressionでは特に次を固定しています。
 - production HTMLからProgression / Automation / Final Phase UIが読み込まれること
 
 Static CIでは実ブラウザPointer Lock、Main Clear overlay layout、Factory layout ergonomics、Build Preview、Advanced Drone / Experimental Powerの一人称Scale、Collider、WebGL FPS、180秒の実プレイBalance / 操作感、Firefox / Chromium実操作までは保証しません。
+
+## Home / Player Convenience (2026-09-06)
+
+Scrap FactoryのFactory北側に固定Home区画を追加しました。HomeはFactoryの2.5m建築Grid外で、Factory Layoutを消費しません。
+
+- Bed: Manual Save / Home Respawn。既存SaveはBedを一度使うまで従来位置を維持します。
+- PC: Player Upgrade / Material Tracking / Tutorial Library / Player Progress。Factory Researchとは別系統です。
+- Home Storage / Exploration Workbench: 手動移動、Quick Deposit、Loadout Preset、Secure Caseを管理します。
+- Backpackは従来どおりSlot制です。重量制・重量Penaltyは導入していません。
+- TutorialはHomeから始まる実操作ベースへ更新し、O GuideとPC Libraryで同じ説明Sourceを参照します。
+- System DiagnosticsはMachine / Logistics / Power / Storage / Drone / Final Phaseの原因候補と確認先を表示します。自動修正は行いません。
