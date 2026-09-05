@@ -240,11 +240,11 @@ function buildFullAutomationFixture() {
     return { joins, existing, targetGrid };
   }
 
-  function bfsFrom(start, joins, sourceGrid, targetGrid) {
+  function bfsFrom(start, joins, sourceGrid, targetGrid, reserved = []) {
     const startKey = key(start.gx, start.gz);
     if (occupied.has(startKey) || startKey === key(targetGrid.gx, targetGrid.gz)) return null;
+    const seen = new Set([startKey, key(sourceGrid.gx, sourceGrid.gz), ...reserved]);
     const queue = [[start]];
-    const seen = new Set([startKey, key(sourceGrid.gx, sourceGrid.gz)]);
     while (queue.length) {
       const pathCells = queue.shift();
       const current = pathCells[pathCells.length - 1];
@@ -310,7 +310,7 @@ function buildFullAutomationFixture() {
       const secondCell = { gx: sourceGrid.gx + dir.dx * 2, gz: sourceGrid.gz + dir.dz * 2 };
       if (occupied.has(key(firstCell.gx, firstCell.gz)) || occupied.has(key(secondCell.gx, secondCell.gz))) continue;
       if (key(firstCell.gx, firstCell.gz) === key(targetGrid.gx, targetGrid.gz) || key(secondCell.gx, secondCell.gz) === key(targetGrid.gx, targetGrid.gz)) continue;
-      const tail = bfsFrom(secondCell, joins, sourceGrid, targetGrid);
+      const tail = bfsFrom(secondCell, joins, sourceGrid, targetGrid, [key(firstCell.gx, firstCell.gz)]);
       if (!tail) continue;
       first = firstCell;
       solved = { path: [firstCell, ...tail.path], join: tail.join };
