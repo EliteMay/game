@@ -1,3 +1,3 @@
-// Compatibility entrypoint. Rank 6-capable progression UI lives in progression-ui-v2.js.
+// Compatibility entrypoint. Final Chapter progression UI lives in progression-ui-v3.js.
 import './phase5c-automation-ui.js';
-export * from './progression-ui-v2.js';
+export * from './progression-ui-v3.js';

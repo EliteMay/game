@@ -6,7 +6,7 @@
 
 現在のPlayable Game:
 
-- **Scrap Factory** — 一人称3D / 探索 / 加工 / 工場自動化 / Directional Logistics / Power / Drone Automation / Progression Rank / Research
+- **Scrap Factory** — 一人称3D / 探索 / 加工 / 工場自動化 / Directional Logistics / Power / Drone Automation / Progression / Research
 
 ## Source of Truth
 
@@ -15,144 +15,129 @@
 - `WORK_REPORT.md` — 実装・検証・未確認事項
 - `PROJECT_LEARNINGS.md` — 再利用価値のある実装上の学び
 
-要件と実装が食い違う場合、未実装要件を「実装済み」とは扱いません。
+未実装要件を実装済みとして扱いません。
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Phase 6-A: Ruined Research Facility / Three Labs** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Phase 6-B: Fabricator / Central Core / Experimental Technology** まで通常Gameplayへ接続しています。
 
-通常進行は **Rank 1 → 7**。Rank 7到達後はMain ClearではなくFinal Chapterへ進みます。
+通常のRank Upは **Rank 1 → 7**。Rank 7はMain ClearではなくFinal Chapterの開始点です。
 
 ```text
 Factory / Scrap Yard
-→ 基本加工とDirectional Logistics
+→ Rank 1-3 基本加工 / Directional Logistics
 → 廃住宅街
-→ Splitter / Merger / Power
-→ Rank 5
+→ Rank 4 Logistics / Power
 → 廃工場 / Advanced Assembly / Smart Sorter
-→ Rank 6
-→ 軍事施設 / Drone Control
-→ Drone Port自動回収Line
+→ Rank 6 軍事施設 / Drone Control
 → Conveyor Mk.3 / Priority / Overflow
 → 複数Drone Route / Industrial Generator / Logistics Warehouse
 → Rank 7
 → 崩壊した研究施設
 → Robotics / Materials / Energy Lab
-→ Special Cargoを正常帰還
+→ Special Cargo 3種をFactoryへ確保
+→ Tri-Lab Fabrication Research
+→ Fabricator
+→ Experimental部品 3種を製造
+→ Central Core GateへInstall
+→ Core Stabilizer
+→ Experimental Archive
+→ Experimental Technology Research
 ```
 
-現在のRank 7 Final Chapterは**3 Lab攻略まで**です。
+**まだMain Clearではありません。** Advanced Drone / Experimental Power System / Autonomous Industrial Core / Mega Factory安定稼働 / Main Clearは後続Phaseです。
 
-未実装:
-- Central Core攻略
-- Fabricator
-- AI Control Module / Experimental Frame / Experimental Power Module
-- Experimental Research / Experimental Power
-- Autonomous Industrial Core
-- Mega Factory / Main Clear
+## Rank 7 Final Chapter
 
-## Progression
+### 1. Three Labs
 
-| Rank | 必須進行 |
-| --- | --- |
-| 1 → 2 | Hopper → Crusher → Seller のDirectional自動ライン |
-| 2 → 3 | Crusher → Smelterを含む鉄インゴット完全自動ライン |
-| 3 → 4 | 廃住宅街Main Objective完了 |
-| 4 → 5 | Splitter / Mergerを使う2製品ライン + 自前発電 |
-| 5 → 6 | 廃工場復旧 + Advanced Assembly + Assembler自動ライン |
-| 6 → 7 | 軍事施設攻略 + Drone Control Research + Military Alloy Drone Port → Factory Storage自動回収Route |
-| Rank 7 Final Chapter | 崩壊した研究施設の3 Lab攻略 → 特殊部品回収 → 後続PhaseでCentral Core / Experimental Tier |
+崩壊した研究施設で以下を攻略します。
 
-主なResearch:
-
-- `Basic Fabrication` — 鉄板Hand Craft
-- `Scrap Yard Survey` — 廃住宅街Blueprint由来
-- `Grid Storage` — Battery
-- `Recovered Assembly Control` — Assembler / Circuit / Motor
-- `Recovered Drone Control` — Rank 6 / 軍事施設Blueprint由来 / Drone Port
-
-## Exploration / Resource Point
-
-### 廃住宅街 — Rank 3
-
-`Fuse回収 → Substation復旧 → Survey Terminal → Blueprint → 正常帰還`
-
-Resource Point:
-- `residential-copper-network`
-
-### 廃工場 — Rank 5
-
-`Generator復旧 → Control Room復旧 → Assembly Blueprint → 正常帰還`
-
-Resource Point:
-- `industrial-electronics-cache`
-
-### 軍事施設 — Rank 6
-
-`Security Access Card → Security Grid停止 → Drone Control Bay再起動 → Drone Control Blueprint → 正常帰還`
-
-- Expedition HP: 100
-- Security Grid稼働中はTurret警戒区画でDamage
-- Access Card取得後にTurret電源を停止できる非戦闘Routeあり
-- HP 0 / AbandonではCurrent Session Lootのみ失う
-
-Guaranteed reward:
-- `military_drone_control_blueprint`
-- Research Data +3
-- `military-alloy-cache`
-
-### 崩壊した研究施設 — Rank 7 / Phase 6-A
-
-```text
-Central Atrium
-→ Access Relay復旧
-→ Robotics Lab
-→ Materials Lab
-→ Energy Lab
-→ Special Cargo 3種を回収
-→ Factoryへ正常帰還
-```
-
-3 LabはAccess Relay復旧後、任意順で攻略できます。
+- Robotics Lab
+- Materials Lab
+- Energy Lab
 
 Special Cargo:
-- Robotics Lab → `AI制御コア試作機`
-- Materials Lab → `実験合金サンプル`
-- Energy Lab → `高密度Energy Cell試作機`
 
-重要Contract:
-- Lab復旧状態は永続
-- Special Cargoは正常帰還するまで未確定
-- Abandon / HP 0では今回運搬分を失う
-- ただし復旧済みLabから次回必ず再回収可能
-- 正常帰還したCargoだけFactory側の`securedComponents`へ確定
-- Central CoreはPhase 6-Aでは未解放
-- Research Facility全体の`completed`はまだ`false`
+- AI制御コア試作機
+- 実験合金サンプル
+- 高密度Energy Cell試作機
 
-Transport Terminalでは3 Cargo確保後に `LABS SECURED / Central Coreは次Phase` と表示します。
+Lab復旧は永続化されます。Special Cargoは正常帰還でFactoryへ確保され、Abandon / HP 0で未確定分を失っても復旧済みLabから再回収できます。
 
-## Drone Automation / Automation Console
+### 2. Tri-Lab Fabrication
 
-`drone_control_systems` Research完了後、**Drone Port**を建築できます。
+Special Cargo 3/3をFactoryへ確保すると `実験部品製造技術` Researchへ進めます。
 
-攻略済みResource PointだけをAutomation ConsoleからPortごとに選択できます。
+Phase 6-Aですでに3/3確保済みのSaveも再探索不要でResearch可能です。
 
-| Resource Point | Output | Cycle | 目安能力 | Danger |
-| --- | --- | ---: | ---: | ---: |
-| 住宅街 銅配線網 | Copper Wire ×1 | 8s | 7.5/min | 1 |
-| 廃工場 電子部品庫 | E-Waste ×1 | 10s | 6/min | 2 |
-| 軍事施設 合金備蓄庫 | Rare Alloy ×1 | 12s | 5/min | 3 |
+Research完了で **Fabricator** を解放します。
 
-Drone Port:
-- 65 Power
-- Directional Logistics / Back Pressureを既存Runtimeから再利用
-- Route変更では既存Output Bufferを消さない
-- 途中Cycleのみリセット
-- 旧SaveのRoute未指定Portは従来どおりMilitary Alloy RouteへFallback
+### 3. Fabricator
 
-現在のAutomation Consoleは保存競合を避けるため、Route変更またはStorage Upgradeを適用するとFactoryを再読込します。
+FabricatorはAssemblerの単純高速版ではなく、Rank 7 Experimental Tier専用設備です。
 
-Rank 6 → 7の必須条件は従来どおり **Military Alloy Resource Pointを使うDrone Route** が必要です。Copper / E-Waste Routeだけでは代替できません。
+```text
+制御ユニット ×2
++ 軍用レア合金 ×3
++ 制御回路 ×2
++ 鉄板 ×2
+↓ 20秒 / 110 Power
+AI制御モジュール ×1
++ 実験フレーム ×1
++ 実験電力モジュール ×1
+```
+
+- Cost: `$1250`
+- Rank 7
+- `experimental_fabrication` Research必須
+- 既存Generic Production / Power / Buffer / Directional Logisticsを再利用
+- Fabricator専用の別Simulationは作っていません
+
+### 4. Central Core
+
+Central Coreは探索だけでは解放できません。
+
+必須:
+
+- Three Labs復旧
+- Special Cargo 3/3 Factory確保
+- AI制御モジュール ×1
+- 実験フレーム ×1
+- 実験電力モジュール ×1
+
+3部品はGate解放成功時に**Atomicに1個ずつ消費**します。不足時に一部だけ消えることはありません。
+
+```text
+Experimental部品Install
+→ Central Core開放
+→ Core Stabilizer復旧
+→ Experimental Archive回収
+```
+
+Archive回収でResearch FacilityのMain Objectiveが完了し、`central_core_experimental_blueprint` と Research Data +4を保証します。
+
+### 5. Experimental Technology
+
+Central Core攻略後、FactoryのResearch画面で `実験技術統合` をResearchできます。
+
+これはFinal Experimental Tierへの入口です。Phase 6-B時点ではAdvanced Drone / Experimental Power / Autonomous Industrial Coreそのものはまだ実装していません。
+
+## Exploration
+
+| Area | Rank | Main Role |
+| --- | ---: | --- |
+| 廃住宅街 | 3 | 銅 / プラスチック / Resource Point |
+| 廃工場 | 5 | Advanced Assembly / Industrial tech |
+| 軍事施設 | 6 | Drone Control / Rare Alloy / HP threat |
+| 崩壊した研究施設 | 7 | Three Labs / Fabricator parts / Central Core |
+
+探索共通Contract:
+
+- 通常Lootは正常帰還まで未確定
+- Abandon / HP 0ではCurrent Session Lootを失う
+- 永続Objective / Zone / Shortcutは保持
+- 進行必須報酬を低確率Dropへ依存させない
 
 ## Directional Logistics
 
@@ -161,132 +146,83 @@ Rank 6 → 7の必須条件は従来どおり **Military Alloy Resource Pointを
 | Conveyor Mk.1 | 1 | 1.5/s | Forward |
 | Conveyor Mk.2 | 4 | 3.0/s | Forward |
 | Conveyor Mk.3 | 6 | 6.0/s | Forward |
-| Splitter | 4 | 3.0/s | Forward / Left / RightをRound-robin |
+| Splitter | 4 | 3.0/s | Forward / Left / Right Round-robin |
 | Merger | 4 | 3.0/s | Rear / Left / Right → Forward |
-| Smart Sorter | 5 | 3.0/s | Item category別の固定Lane |
-| Priority Splitter | 6 | 6.0/s | Forwardを最優先。詰まり時のみ左右Backup |
-| Overflow Splitter | 6 | 6.0/s | Forward Main。受入不可時のみRight Overflow |
+| Smart Sorter | 5 | 3.0/s | category固定Lane |
+| Priority Splitter | 6 | 6.0/s | Forward優先 / backup |
+| Overflow Splitter | 6 | 6.0/s | Forward Main / Right Overflow |
 
-Smart Sorter:
+Visual ArrowとRuntime方向は同じContractを使います。
 
-```text
-advanced            → Forward
-processed / product → Left
-raw                 → Right
-```
+## Drone Automation
 
-Priority / Overflowの優先度はFactory topologyから毎回導出し、Saveへ重複保存しません。
+攻略済みResource PointをDrone Portごとに選択できます。
 
-### Overflow販売Line例
+| Resource Point | Output | Cycle |
+| --- | --- | ---: |
+| Residential Copper Network | Copper Wire ×1 | 8s |
+| Industrial Electronics Cache | E-Waste ×1 | 10s |
+| Military Alloy Cache | Rare Alloy ×1 | 12s |
 
-```text
-Production
-→ Overflow Splitter
-├─ Forward → Industrial Storage / Logistics Warehouse
-└─ Right   → Seller
-```
-
-Storageに空きがある間はSellerへ流れず、Storageが受け取れなくなった時だけ余剰をSellerへ送ります。
+Rank 6 → 7 Mandatoryは引き続きMilitary Alloy Routeを要求します。
 
 ## Power / Storage
 
-PowerはRank 4から有効。
-
-### Power
+Power:
 
 - Starter Grid — 55 Power
-- Scrap Generator — 80 Power / 鉄くず1個・24秒
-- **Industrial Generator — 180 Power / 鉄くず1個・24秒 / Rank 6**
+- Scrap Generator — 80 Power
+- Industrial Generator — 180 Power
 - Battery — 960 Energy
-- Crusher — 18 Power
-- Smelter — 30 Power
-- Assembler — 50 Power
-- Drone Port — 65 Power
+- Fabricator — 110 Power use
 
-Industrial Generatorは既存Generator Runtimeを共通化して利用し、別Simulationを作りません。
+Storage:
 
-### Storage
+- Small Storage — 120
+- Industrial Storage — 600
+- Logistics Warehouse — 1800
+- Storage Full時はBack PressureでItem lossを防止
 
-- Small Storage — 120個
-- Industrial Storage — 600個
-- **Logistics Warehouse — 1800個 / Rank 6**
-- 満杯時はBack Pressureで上流を停止し、Itemを消失させない
-
-Automation ConsoleからIndustrial StorageをLogistics Warehouseへその場Upgradeできます。
-
-Upgrade時に維持:
-- Building ID
-- x / z / rotation
-- input / output Buffer
-- 既存Item
-
-Upgrade costは `$380`（Warehouse $620 − Industrial Storage $240）。
-
-## Factory Management / Diagnostics
-
-`P / FACTORY`:
-
-- 理論生産能力 / 分
-- 搬送対応能力 / 分
-- Machine稼働率
-- Smart Sorter数
-- Output滞留
-- Storage満杯 / 容量逼迫
-- Power shortage
-- 物流行き止まり
-
-診断値はDerived Dataで、Saveへ重複保存しません。
-
-## Save / Compatibility Contract
+## Save / Compatibility
 
 ```text
 localStorage key: elitemay-game-hub-v1
 Root Save Schema: 1
+Game Schema: 1
 Progression Schema: 1
 Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-AでもSchema番号は変更していません。
+Phase 6-BでもSchema番号は変更していません。
 
-Phase 5-C additive field:
-- Drone Port `resourcePointId`
+Additive state:
 
-Phase 6-A additive exploration state:
-- `areas.research`
-- `areas.research.objective.*`
-- `areas.research.securedComponents[]`
-- `activeSession.researchCargo[]`
+```text
+areas.research.centralCore
+├─ fabricationSetInstalled
+├─ stabilizerOnline
+├─ archiveRecovered
+└─ rewardClaimed
+```
 
-旧SaveではResearch AreaとResearch Cargoを空状態でNormalizeします。
-
-維持するContract:
-- 既存Factory Layoutを削除しない
-- 2.5m Grid / Factory座標系を維持
-- Directional LogisticsのVisual = Runtime方向
-- Quick Build 1〜5の順序を維持
-- Route graph / Throughput / Priority / DiagnosticsをSaveへ重複保存しない
-- Resource Point性能はCode definitionを正本としSaveへ複製しない
-- Storage Back PressureでItemを消失させない
-- 旧Residential / Industrial / Military探索進行を維持
-- GitHub Pages Relative Pathを維持
+既存Factory Layout / Rank 1→7 / Phase 6-A Three-Lab progress / Drone routes / Power / Storageを維持します。
 
 ## 操作
 
-| キー / UI | 操作 |
+| Key / UI | 操作 |
 | --- | --- |
 | WASD | 移動 |
 | Shift | ダッシュ |
-| Space | ジャンプ（Factory） |
-| E | 拾う / 設備・探索Objective操作 |
-| B | 建築メニュー |
-| R | 建築中の90°回転 |
-| F | 解体モード |
+| E | 拾う / 設備 / 探索Objective操作 |
+| B | 建築 |
+| R | 建築中90°回転 |
+| F | 解体 |
 | Tab | Inventory / Hand Craft |
 | O | Guide |
 | P | Factory Management |
 | T | Transport Terminal |
-| AUTOMATION | Drone Route / Storage Upgrade管理 |
+| AUTOMATION | Drone Route / Storage Upgrade |
 | 1〜5 | 基本設備Quick Build |
 | Esc | Pause / Panelを閉じる |
 
@@ -296,20 +232,19 @@ Phase 6-A additive exploration state:
 npm run validate
 ```
 
-ValidatorはRank 1→7と既存Regressionに加え、Phase 6-Aで次を確認します。
+既存のRank 1→7 / Logistics / Factory Management / Power / Storage / 3探索エリア / Military / Drone / Phase 6-A Regressionに加え、Phase 6-Bで次を確認します。
 
-- Research Facility Rank 7 Gate
-- Exploration Schema v1で旧SaveからResearch Areaを補完
-- Access Relay → 3 Labの依存関係
-- 3 Lab完了後もMain Clear / Research Facility全体を完了扱いにしない
-- Central CoreはPhase Lock
-- Special CargoはAbandonで失う
-- Lab復旧状態はAbandon後も保持
-- Lost Cargoは復旧済みLabから再回収可能
-- 正常帰還でSpecial Cargoを`securedComponents`へ確定
-- 確定済みCargoの重複取得防止
-- 通常Lootは既存Transport Depot Contractを維持
-- Research HTML / CSS / JS Runtime marker
-- 既存Residential / Industrial / Military / Phase 1〜5 Regression
+- Fabricator Rank / Research Gate
+- 4入力以内のExperimental batch recipe
+- 3種類のFinal Component output
+- Phase 6-A既存3/3 Cargo Save互換
+- Final Component countでMachine input queueを除外
+- Central Core部品Atomic consume
+- Central Gate → Stabilizer → Archive dependency
+- Central reward idempotence
+- Experimental Technology Research
+- Exploration Schema v1維持
+- Quick Build 1〜5維持
+- Research Facility current runtime / Fabricator visual marker
 
-Static CIだけでは、Research FacilityのPointer Lock、Lab導線、Hazard強度、3D空間の一人称可読性、Collider、WebGL FPSまでは保証しません。
+Static CIでは実ブラウザPointer Lock、Central Coreへの実到達性、Collider、Fabricatorの一人称Scale / Build Preview、Hazard体感、WebGL FPSまでは保証しません。

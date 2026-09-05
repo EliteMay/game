@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1215">
-  <meta name="description" content="Scrap FactoryのRank 7崩壊研究施設。Robotics、Materials、Energy Labを復旧してExperimental Tierの特殊部品を回収する。">
+  <meta name="description" content="Scrap FactoryのRank 7崩壊研究施設。3 Labの技術をFactoryへ持ち帰り、Experimental部品でCentral Coreを復旧する最終章エリア。">
   <title>崩壊した研究施設 | Scrap Factory</title>
   <link rel="stylesheet" href="./residential.css">
   <link rel="stylesheet" href="./research.css">
@@ -25,7 +25,7 @@
         <p>EXPEDITION AREA 04 / FINAL CHAPTER</p>
         <h1>崩壊した研究施設</h1>
         <strong>RUINED RESEARCH FACILITY / DANGER 4</strong>
-        <span>Access Relay復旧 → Robotics / Materials / Energy Lab攻略 → 特殊部品を正常帰還</span>
+        <span>3 Lab技術確保 → FactoryでExperimental部品製造 → Central Core復旧 → Archive回収</span>
         <div class="expedition-controls"><kbd>WASD</kbd> 移動　<kbd>Shift</kbd> ダッシュ　<kbd>E</kbd> 操作　<kbd>Esc</kbd> メニュー</div>
         <button id="enter-expedition" type="button">研究施設へ入る</button>
         <small id="boot-message">EXPEDITION SESSION LOADED</small>
@@ -41,9 +41,9 @@
       </div>
 
       <aside class="exploration-objective research-objective">
-        <span>FINAL CHAPTER / PHASE 6-A</span>
+        <span>FINAL CHAPTER / PHASE 6-B</span>
         <h2 id="objective-title">中央Access Relayを復旧</h2>
-        <p id="objective-body">Atriumの電源Relayを起動し、3つの研究LabへAccessできる状態にする。</p>
+        <p id="objective-body">3 Labの技術を確保し、Factoryで製造したExperimental部品からCentral Coreを復旧する。</p>
         <div class="objective-steps" id="objective-steps"></div>
       </aside>
 
@@ -51,10 +51,10 @@
         <span>EXPEDITION LOOT / SPECIAL CARGO</span>
         <div id="session-loot-list">未回収</div>
         <div id="special-cargo-list" class="special-cargo-list">特殊部品 未回収</div>
-        <small>特殊部品は正常帰還でFactory側へ確定。放棄・HP 0では今回運搬分を失います。</small>
+        <small>Special Cargoは正常帰還でFactory側へ確定。通常Lootも正常帰還まで未確定です。</small>
       </aside>
 
-      <div class="research-hazard-note"><span>FACILITY HAZARD</span><strong id="hazard-note">Lab内部の電気・熱・機械Hazardに注意。中央Relay復旧後に各Labを攻略できます。</strong></div>
+      <div class="research-hazard-note"><span>FACILITY HAZARD</span><strong id="hazard-note">LabとCentral Core内部の電気・熱・機械Hazardに注意してください。</strong></div>
       <div class="crosshair" aria-hidden="true"></div>
       <div id="exploration-prompt" class="exploration-prompt" hidden></div>
       <div id="exploration-toast" class="exploration-toast" aria-live="polite"></div>
@@ -67,11 +67,11 @@
         <button id="resume-expedition" type="button">探索に戻る</button>
         <a href="../../../index.html">Game Hubへ戻る（Session保持）</a>
         <button id="abandon-expedition" class="danger" type="button">探索を放棄してFactoryへ戻る</button>
-        <small>放棄またはHP 0では今回の通常Lootと未確定Special Cargoを失います。復旧済みLab・区画発見は保持されます。</small>
+        <small>放棄またはHP 0では今回の通常Lootと未確定Special Cargoを失います。Lab復旧・Central Core復旧など永続Objectiveは保持されます。</small>
       </div>
     </section>
   </main>
 
-  <script type="module" src="./research.js"></script>
+  <script type="module" src="./research-phase6b.js"></script>
 </body>
 </html>

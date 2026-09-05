@@ -71,8 +71,8 @@ function gameAt(rank = 7) {
   assert.equal(advanceResearchObjective(game, 'materials').changed, true);
   assert.equal(advanceResearchObjective(game, 'energy').changed, true);
   assert.equal(game.exploration.areas.research.objective.labsCompleted, true, 'all three Lab recovery flags should complete the Phase 6-A lab objective');
-  assert.equal(game.exploration.areas.research.objective.completed, false, 'Phase 6-A must not mark the whole research facility or Main Clear complete');
-  assert.equal(advanceResearchObjective(game, 'central').reason, 'phase-locked', 'Central Core remains a later Phase');
+  assert.equal(game.exploration.areas.research.objective.completed, false, 'Lab recovery alone must not mark the whole research facility or Main Clear complete');
+  assert.equal(advanceResearchObjective(game, 'central').reason, 'needs-cargo', 'Central Core must now wait for normal-return Special Cargo security');
 
   for (const component of Object.values(RESEARCH_COMPONENTS)) {
     const collected = collectResearchCargo(game, component.id);
@@ -109,7 +109,7 @@ function gameAt(rank = 7) {
   const summary = researchProgressSummary(game);
   assert.equal(summary.labsCompleted, true);
   assert.equal(summary.securedComponents, 3);
-  assert.equal(summary.completed, false, 'Central Core / Main Clear are intentionally outside Phase 6-A');
+  assert.equal(summary.completed, false, 'Central Core completion remains separate from the Three-Lab milestone');
 
   startExpedition(game, RESEARCH_AREA_ID);
   for (const component of Object.values(RESEARCH_COMPONENTS)) {
@@ -137,14 +137,14 @@ function gameAt(rank = 7) {
 
 {
   const researchHtml = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research.html'), 'utf8');
-  const researchJs = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research.js'), 'utf8');
+  const researchJs = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research-phase6b.js'), 'utf8');
   const explorationEntrypoint = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration.js'), 'utf8');
-  assert.match(researchHtml, /src="\.\/research\.js"/, 'research scene must load its runtime');
-  assert.match(researchHtml, /href="\.\/research\.css"/, 'research scene must load its dedicated visual layer');
+  assert.match(researchHtml, /src="\.\/research-phase6b\.js"/, 'research scene must load its current runtime');
+  assert.match(researchHtml, /href="\.\/research\.css"/, 'research scene must keep its dedicated visual layer');
   for (const marker of ['RESEARCH_AREA_ID', 'advanceResearchObjective', 'collectResearchCargo', 'returnFromExpedition', 'abandonExpedition']) {
     assert.ok(researchJs.includes(marker), `research runtime missing core integration marker: ${marker}`);
   }
-  assert.ok(explorationEntrypoint.includes('exploration-core-v4.js'), 'exploration compatibility entrypoint must use the Phase 6-A core');
+  assert.ok(explorationEntrypoint.includes('exploration-core-v5.js'), 'exploration compatibility entrypoint must use the current final-chapter core');
 }
 
-console.log('Phase 6-A research facility tests passed.');
+console.log('Phase 6-A research facility regression tests passed.');
