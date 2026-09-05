@@ -1,4 +1,5 @@
 import { BUILDINGS, ITEMS } from './config.js';
+import { droneResourcePointForPort } from './drone-routes.js';
 import { findDirectionalRoutes } from './logistics.js';
 import * as core from './progression-core.js';
 import * as phase4b from './progression-phase4b.js';
@@ -56,7 +57,7 @@ export function isBuildingUnlocked(game, type) {
 export function analyzeRank6DroneLine(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
   const ports = buildings.filter((building) => building.type === 'drone_port');
-  const targets = buildings.filter((building) => ['storage', 'industrial_storage'].includes(building.type));
+  const targets = buildings.filter((building) => ['storage', 'industrial_storage', 'logistics_warehouse'].includes(building.type));
   const military = game?.exploration?.areas?.military || {};
   const resourcePointSecured = Array.isArray(military.resourcePoints)
     && military.resourcePoints.includes('military-alloy-cache');
@@ -64,6 +65,8 @@ export function analyzeRank6DroneLine(game) {
 
   if (resourcePointSecured) {
     for (const port of ports) {
+      const point = droneResourcePointForPort(game, port);
+      if (point?.id !== 'military-alloy-cache' || point.itemId !== 'rare_alloy') continue;
       for (const target of targets) {
         for (const route of findDirectionalRoutes(buildings, port, 'rare_alloy', acceptsItem, target.id)) {
           const candidate = {
