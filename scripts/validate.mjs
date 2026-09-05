@@ -23,6 +23,7 @@ const required = [
   'games/scrap-factory/exploration.js',
   'games/scrap-factory/exploration-core.js',
   'games/scrap-factory/exploration-core-v3.js',
+  'games/scrap-factory/exploration-core-v4.js',
   'games/scrap-factory/exploration-ui.js',
   'games/scrap-factory/exploration-ui-v2.js',
   'games/scrap-factory/factory-management.js',
@@ -50,6 +51,9 @@ const required = [
   'games/scrap-factory/exploration/military.html',
   'games/scrap-factory/exploration/military.css',
   'games/scrap-factory/exploration/military.js',
+  'games/scrap-factory/exploration/research.html',
+  'games/scrap-factory/exploration/research.css',
+  'games/scrap-factory/exploration/research.js',
   'scripts/logistics.test.mjs',
   'scripts/factory-management.test.mjs',
   'scripts/progression.test.mjs',
@@ -62,6 +66,7 @@ const required = [
   'scripts/phase5a.test.mjs',
   'scripts/phase5b.test.mjs',
   'scripts/phase5c.test.mjs',
+  'scripts/phase6a.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -106,6 +111,7 @@ for (const [name, script] of [
   ['Phase 5-A drone progression', 'scripts/phase5a.test.mjs'],
   ['Phase 5-B priority overflow logistics', 'scripts/phase5b.test.mjs'],
   ['Phase 5-C automation power warehouse', 'scripts/phase5c.test.mjs'],
+  ['Phase 6-A research facility', 'scripts/phase6a.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -121,6 +127,7 @@ const htmlFiles = [
   'games/scrap-factory/exploration/residential.html',
   'games/scrap-factory/exploration/industrial.html',
   'games/scrap-factory/exploration/military.html',
+  'games/scrap-factory/exploration/research.html',
 ];
 for (const relative of htmlFiles) {
   const full = path.join(root, relative);
@@ -172,6 +179,14 @@ const militaryRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exp
 for (const marker of ['MILITARY_AREA_ID', 'advanceMilitaryObjective', 'updateExplorationHealth', 'returnFromExpedition', 'abandonExpedition']) {
   if (!militaryRuntime.includes(marker)) failures.push(`Military exploration runtime missing core integration: ${marker}`);
 }
+
+const researchRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/research.js'), 'utf8');
+for (const marker of ['RESEARCH_AREA_ID', 'advanceResearchObjective', 'collectResearchCargo', 'updateExplorationHealth', 'returnFromExpedition', 'abandonExpedition']) {
+  if (!researchRuntime.includes(marker)) failures.push(`Phase 6-A research exploration runtime missing core integration: ${marker}`);
+}
+
+const explorationEntrypoint = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration.js'), 'utf8');
+if (!explorationEntrypoint.includes('exploration-core-v4.js')) failures.push('Exploration compatibility entrypoint must route through exploration-core-v4.js');
 
 const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
 for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'tickPowerStorage', 'storageRemaining', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
@@ -251,4 +266,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A + Phase 5-B + Phase 5-C tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + research + Phase 4-B + Phase 5-A + Phase 5-B + Phase 5-C + Phase 6-A tests.`);
