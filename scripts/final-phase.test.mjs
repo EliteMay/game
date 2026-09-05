@@ -191,10 +191,16 @@ assert.equal(MEGA_FACTORY_STABLE_SECONDS, 180);
 {
   const html = fs.readFileSync(path.join(root, 'games/scrap-factory/index.html'), 'utf8');
   const progressionEntry = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-ui.js'), 'utf8');
+  const progressionUi = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-ui-v4.js'), 'utf8');
   const finalUi = fs.readFileSync(path.join(root, 'games/scrap-factory/final-phase-ui.js'), 'utf8');
   assert.ok(html.includes('src="./progression-ui.js"'), 'production HTML must load progression/final phase UI');
   assert.ok(progressionEntry.includes("import './final-phase-ui.js'"));
+  assert.ok(progressionUi.includes('finalPhaseStatus'), 'Progression UI must render Final Phase from the shared status analyzer');
+  assert.ok(progressionUi.includes('Mega Factory'));
+  assert.ok(progressionUi.includes('Main Clear'));
   assert.equal(finalUi.includes('MutationObserver'), false, 'Final Phase UI must not complete itself through a self-triggering MutationObserver');
+  assert.equal(finalUi.includes('patchProgressionPanel'), false, 'Final Phase UI must not patch another module-owned panel');
+  assert.equal(finalUi.includes('patchAutomationConsole'), false, 'Final Phase UI must not patch Automation Console ownership');
   for (const marker of ['MEGA FACTORY', 'MAIN CLEAR', 'PERSIST_BUCKET_SECONDS', 'advanceMegaFactoryStability']) {
     assert.ok(finalUi.includes(marker), `Final Phase UI missing ${marker}`);
   }
