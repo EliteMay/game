@@ -15,18 +15,18 @@ const before = `export function ensureHomeState(game, options = {}) {
 const after = `export function ensureHomeState(game, options = {}) {
   if (!game) return makeDefaultHomeState(options);
   const hasHome = isObject(game.home);
-  const normalized = normalizeHomeState(game.home, {
+  const runtimeReady = hasHome
+    && Number(game.home.version) === HOME_VERSION
+    && isObject(game.home.storage)
+    && isObject(game.home.secureCase)
+    && Array.isArray(game.home.upgrades)
+    && isObject(game.home.tutorial)
+    && isObject(game.home.tutorial.events);
+  if (runtimeReady) return game.home;
+  game.home = normalizeHomeState(game.home, {
     existingSave: options.existingSave ?? !hasHome,
     legacyGame: game,
   });
-  if (hasHome) {
-    for (const key of Object.keys(game.home)) {
-      if (!Object.prototype.hasOwnProperty.call(normalized, key)) delete game.home[key];
-    }
-    Object.assign(game.home, normalized);
-    return game.home;
-  }
-  game.home = normalized;
   return game.home;
 }`;
 if (!content.includes(after)) {
@@ -34,4 +34,4 @@ if (!content.includes(after)) {
   content = content.replace(before, after);
   fs.writeFileSync(target, content);
 }
-console.log('Home state normalization now preserves object identity.');
+console.log('Home state normalization now runs once at load/migration and preserves runtime references.');
