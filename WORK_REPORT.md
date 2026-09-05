@@ -460,3 +460,31 @@ Noto CJKを導入したChromium Screenshotを確認。
 - 改善後HomeはFactory設備と区別でき、入口が視認できる状態
 
 Browser Smoke用Workflowとintegration patch scriptsは検証後に削除し、PRへ恒久実装だけ残す。
+
+## 2026-09-06 — Post Clear Factory Optimization
+
+### Implemented
+
+- Main Clear後のみ解放されるFactory Optimization Objectiveを4種追加
+  - Power Headroom
+  - Buffer Reserve
+  - Logistics Backbone
+  - Redundant Automation
+- Rank 8 / 新通貨 / Main Clear再判定は追加せず、既存Power / Storage / Logistics / Final Automationを再利用
+- 現在条件はFactory stateからderiveし、達成履歴だけ `postClearOptimization` にadditive保存
+- Objective達成後にFactoryを組み替えても履歴は取り消さない
+- 4 / 4達成で `OPTIMIZATION MASTERED` を記録
+- Main Clear後HUDから専用Optimization Panelを開ける
+- `post-clear-optimization.test.mjs` を通常Validationへ追加
+
+### Preserved Contracts
+
+- Rank 1〜7 / No Rank 8
+- Main Clearは歴史的Milestoneのまま
+- Directional Logistics / 2.5m Grid / Factory Layout
+- Root / Game / Progression / Exploration Save Schema v1
+- Home / Player Upgrade / Tutorial / slot-based Backpack
+
+### Verification
+
+Implementation branchの`npm run validate`で既存RegressionとPost Clear unit/contract testsを実行する。Browser / Visual確認はFinal commitのVerification Stateへ別途記録する。

@@ -3,4 +3,5 @@
 import './phase5c-automation-ui.js';
 import './final-phase-ui.js';
 import './home-runtime.js';
+import './post-clear-optimization-ui.js';
 export * from './progression-ui-v4.js';
