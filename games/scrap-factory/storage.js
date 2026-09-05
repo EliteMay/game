@@ -19,6 +19,11 @@ const DEFAULT_FINAL_CHAPTER = Object.freeze({
 
 let runtimeRootRef = null;
 let runtimeGameRef = null;
+let resetPendingReload = false;
+
+const SCRAP_FACTORY_AUXILIARY_STORAGE_KEYS = Object.freeze([
+  'scrap-factory-management-v1',
+]);
 
 export function makeDefaultFinalChapter() {
   return { ...DEFAULT_FINAL_CHAPTER };
@@ -219,6 +224,7 @@ export function getRuntimeGame() {
 }
 
 export function saveGameSave(root, game) {
+  if (resetPendingReload) return loadRootSave();
   const nextRoot = {
     ...root,
     games: { ...root.games, 'scrap-factory': normalizeGame(game) },
@@ -243,9 +249,14 @@ export function persistRuntimeGame() {
 export function resetGameSave() {
   const root = loadRootSave();
   root.games['scrap-factory'] = makeDefaultGameSave();
+  const saved = saveRootSave(root);
   runtimeGameRef = null;
   runtimeRootRef = null;
-  return saveRootSave(root);
+  resetPendingReload = true;
+  for (const key of SCRAP_FACTORY_AUXILIARY_STORAGE_KEYS) {
+    try { localStorage.removeItem(key); } catch { /* best effort */ }
+  }
+  return saved;
 }
 
 export function exportSaveText() {
