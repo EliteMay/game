@@ -3,7 +3,7 @@ import { ITEMS, usedSlots } from './config.js';
 export const HOME_VERSION = 1;
 export const BASE_BACKPACK_SLOTS = 12;
 export const HOME_POSITION = Object.freeze({ x: -10, z: 36 });
-export const HOME_RESPAWN_POSITION = Object.freeze({ x: -12.2, y: 1.7, z: 36.8, yaw: Math.PI });
+export const HOME_RESPAWN_POSITION = Object.freeze({ x: -10.25, y: 1.7, z: 36.1, yaw: Math.PI });
 
 const BACKPACK_SLOT_BY_UPGRADE = Object.freeze({
   backpack_i: 16,

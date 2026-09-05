@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { makeDefaultExploration, abandonExpedition, canAddExplorationLoot } from '../games/scrap-factory/exploration-core-v4.js';
 import {
+  HOME_POSITION,
   HOME_RESPAWN_POSITION,
   PLAYER_UPGRADES,
   advanceHomeTutorial,
@@ -19,6 +20,22 @@ import {
   secureCaseSlotCapacity,
   visibleTutorialLibrary,
 } from '../games/scrap-factory/home-system.js';
+
+{
+  const playerRadius = 0.42;
+  const bed = {
+    minX: HOME_POSITION.x - 2.65 - 3.25 / 2,
+    maxX: HOME_POSITION.x - 2.65 + 3.25 / 2,
+    minZ: HOME_POSITION.z + 1.6 - 1.6 / 2,
+    maxZ: HOME_POSITION.z + 1.6 + 1.6 / 2,
+  };
+  const p = HOME_RESPAWN_POSITION;
+  const overlapsBed = p.x + playerRadius > bed.minX
+    && p.x - playerRadius < bed.maxX
+    && p.z + playerRadius > bed.minZ
+    && p.z - playerRadius < bed.maxZ;
+  assert.equal(overlapsBed, false, 'fresh/Home respawn must not overlap the bed collider');
+}
 
 function makeInventory(amount = 50) {
   return {
