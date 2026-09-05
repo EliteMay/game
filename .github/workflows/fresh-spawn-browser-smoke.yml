@@ -1,0 +1,77 @@
+name: Fresh Spawn Movement Smoke
+
+on:
+  push:
+    branches:
+      - fix/fresh-spawn-movement
+    paths:
+      - .github/workflows/fresh-spawn-browser-smoke.yml
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate branch
+        run: npm run validate
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.55.0 three@0.185.0
+          npx playwright install --with-deps chromium
+      - name: Localize Three.js for test checkout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('games/scrap-factory/index.html')
+          s = p.read_text()
+          s = s.replace('https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js', '/node_modules/three/build/three.module.js')
+          p.write_text(s)
+          PY
+      - name: Verify fresh spawn WASD movement
+        run: |
+          python3 -m http.server 4173 > /tmp/game-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+          const pageErrors = [];
+          page.on('pageerror', (error) => pageErrors.push(String(error)));
+
+          await page.goto('http://127.0.0.1:4173/games/scrap-factory/index.html', { waitUntil: 'networkidle' });
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.world);
+
+          const initial = await page.evaluate(() => ({
+            x: window.__scrapFactoryRuntime.world.player.x,
+            z: window.__scrapFactoryRuntime.world.player.z,
+          }));
+          assert.equal(initial.x, -10.25);
+          assert.equal(initial.z, 36.1);
+
+          await page.click('#start-game');
+          await page.waitForFunction(() => document.pointerLockElement === document.querySelector('#game-canvas'), null, { timeout: 10000 });
+
+          await page.keyboard.down('w');
+          await page.waitForTimeout(650);
+          await page.keyboard.up('w');
+          await page.waitForTimeout(100);
+
+          const moved = await page.evaluate(() => ({
+            x: window.__scrapFactoryRuntime.world.player.x,
+            z: window.__scrapFactoryRuntime.world.player.z,
+            locked: document.pointerLockElement === document.querySelector('#game-canvas'),
+          }));
+          const distance = Math.hypot(moved.x - initial.x, moved.z - initial.z);
+          assert.equal(moved.locked, true, 'pointer lock should remain active during gameplay');
+          assert.ok(distance > 1, `WASD movement should move player from fresh spawn; distance=${distance}`);
+          assert.deepEqual(pageErrors, [], 'page errors: ' + pageErrors.join('\n'));
+
+          console.log('fresh-spawn WASD smoke passed', { initial, moved, distance });
+          await browser.close();
+          NODE
