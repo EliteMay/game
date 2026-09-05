@@ -1,48 +1,98 @@
 # Specification
 
-## 1. Hub Architecture
+Updated: 2026-09-05
+
+この文書は現在実装されている `Scrap Factory` の技術仕様を記録する。将来要件は `REQUIREMENTS.md` をSource of Truthとし、この文書では未実装要件を実装済みとして扱わない。
+
+## 1. Current Playable Scope
+
+通常Gameplayは現在 **Rank 1 → 6** まで接続済み。
+
+```text
+Factory / Scrap Yard
+→ Rank 1-3 Production
+→ Residential Exploration
+→ Rank 4 Advanced Logistics / Power
+→ Rank 5
+→ Abandoned Factory Exploration
+→ Advanced Assembly Research
+→ Assembler automated line
+→ Rank 6
+```
+
+Rank 6が現在のPlayable Rank-Up cap。
+
+Phase 4全体要件のうち、現実装は **Phase 4-A vertical slice** とする。
+
+実装済み:
+
+- 廃工場独立探索Area
+- Generator復旧
+- Control Room復旧
+- Service Shortcut
+- Industrial Loot
+- Guaranteed Assembly Blueprint
+- Environment Hazard
+- Circuit / Motor / Control Unit
+- Advanced Assembly Research
+- Assembler
+- Rank 5 → 6 progression
+
+未実装で後続Phase:
+
+- Smart Sorter
+- Production StatisticsのPhase 4拡張
+- Bottleneck DetectionのPhase 4拡張
+- Priority / Overflow
+- Conveyor Mk.3
+- 軍事施設以降のRank 6+ gameplay
+
+---
+
+## 2. Runtime Architecture
 
 ```text
 Hub UI
 └─ shared save adapter
    └─ localStorage: elitemay-game-hub-v1
 
-Game: Scrap Factory / Factory Scene
-├─ config.js             : Item / Recipe / Building / Tutorial definitions
-├─ logistics.js          : Directional ports / route search / throughput / rotation pure logic
-├─ power.js              : Rank 4 power / generator / pole / battery pure logic
-├─ storage-capacity.js   : Storage capacity / remaining / transfer clamp pure logic
-├─ exploration.js        : Exploration state / session / objective / depot pure logic
-├─ exploration-ui.js     : Transport Terminal overlay / area launch / depot claim
-├─ progression.js        : Progression Rank / Research / Legacy inference pure logic
-├─ progression-ui.js     : Rank HUD / Research panel / unlock guards
-├─ storage.js            : Save parse / normalize / backup / export-import
-├─ factory-management.js : Factory analysis + browser feature entry
-├─ feature-pack.js       : Factory Management browser integration / quick-build
-├─ visual-kit.js         : Procedural texture / material / primitive helpers
-├─ industrial-art.js     : Environment art / base machine visual composition
-├─ world.js              : Factory Three.js scene / FPS movement / raycast / build placement
-├─ world-runtime.js      : Runtime visual corrections / advanced infrastructure visuals
-└─ game.js               : Economy / inventory / production / power / transport / UI controller
+Scrap Factory / Factory Scene
+├─ config.js
+├─ logistics.js
+├─ power.js
+├─ storage-capacity.js
+├─ storage.js
+├─ factory-management.js
+├─ feature-pack.js
+├─ game.js
+├─ world.js
+├─ world-runtime.js
+├─ progression.js
+│  └─ progression-core.js
+├─ progression-ui.js
+│  └─ progression-ui-v2.js
+├─ exploration.js
+│  └─ exploration-core.js
+└─ exploration-ui.js
+   └─ exploration-ui-v2.js
 
-Independent Exploration Scene
+Independent Exploration Scenes
 └─ exploration/
-   ├─ residential.html
-   ├─ residential.css
-   └─ residential.js     : Residential Three.js scene / movement / objective interactions
+   ├─ residential.html / .css / .js
+   └─ industrial.html / .css / .js
 ```
 
-Factoryと独立探索Areaは同じThree.js Sceneへ詰め込まず、別Page / Sceneとして切り替える。FactoryをBackgroundでフルロードし続けない。
+Compatibility entrypointの `progression.js` / `exploration.js` / 各UI entryは既存Import pathを維持し、拡張実装をCore/V2へ委譲する。
 
-`index.html`のImport Mapで`./world.js`を`./world-runtime.js`へ解決する。`world-runtime.js`はSave / Economy / Production contractを所有せず、Runtime visual correction、Advanced Logistics / Battery / Industrial Storage visual、Packet speed反映を担当する。
+Factoryと探索Areaは別Page / Three.js Sceneとして扱い、複数Worldを同時にフルロードしない。
 
-Progression / Exploration / Power / Logistics / Storage CapacityはDOMから分離したPure LogicをSource of Truthとし、各Browser Runtimeはその結果をUI / 3D Sceneへ適用する。
+`world-runtime.js`はVisual Layerを担当し、Save / Economy / Production logicのSource of Truthにはしない。
 
 ---
 
-## 2. Save Contract
+## 3. Save Contract
 
-Root:
+Root Save:
 
 ```json
 {
@@ -56,986 +106,310 @@ Root:
 }
 ```
 
-Scrap Factory主要Data:
+固定Contract:
 
-- `money`
-- `lifetimeRevenue`
-- `inventory`
-- `buildings[]`
-- `tutorialStep`
-- `tutorialStats`
-- `progression`
-- `exploration`
-- `player`
-- `settings`
-- `discoveredItems`
-- `playTimeSeconds`
+- localStorage key: `elitemay-game-hub-v1`
+- Root Save Schema: `1`
+- Progression Schema: `1`
+- Exploration Schema: `1`
 
-Progression Data:
+Phase 4-AではSchema番号を変更しない。
 
-```json
-{
-  "version": 1,
-  "progressionRank": 1,
-  "researchData": 0,
-  "blueprints": [],
-  "completedResearch": [],
-  "unlocks": [],
-  "legacyUnlocks": [],
-  "legacyMigrated": false,
-  "history": []
-}
-```
+旧Saveに存在しない新DataはNormalize時にAdditiveに補完する。
 
-Exploration Data:
+新Inventory key:
 
-```json
-{
-  "version": 1,
-  "areas": {
-    "residential": {
-      "discoveredZones": [],
-      "objective": {
-        "fuseRecovered": false,
-        "powerRestored": false,
-        "surveyUploaded": false,
-        "completed": false
-      },
-      "resourcePoints": [],
-      "visits": 0,
-      "successfulReturns": 0,
-      "returnedLootTotal": 0,
-      "completedAt": null,
-      "rewardClaimed": false
-    }
-  },
-  "depot": {},
-  "activeSession": null
-}
-```
+- `circuit`
+- `motor`
+- `control_unit`
 
-Active Expedition Session:
+Explorationは既存Residential stateを保持したまま `industrial` area stateを追加する。
 
-```json
-{
-  "id": "expedition-...",
-  "areaId": "residential",
-  "startedAt": "ISO-8601",
-  "loot": {},
-  "collectedLootIds": [],
-  "player": { "x": 0, "y": 1.7, "z": 15, "yaw": 0 }
-}
-```
+保存しないDerived state:
 
-Building additive fields:
+- Directional route graph
+- route throughput
+- Power generation / demand / shortage snapshot
+- Rank 5 → 6 mandatory達成cache
+- Assembler topology達成cache
 
-```json
-{
-  "powerFuelSeconds": 0,
-  "powerStored": 0,
-  "logisticsCursor": 0
-}
-```
+これらは現在の `buildings[]` / progression / exploration stateから導出する。
 
-### Exploration Persistence
+Building単位で永続化が必要なRuntime state:
 
-- `exploration.version = 1`をExploration内部Versionとして持つ。
-- Root Schema Versionは`1`のまま維持する。
-- 旧Saveに`exploration`がなければDefault stateをAdditiveに補完する。
-- Main Objective、発見区画、Resource Point、帰還統計はExpeditionを跨いで永続化する。
-- Active SessionはArea / Loot / 回収済みLoot ID / Player位置を保存する。
-- Game Hubへ戻るだけではActive Sessionを破棄しない。
-- Normal Return時だけSession LootをTransport Depotへ確定し、Sessionを終了する。
-- Abandon時はSession Lootを失うが、発見区画とMain Objective進行は保持する。
-- DepotはFactory Backpackへ収まらない正常帰還Lootを安全に保持する。
-- Main Objective報酬は`rewardClaimed`で一度だけ確定する。
-
-### Power Persistence
-
-- Generation / Demand / Coverage / Shortage / Battery charge-discharge rateはSaveへ重複保存しない。
-- Power snapshotは`buildings[]`と`progressionRank`から毎回導出する。
-- Generatorの燃焼途中だけ`building.powerFuelSeconds`へ保存する。
-- Batteryの残Energyだけ`building.powerStored`へ保存する。
-- `powerFuelSeconds` / `powerStored`がない旧Buildingは`0`へNormalizeする。
-- `storage.js`は旧Saveの`powerStored`を破壊的に容量Clampしない。
-
-### Logistics Persistence
-
-- Splitter等の安定したRoute選択位置を`building.logisticsCursor`へ保存する。
-- `logisticsCursor`がない旧Buildingは`0`へNormalizeする。
-- Route graph / Throughput / Connected PortをSaveへ複製しない。
-
-### Storage Persistence
-
-- Storage Itemは従来通り`building.output`に保持する。
-- Capacity / Remaining / Fill RatioはBuilding定義とBufferから導出する。
-- 旧Saveで現在Capacityを超えるItemが入っていても削除しない。
-- Over-capacity Storageは残容量0として扱い、新規投入だけ拒否する。
-
-### Rank 4 → 5 Derived Progress
-
-- Rank 4→5用の「物流成立」「実効帯域」「自前発電」「燃料Runway」「発電余力」はSaveへ新規Counterとして保存しない。
-- Logistics条件は現在の`buildings[]`から`findDirectionalRoutes()`で導出する。
-- Power条件は現在の`buildings[]`と`computePowerSnapshot()`から導出する。
-- Generator燃料Runwayは`powerFuelSeconds + input.metal_scrap × 24秒`から導出する。
-- Factory配置・方向・燃料状態を変えればProgression判定もその場で再評価される。
-
-### General Compatibility
-
-- Root Save Schema Versionは`1`を維持する。
-- `progressionRank`は1〜7を保存可能。通常GameplayでRank Upできるのは現在1→2→3→4→5まで。
-- Building ID / Expedition IDは表示名や配列Indexから分離する。
-- 旧Saveに`progression`がない場合はFactory使用Evidenceから最低Rank / Legacy Unlockを推定する。
-- Legacy Smelter / Storage / Iron Plate Craftの既存利用を突然Lockしない。
-- Existing AchievementはProgression Rankへ変換せず保持する。
-
-Visual Foundation V2 / Directional Logistics / Phase 1 / Phase 2 / Phase 3-A / Phase 3-BではRoot Save Schemaを変更しない。
+- `input`
+- `output`
+- `progress`
+- `rotation`
+- `powerFuelSeconds`
+- `powerStored`
+- `logisticsCursor`
 
 ---
 
-## 3. World / Scene Contract
+## 4. Factory Spatial Contract
 
-### Factory Base
-
-- 中心: `(0, 0)`
-- Build可能範囲: `x/z ±20m`
 - Grid: `2.5m`
-- Starter Hopper: `(-5, 0)`
-- Starter Seller: `(7.5, 0)`
-- Static sceneryと重なる位置はBuild PreviewをInvalidにする。
-- Chain-link visualとColliderの向きを一致させる。
-- Conveyor Mk.1 / Mk.2 / Splitter / Mergerは床置き物流設備としてPlayer collisionを持たない。
-- Battery / Industrial Storageは通常設備Colliderを維持する。
-
-### Scrap Yard
-
-- Factory Gate東側。
-- Scrapは複数種をProcedural配置。
-- 回収後22〜38秒でRespawn。
-- CollectibleはStatic Collider内を避ける。
-- Geometry最低Yを使って地面へ接地する。
-
-### Residential Block / Independent Scene
-
-- Rank 3からTransport Terminal経由で入る。
-- Factory Sceneとは別のThree.js Scene / Page。
-- Entry Pointから住宅街奥へ向いて開始する。
-- 4 Persistent Zones:
-  - `entrance`
-  - `row_houses`
-  - `garage`
-  - `substation`
-- Procedural environment:
-  - Road / curb
-  - Row houses
-  - Open garage shell
-  - Substation / fence / transformer equipment
-  - Transport pad
-  - Street lights
-  - Debris
-  - Distant residential silhouettes
-- Player movementはWASD / Shift / Pointer Lock。
-- Simple AABB collisionで主要建物・設備を通過不可にする。
-- 現PhaseではJump / Combat / HPはResidential Sceneへ導入しない。
+- Factory座標系: 既存座標を維持
+- 既存LayoutをMigrationで削除しない
+- Visual Conveyor direction = Runtime output direction
+- Quick Build 1〜5の既存順序を維持
+- Relative PathでGitHub Pagesから動作する
 
 ---
 
-## 4. Items
+## 5. Directional Logistics
 
-Raw:
+Source of Truth: `logistics.js`
 
-- 鉄くず
-- 銅線
-- 廃プラスチック
-- 電子ジャンク
+- Conveyor Mk.1: 1.5 items/sec
+- Conveyor Mk.2: 3 items/sec
+- Splitter: Rear 1 input → Forward / Left / Right outputs
+- Merger: Rear / Left / Right inputs → Forward 1 output
+- Route throughput = Route上で最も遅いLogistics Node
+- Splitter distributionはStable route order + `logisticsCursor`
+- Advanced Nodeは明示Portを厳密適用
+- Legacy Conveyor corner互換は維持
 
-Processed:
-
-- 破砕金属
-- 鉄インゴット
-
-Products:
-
-- 鉄板
-- ケーブル束
-- 工具セット
-
-Residential Main Loot:
-
-- 銅線
-- 廃プラスチック
-- 電子ジャンク
-
-探索LootはSession Packへ入り、Normal ReturnまでFactory Inventoryへ直接入れない。
+Rank判定も同じDirectional Route APIを使用し、Progression専用の別Graphを作らない。
 
 ---
 
-## 5. Production
+## 6. Power
+
+PowerはRank 4から有効。
+
+| Device | Value |
+| --- | --- |
+| Starter Grid | 55 Power / radius 17.5m |
+| Scrap Generator | 80 Power / metal scrap 1 = 24 sec |
+| Battery | 960 Energy / charge 60 / discharge 80 |
+| Crusher | 18 Power |
+| Smelter | 30 Power |
+| Assembler | 50 Power |
+
+不足時:
+
+- 給電対象Machineだけ停止
+- Input / Outputを削除しない
+- 処理途中`progress`を保持
+- LogisticsはPassiveのため停止させない
+- 復電時にMachineは自動復旧
+
+---
+
+## 7. Storage / Back Pressure
+
+- Small Storage: 120 items
+- Industrial Storage: 600 items
+- Capacity超過時に既存Itemを削除しない
+- Full Targetへ新Itemを移送しない
+- Target受入確認前にSource Outputを減らさない
+- Route候補がFullなら上流へBack Pressure
+
+---
+
+## 8. Production Definitions
+
+### Existing
 
 ```text
-鉄くず
-↓ Crusher / 2.2s
-破砕金属
-↓ Smelter / 3.0s
-鉄インゴット
-↓ Hand Craft
-鉄板 / 工具セット
+Metal Scrap
+→ Crusher / 2.2 sec
+→ Crushed Metal
+→ Smelter / 3.0 sec
+→ Iron Ingot
 ```
 
-- Machine PanelではDescription / Input / Output / Seconds / Bufferを表示する。
-- Iron Plate Hand Craftは`Basic Fabrication` Researchで解放する。
-- Rank 4以降: Crusher 18 Power / Smelter 30 Power。
-- Logistics / Storage / Sellerは現段階ではPassive Power設備。
-- Power不足中は途中Progress / Input / Outputを保持する。
-- Rank 4→5では既存加工Chainの`crushed_metal`と`iron_ingot`を別の自動搬送Outputとして成立させ、Advanced Logistics / Power運用を評価する。
-- Rank 5以降のAssembler / Advanced Production Recipeは後続Phaseで追加する。
+### Advanced Hand Craft
+
+`advanced_assembly` Research完了後:
+
+```text
+Copper Wire ×2 + E-Waste ×1 + Plastic ×1
+→ Circuit ×1
+
+Iron Ingot ×2 + Copper Wire ×2
+→ Motor ×1
+```
+
+### Assembler
+
+```text
+Motor ×1 + Circuit ×2 + Plastic ×1
+→ Assembler / 8.0 sec / 50 Power
+→ Control Unit ×1
+```
+
+Assembler:
+
+- Build cost: `$420`
+- Required Rank: 5
+- Required Research: `advanced_assembly`
+- Input accepted: `motor`, `circuit`, `plastic`
+- Output: `control_unit`
+
+Production executionは既存 `game.js` のGeneric Recipe Runtimeを利用する。
 
 ---
 
-## 6. Directional Logistics Contract
+## 9. Progression / Research
 
-### Rotation
+### Current cap
 
-- `0` → 東 `→`
-- `π/2` → 北 `↑`
-- `π` → 西 `←`
-- `3π/2` → 南 `↓`
+`PLAYABLE_MAX_RANK = 6`
 
-Visual Arrow / Markingと実際のOutput方向を一致させる。
+### Advanced Assembly Research
 
-### Conveyor Mk.1
+```text
+id: advanced_assembly
+requiredRank: 5
+researchDataCost: 2
+requiredBlueprint: abandoned_factory_assembly_blueprint
+```
 
-- ID: `conveyor`
-- Cost: `$12`
-- Throughput: 1.5 items/sec
-- Source Machineから最初に接続する場合はRear側がSource Cellへ接している必要がある。
-- Line途中ではLegacy corner互換のためSide entryを許可する。
-- OutputはForward 1 Cell。
+Unlock:
 
-### Conveyor Mk.2
+- `building:assembler`
+- `handcraft:circuit`
+- `handcraft:motor`
 
-- ID: `conveyor_mk2`
-- Rank 4
-- Cost: `$28`
-- Throughput: 3 items/sec
-- Input / Output ruleはMk.1と同じ。
+Rank 5になっただけではAssemblerをBuildできない。廃工場ObjectiveからBlueprintを回収し、Researchを完了する必要がある。
 
-### Splitter
+### Rank 5 → 6 Mandatory
 
-- ID: `splitter`
-- Rank 4
-- Cost: `$85`
-- Throughput: 最大3 items/sec
-- Input: Rear 1
-- Output: Forward / Left / Right
-- 到達可能Routeだけを候補にする。
-- `logisticsCursor`でdeterministic Round-robin。
+次をすべて満たす。
 
-### Merger
+1. 廃工場Main Objective完了
+2. `advanced_assembly` Research完了
+3. Assembler自動ライン成立
 
-- ID: `merger`
-- Rank 4
-- Cost: `$85`
-- Throughput: 最大3 items/sec
-- Input: Rear / Left / Right
-- Output: Forward 1
-- Forward側からの逆入力を許可しない。
+Assembler line判定:
 
-### Route Search
+- `hopper` / `storage` / `industrial_storage` を入力Source候補とする
+- Recipeの全入力ItemについてSource → AssemblerのDirectional Routeが必要
+- Assembler → `seller` / `storage` / `industrial_storage` の`control_unit` Directional Routeが必要
+- 実効Throughputは使用Routeの最小Throughputから導出
 
-- Source→First NodeではSource Connection ruleを適用する。
-- Mk.1 / Mk.2は途中Side entryを許可する。
-- Splitter / Mergerは途中でも明示Portを厳密適用する。
-- Output先がMachineならItem Accept判定を通す。
-- Route内同一Cell再訪を禁止する。
-- `findDirectionalRoute` / `findDirectionalRoutes`をProduction / Tutorial / Progression / Factory Analysisで共有する。
-- Rank 4→5判定もこのRoute graphをそのまま利用し、Progression専用の別Graphを作らない。
+Optional Goalsから2つ:
 
-### Throughput
+- Motor発見
+- Circuit発見
+- Industrial Storageを生産Bufferとして使用
+- Industrial Service Shortcut開通
+- Assembler route throughput 3.0 items/sec
 
-- Route実効ThroughputはRoute上Nodeの最小値。
-- `Mk.2 → Mk.1`は1.5 items/sec。
-- `game.js`はSource + Item単位のTransport Creditを`delta × throughput`で積算する。
-- 1 frame Burstへ上限を持つ。
-- Packet Animation speedもRoute tierへ合わせる。
-- 現Phaseでは物理的Belt occupancy / per-segment queueを持たない。
-
-### Editing
-
-- Build中`R`で90°回転。
-- 設置済みLogistics Nodeを`E`で設定。
-- Rotate / Reverse後は`logisticsCursor = 0`。
-- Runtime MeshもReloadなしで回転する。
-- Automation判定も再計算する。
-
-### Quick Build Compatibility
-
-1. Crusher
-2. Smelter
-3. Conveyor Mk.1
-4. Small Storage
-5. Seller
-
-Advanced設備追加後もこの順序を変えない。
+Rank 6到達後はPhase cap。
 
 ---
 
-## 7. Storage / Back Pressure Contract
+## 10. Exploration Contract
 
-### Small Storage
+### Shared
 
-- ID: `storage`
-- Rank 2
-- Cost: `$60`
-- Capacity: 120 items
-- Itemは`output` Bufferへ保持する。
+- Factory InventoryとExpedition Session Packを分離
+- Session Pack: 12 slots
+- Normal ReturnまでLootをFactory Inventoryへ確定しない
+- Normal Return → Transport Depot
+- Abandon → Current Session Lootだけ失う
+- Discovered Zones / Main Objective progressは保持
+- Mandatory Blueprint rewardはRandom Dropにしない
+- Rewardは`rewardClaimed`でidempotent
+- 同時にActive Expeditionを複数持たない
 
-### Industrial Storage
+### Residential
 
-- ID: `industrial_storage`
-- Rank 5
-- Cost: `$240`
-- Capacity: 600 items
-- Rank 4→5 Progression完了後に通常Gameplayから利用可能な大容量Buffer。
+Rank 3で解放。
 
-### Capacity Source of Truth
+Objective:
 
-`storage-capacity.js`が以下を提供する。
+```text
+Fuse → Power → Survey
+```
 
-- `storageCapacity`
-- `storageAmount`
-- `storageRemaining`
-- `storageFillRatio`
-- `storageCanReceive`
-- `storageTransferAmount`
+既存Residential behaviorをPhase 4-Aでも維持する。
 
-Game Runtime / Factory Management / Regressionは同Helperを共有する。
+### Abandoned Factory / Industrial
 
-### Manual Deposit
+Rank 5で解放。
 
-- Storageへの手動投入は残容量だけ移動する。
-- 超過分はPlayer Inventoryへ残す。
-- Full時は0個移動し、既存Itemを変更しない。
+Persistent Zones:
 
-### Automatic Transport
+- `arrival`
+- `generator_hall`
+- `assembly_floor`
+- `control_room`
 
-- Full Storageは`canReceiveItem`でFinal Target候補から外す。
-- Transfer直前にも残容量を再確認する。
-- Source OutputはTarget受入確認後にだけ減らす。
-- Splitterに別の有効Routeがあれば利用できる。
-- 有効RouteがなければSource側Itemはそのまま残る。
+Objective dependency:
 
-### Legacy Over-capacity
+```text
+Generator Restore
+→ Control Room Online
+→ Blueprint Recovery
+```
 
-- 旧SaveでSmall Storageに120個超が入っていても内容を削除しない。
-- Remainingは0。
-- 新規Inputを拒否する。
-- Playerが回収してCapacity以下になれば通常動作へ戻る。
+Service ShortcutはControl Room online後のOptional interaction。
 
----
+Completion reward:
 
-## 8. Exploration Contract
-
-### Transport Terminal
-
-Factory HUDの`T`から開く。
-
-表示:
-
-- Area Name
-- Danger
-- Main Loot
-- Main Objective
-- Recommended state
-- Discovery %
-- Resource Point state
-- Successful Return / Returned Loot
-- Transport Depot
-
-Rank 3未満はResidential Areaへ出発できない。
-
-### Expedition Session
-
-- 1つのActive Sessionだけ保持する。
-- Start時に`activeSession`を作成する。
-- Session Packは12 Slots。
-- Loot nodeはStable IDを持ち、`collectedLootIds`で同一Session中の再回収を防ぐ。
-- Session Pack容量不足ならLootを消さず回収拒否する。
-- Player位置 / YawをAutosaveする。
-- Residential Sceneは5秒ごとにAutosaveする。
-
-### Persistent Discovery
-
-- Zone discoveryはArea persistent stateへ即時反映する。
-- 同じZone発見はidempotent。
-- Abandon / Hub ExitでもZone discoveryは保持する。
-
-### Residential Main Objective
-
-順序固定:
-
-1. `fuseRecovered`
-   - West Garageで予備Fuseを回収
-2. `powerRestored`
-   - Fuse必須
-   - Substation Breakerを復旧
-3. `surveyUploaded`
-   - Power Restore必須
-   - Survey Terminalを起動
-
-完了時:
-
-- `objective.completed = true`
-- `completedAt`記録
-- Resource Point `residential-copper-network`を追加
-- Blueprint `scrap_yard_survey_blueprint`を保証付与
-- Research Data +1
-- `rewardClaimed`により重複報酬を禁止
-
-進行必須報酬をRandom Dropへしない。
-
-### Normal Return
-
-- Entry Point Transport Terminalから帰還する。
-- Current Session Lootを`exploration.depot`へ移す。
-- `successfulReturns += 1`
-- `returnedLootTotal`へ持帰り数を加算。
-- Active Sessionを終了する。
-- DepotからFactory Backpackへ空き分だけClaimする。
-
-### Hub Exit
-
-- Active Sessionを維持する。
-- 再開時は保存されたSession / Player位置 / Loot状態を再利用する。
-
-### Abandon
-
-- Current Session Lootだけ失う。
-- Active Sessionを終了する。
-- Discovered Zones / Main Objective / Resource Point / guaranteed reward stateは維持する。
-
----
-
-## 9. Interaction / Controls
-
-Factory:
-
-- Center Raycast
-- `E`: Scrap / Machine / Logistics / Generator操作
-- `B`: Build Menu
-- Build中: Left Click / `R` / Right Click / `Esc`
-- `F`: Dismantle Mode
-- `Tab`: Backpack + Hand Craft
-- `O`: Field Manual
-- `P`: Factory Management
-- `T`: Transport Terminal
-- HUD `RANK`: Progression / Research
-- `1〜5`: Fixed Quick Build
-- `Esc`: Pause / cancel
-
-Residential:
-
-- `WASD`: Move
-- `Shift`: Sprint
-- `E`: Loot / Objective / Return Terminal
-- `Esc`: Expedition Pause
-- Hub link: Session保持
-- Abandon: Current Loot喪失 + Factoryへ戻る
-
-### Dismantle Safety
-
-- Player-built設備は建築費100%返金。
-- `input` / `output` ItemもInventoryへ返却する。
-- Inventoryへ収まらない場合は撤去拒否。
-- Starter Hopper / Sellerは撤去不可。
-
----
-
-## 10. Tutorial / Initial Contract
-
-1. Scrap Yardへ移動
-2. Scrap 5個回収
-3. Baseへ戻る
-4. 累計$80売却
-5. Crusher設置
-6. Crusherで加工
-7. Hopper → Conveyor → Crusher → Conveyor → Seller
-8. 累計売上$250
-
-TutorialはGoalだけでなく操作Keyと成功条件を表示する。
-
-Rank 3以降の探索はInitial TutorialではなくTransport Terminal / Progression HUDから案内する。
-
----
-
-## 11. Visual Direction
-
-### Target
-
-- Primary Task: 一人称で回収し、拠点工場を構築し、独立Areaへ探索に出る。
-- Tone: Industrial / technical / abandoned infrastructure。
-- Steam掲載相当を長期品質目標とするが、Reference Asset / Layoutを直接コピーしない。
-
-### Transfer Principles
-
-- Satisfactory / Factorio等からTask structure / feedback / discoverabilityを参考にする。
-- Logistics directionはDecorationではなくRuntime ruleと一致させる。
-- MachineはFrame / Motor / Pipe / Guard / Sign等で用途別Silhouetteを作る。
-- EnvironmentはNear / Mid / Farで密度を作る。
-- Static Shortcut / Contextual Hint / Codex / Terminalを分離する。
-- Independent AreaはFactoryと異なるLandmark / Objective readabilityを持たせる。
-
-### Avoid
-
-- Generic glass / neon / gradient UI。
-- 大型Hero中心のLanding Page構造。
-- BoxGeometry色違いだけのMachineを完成扱いすること。
-- Visual Arrowと内部Directionの不一致。
-- Exploration objectiveがUI文だけでWorld上に対応物を持たない状態。
-
----
-
-## 12. Machine Visual Contract
-
-- Hopper: Funnel + frame + discharge
-- Seller: Terminal + screen + bollards
-- Crusher: Twin rollers + motor + chute + frame
-- Smelter: Furnace + rings + chimney + glowing door + pipe
-- Conveyor Mk.1: Belt + rollers + rails + supports + arrows
-- Conveyor Mk.2: 高速Tierと分かるRail / Marking
-- Splitter: 1 Input / 3 Outputが読める床置きNode
-- Merger: 3 Input / 1 Outputが読める床置きNode
-- Small Storage: Corrugated container + frame + door
-- Battery: Cell cabinet + terminal + visible charge gauge
-- Industrial Storage: Small Storageと区別できる大型Frame / door / marking
-- Scrap Generator / Power Pole: Core logic実装済み。専用Silhouetteは後続Visual passで改善対象
-
-Advanced Logistics / Battery / Industrial Storage visualは現時点で`world-runtime.js`の明示Runtime extensionとして追加する。
-
----
-
-## 13. Gameplay UX Contract
-
-### Shortcut Layers
-
-1. Static Shortcut Bar
-2. Contextual Build / Dismantle / Exploration Hint
-3. Re-openable Field Manual
-4. Progression HUD
-5. Factory Management Console
-6. Transport Terminal
-
-### Machine Panel
-
-- Descriptionを常時表示。
-- RecipeはInput → Output → Seconds。
-- LogisticsはPort / Direction / Throughput / Rotate / Reverse。
-- GeneratorはFuel / generation / remaining seconds。
-- Power PoleはGrid connection / coverage guidance。
-- BatteryはStored / Capacity / Charge Rate / Discharge Rate / Grid connection。
-- StorageはUsed / Capacity / Remaining / Full state。
-- Power停止中MachineはCoverage不足とGeneration不足を区別する。
-
-### Exploration UI
-
-- TerminalはArea danger / loot / objective / progressを出発前に表示。
-- Residential HUDはZone / Session Pack / District progress / Main Objectiveを表示。
-- Session LootはFactory Inventoryと区別して表示。
-- ObjectiveはFuse → Power → Surveyの現在Stepを明示する。
-- Return Terminalは「正常帰還でLoot確定」と分かる文言を表示する。
-
-### Progression UI
-
-- Rank 4ではAdvanced Logistics / Powerの現在状態をPure Progression判定へ反映する。
-- Rank 5到達後はPlayable Cap表示へ切り替え、Industrial Storageが利用可能であることを示す。
-- 次のRank 5→6が廃工場復旧 / AssemblerであることをFuture stateとして表示するが、未実装機能を利用可能とは表示しない。
-
----
-
-## 14. Dependencies
-
-Three.js `0.185.0`をjsDelivr ES Moduleとして利用する。
-
-CDN障害時は3D Factory / Exploration Sceneは起動できない。HubとSave DataはThree.jsに依存しない。
-
----
-
-## 15. Known Limits
-
-- Mobile Touch FPS操作なし（Desktop primary）。
-- 通常GameplayのRank UpはRank 1→2→3→4→5まで。
-- Rank 5→6の廃工場復旧 / Assembler / Advanced Productionは未接続。
-- Residential AreaはPhase 3-Aの探索基盤。建物内部探索の深さ、敵、Combat、HP、環境Hazardは未実装。
-- ResidentialのDanger 1は現時点で敵/HP Gameplayへ完全接続していない。
-- BatteryはStarter Grid + Pole coverageを使うが、複数独立Power Network componentはまだ持たない。
-- Power Generationは現段階では全体Pool。将来Network分離時にcomponent単位へ拡張する。
-- Rank 4→5の「安定稼働」は履歴TimerをSaveする方式ではなく、現在のPower正常状態 + 自前Generator capacity + 最低30秒Fuel Runwayで決定する。
-- ThroughputはRoute-level Credit Model。per-segment occupancy / physical queueは未実装。
-- Storage Back PressureはFinal Target受入制御で、Belt segment上の物理Queueではない。
-- Nested SplitterはSourceから到達する最終Route単位でRound-robin。各Splitter独立Queueではない。
-- Smart Sorter / Priority / Overflow / Assembler / Phase 2新Recipeは未実装。
-- BrowserでRank 4→5用の複数ライン構築操作、Progression HUD更新、Industrial Storage unlock/build、Generator燃料維持を実操作確認する必要がある。
-- BrowserでTransport Terminal / Residential movement / collision / objective reachability / return / abandon / FPSを実操作確認する必要がある。
-
----
-
-## 16. Phase 1 Progression Contract
-
-### Rank 1 → 2
-
-Mandatory:
-- Hopper → Crusher → Seller Directional Line
-
-Optionalから2つ:
-- Revenue $250
-- Scrap 10
-- Crusher processing 5
-- Crusher 2台
-- Item discovery 4
-
-Reward:
-- Smelter
-- Small Storage
-- Research Tier 2
-- Research Data +1
-
-### Rank 2 → 3
-
-Mandatory:
-- Hopper → Crusher → Smelter → Seller Iron Line
-
-Optionalから2つ:
-- Revenue $750
-- Iron Ingot discovery
-- Player-built 8
-- Crusher processing 10
-- Smelter 2台
-
-Reward:
-- Rank 3
+- `abandoned_factory_assembly_blueprint`
 - Research Data +2
-- Residential Exploration入口
+- `industrial-electronics-cache` Resource Point
 
-### Research
+Environment Hazard:
 
-- `basic_fabrication`: Rank2 / Data1 / Iron Plate Hand Craft
-- `scrap_yard_survey`: Rank3 / Data1 / Residential Main ObjectiveのBlueprint必須 / Exploration Research I
-- `grid_storage`: Rank4 / Data2 / Battery Build unlock
-
-### Unlock Guard
-
-- Smelter / Storage: Rank2
-- Residential Area: Rank3
-- Conveyor Mk.2 / Splitter / Merger / Generator / Power Pole: Rank4
-- Battery: Rank4 + `grid_storage`
-- Industrial Storage: Rank5
-- Iron Plate Hand Craft: `basic_fabrication`
-- Core `game.js`でもBuild / Craftを再検証する。
+- 青白いElectrical Arc zone
+- 接近時に安全距離へ押し戻す
+- Combat damage systemとは分離
+- Control Room復旧で一部Hazard stateを変更
 
 ---
 
-## 17. Phase 2-A Power Core Contract
+## 11. Visual Layer
 
-### Activation
+Visual directionは `REQUIREMENTS.md` のStylized Industrial Realism / Hybrid Asset方針に従う。
 
-- `progressionRank >= 4`で有効。
-- Rank1〜3はLegacy no-power。
+Phase 4-Aの最低Visual Gate:
 
-### Starter Grid
+- 廃工場をResidentialの色替えにしない
+- Generator Hall / Assembly Floor / Control Roomを大きなランドマークとして区別
+- Objective stateを照明 / 発光 / Gate visibilityへ反映
+- Hazardを通常背景から視覚的に区別
+- AssemblerはGeneric Box fallbackではなく専用Silhouetteを持つ
+- Status light / moving partは既存Machine state updateに接続
 
-- Center `(0,0)`
-- Radius 17.5m
-- Capacity 55 Power
-
-### Generator
-
-- ID `generator`
-- Rank4
-- Cost `$260`
-- Fuel: Metal Scrap 1
-- Cycle: 24 sec
-- Generation: 80 Power
-
-### Power Pole
-
-- ID `power_pole`
-- Rank4
-- Cost `$45`
-- Link Range: 12.5m
-- Consumer Coverage: 10m
-
-### Shortage / Recovery
-
-- Deterministic Priority + Building ID allocation。
-- Power停止でItem / Progressを破壊しない。
-- LogisticsはPassiveのため停電中もFuelをGeneratorへ届けられる。
+現在の廃工場 / AssemblerはProcedural実装。外部Hybrid Asset導入の最終品質Passは未完了。
 
 ---
 
-## 18. Phase 2-B Logistics Expansion Contract
-
-### Unlocks
-
-Rank4:
-- Conveyor Mk.2
-- Splitter
-- Merger
-
-### Runtime
-
-- Fixed transport intervalを廃止。
-- Frame deltaからCreditを積算。
-- Mk.1 = 1.5 items/sec。
-- Mk.2 / Splitter / Merger = 3 items/sec。
-- SplitterはStable sort + `logisticsCursor`。
-
-### Factory Management
-
-- Logistics Node count
-- Defined logistics capacity
-- Dead end alerts
-- Underused Splitter alert
-- Existing Machine output route analysis
-
-### Regression
-
-- Legacy corner
-- reverse rejection
-- Splitter ports/routes
-- Round-robin
-- Merger ports
-- Throughput tier
-- Quick Build order
-
----
-
-## 19. Phase 2-C Power Buffer & Storage Contract
-
-### Grid Storage Research
-
-- Research ID: `grid_storage`
-- Category: Power
-- Required Rank: 4
-- Cost: Research Data 2
-- Unlock: `building:battery`
-- RankだけではBatteryをBuildできない。
-
-### Grid Battery
-
-- Building ID: `battery`
-- Cost: `$220`
-- Rank: 4
-- Research: `grid_storage`
-- Capacity: 960 Energy
-- Charge Rate: max 60 Power
-- Discharge Rate: max 80 Power
-- Starter GridまたはConnected Pole coverage内のみ接続扱い。
-- BatteryはNetwork anchorにはならない。
-
-#### Charge
-
-- `baseGeneration > coveredDemand`の余剰だけを充電へ使う。
-- Charge RateとRemaining CapacityでClampする。
-- 充電に使ったPowerをFree Reserveとして二重計上しない。
-
-#### Discharge
-
-- `coveredDemand > baseGeneration`のShortfallだけを補う。
-- Discharge Rateを超えない。
-- Current frameの`delta`で維持できるStored Energyを超えて供給予定にしない。
-- BatteryだけでShortfallを埋められなければ既存deterministic allocationへShortageが残る。
-
-#### Persistence
-
-- `powerStored`だけ保存。
-- Snapshot計算は`powerStored`をmutateしない。
-- `tickPowerStorage()`だけがRuntime時間経過に応じて増減する。
-- Disconnected Batteryは充電も放電もしない。
-
-### Storage Capacity
-
-Small Storage:
-- Capacity 120
-
-Industrial Storage:
-- Rank5
-- Cost `$240`
-- Capacity 600
-
-### Back Pressure
-
-- Full StorageをRuntime Transfer Targetから除外する。
-- Transfer直前にも再確認する。
-- Source Outputを先に減らさない。
-- No RouteならSource BufferへItemを残す。
-- Manual Depositも`storageTransferAmount()`でClampする。
-
-### Factory Management
-
-`analyzeFactory()`で追加:
-
-- `storageUsed`
-- `storageCapacity`
-- `storageFull`
-- Full Storage Warning
-- Power generation / demand / reserve
-- Battery stored / capacity
-- Power coverage count
-
-### Visual
-
-Battery:
-- Cell cabinet
-- terminal details
-- visible charge gauge
-- status light
-
-Industrial Storage:
-- larger silhouette than Small Storage
-- structural frame
-- front door / safety marking
-
----
-
-## 20. Phase 3-A Residential Exploration Progression Contract
-
-### Rank 3 → 4
-
-Mandatory:
-
-- Residential Main Objective complete
-
-Optionalから2つ:
-
-- Residential 4区画中3区画発見
-- ResidentialからLootを累計10個正常帰還
-- Cable Bundleを発見 / 製作
-- Lifetime Revenue $1,200
-- Item discovery 6種類
-
-Reward:
-
-- Rank 4
-- Splitter
-- Merger
-- Conveyor Mk.2
-- Scrap Generator
-- Power Pole
-- Research Data +1
-
-### Area Unlock
-
-- Residential required Rank = 3。
-- Rank 2以下ではTransport Terminalから出発不可。
-- Rank 3ではMain Objective未完了でも自由に複数回出発できる。
-
-### Guaranteed Progression Reward
-
-Survey Terminal完了時:
-
-- `scrap_yard_survey_blueprint`
-- Research Data +1
-- Residential Copper Resource Point
-
-を保証する。
-
-同じTerminalを再操作しても報酬を増殖させない。
-
-### Regression
-
-`scripts/exploration.test.mjs`で最低限確認する。
-
-- Rank2 Area lock / Rank3 unlock
-- Exploration normalize
-- Expedition start / duplicate start
-- Zone discovery idempotence
-- Session Loot collection / duplicate prevention / capacity isolation
-- Fuse → Power → Survey dependency
-- Guaranteed Blueprint / Research Data
-- Reward idempotence
-- Normal Return → Depot
-- Return statistics
-- Rank3 mandatory + optionals → Rank4
-- Rank4 building unlocks
-- Depot → Factory Backpack
-- Abandon current Loot loss
-- Abandon後のZone / Objective persistence
-
-CIではResidential HTMLのLocal ReferenceとRuntime integration markerも検証する。
-
-Browser / Visual validationはStatic CIと別Gateとして扱う。
-
----
-
-## 21. Phase 3-B Rank 5 Production / Power Progression Contract
-
-### Rank 4 → 5
-
-Mandatory:
-
-- 同一FactoryのDirectional Route graph上で`crushed_metal`と`iron_ingot`の2種類の自動加工Outputを成立させる。
-- 対象Route群がSplitterとMergerの両方を含む。
-- Power Snapshotが正常で、給電範囲外Consumerがない。
-- Starter Gridを除外した**稼働中Generatorだけの発電量**が現在のCovered Machine Demand以上。
-- Demandを賄うGenerator群について、現在燃焼分 + 投入済みMetal Scrapから最低30秒のFuel Runwayを確保する。
-
-Optionalから2つ:
-
-- 対象複数ラインでConveyor Mk.2を使用。
-- 対象複数ラインの実効Throughputが3.0 items/sec以上。
-- `grid_storage` Research完了。
-- 自前Generator Fuel Runway 120秒以上。
-- 自前Generator Reserve 10 Power以上。
-
-Reward:
-
-- Rank 5
-- Industrial Storage
-
-### Advanced Line Analysis
-
-`analyzeRank4AdvancedLine(game)`:
-
-- `findDirectionalRoutes()`を利用する。
-- Hopper → Crusher → Final Targetで`crushed_metal` Routeを探す。
-- Hopper → Crusher → Smelter → Final Targetで`iron_ingot` Routeを探す。
-- Final TargetはSeller / Small Storage / Industrial Storage。
-- 2つのRoute bundleにSplitter / Mergerが含まれるかを判定する。
-- Mk.2利用有無とRoute minimum throughputを導出する。
-- Route graphをSaveへ複製しない。
-
-### Own Power Analysis
-
-`analyzeRank4Power(game)`:
-
-- `computePowerSnapshot()`を既存Power Source of Truthとして利用する。
-- `generatorActive()`の稼働中GeneratorだけをOwn Generationへ数える。
-- Starter Grid 55 PowerとBattery dischargeはOwn Generator capacityへ加算しない。
-- 現在のCovered DemandをOwn Generationで賄えない場合は未達。
-- Generator inputへ燃料があっても`powerFuelSeconds <= 0`ならActive Generatorとして数えない。
-- Fuel Runwayは選択されたGenerator群の最小Runwayで評価する。
-
-### Persistence
-
-- Root Schema Versionは1のまま。
-- Progression Versionは1のまま。
-- Rank 4→5専用Timer / historical uptime / cached topology / cached power statusは保存しない。
-- Rank Up結果のRank 5だけ既存`progressionRank`へ保存する。
-
-### Regression
-
-`scripts/progression.test.mjs`で最低限確認する。
-
-- `PLAYABLE_MAX_RANK = 5`
-- Splitter + Merger + Mk.2の2加工Output topology検出
-- Route throughput 3.0
-- Own Generation 80 / Demand 66 / Reserve 14
-- Fuel Runway 48秒でMandatory成立
-- Mandatory + OptionalsでRank 5到達
-- Industrial Storage unlock
-- Rank 5でphase cap
-- Mergerを外すとMandatory失敗
-- Generator停止時はInputに燃料があってもMandatory失敗
-- 既存Rank / Research / Legacy Migration Regression維持
-
-Browserでの建築操作・Progression HUD反映・Industrial Storage実BuildはStatic CIとは別Gateとして扱う。
+## 12. Validation Contract
+
+`npm run validate`
+
+Static CIで確認:
+
+- 全JS/MJS syntax
+- required files
+- JSON parse
+- local HTML refs
+- Directional Logistics regression
+- Factory Management regression
+- Rank 1 → 6 Progression regression
+- Power regression
+- Storage / Back Pressure regression
+- Residential Exploration regression
+- Industrial Exploration regression
+- required runtime integration markers
+- local-only path / API key pattern
+
+Static CIだけでは保証しない:
+
+- Pointer Lock操作感
+- WebGL FPS
+- 3D collider / visual一致
+- 廃工場の実際の到達性
+- Landmark readability
+- Hazard visibility
+- Assembler Build Preview / first-person silhouette
+
+これらはBrowser Validation対象。
