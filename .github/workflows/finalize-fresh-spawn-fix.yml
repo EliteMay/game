@@ -1,0 +1,52 @@
+name: Finalize Fresh Spawn Fix
+
+on:
+  push:
+    branches:
+      - fix/fresh-spawn-movement
+    paths:
+      - .github/workflows/finalize-fresh-spawn-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Record bug fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          work = Path('WORK_REPORT.md')
+          text = work.read_text()
+          marker = '## 2026-09-06 — Fresh Spawn Movement Fix'
+          if marker not in text:
+              text = text.rstrip() + '''\n\n## 2026-09-06 — Fresh Spawn Movement Fix\n\n- Symptom: Save初期化後のFresh StartでWASDが反応しないように見えた。\n- Root Cause: `HOME_RESPAWN_POSITION` がHome Bed colliderへ重なっており、入力は取得できていたが移動結果がcollisionで毎Frame拒否されていた。IME / 日本語入力は原因ではない。\n- Fix: Fresh/Home respawnをBed collider外の `(-10.25, 36.1)` へ移動。既存Saveの現在位置は変更しない。\n- Regression: `scripts/home-system.test.mjs` でrespawnとBed colliderの重なりを禁止。\n- Browser verification: Fresh Spawn Movement Smoke Run `33999840395` success。Pointer Lock中にWを押し、`z=36.10 -> 36.62` の実移動を確認。\n'''
+              work.write_text(text)
+
+          learn = Path('PROJECT_LEARNINGS.md')
+          text = learn.read_text()
+          marker = '## Spawn points must be validated against runtime colliders'
+          if marker not in text:
+              text = text.rstrip() + '''\n\n## Spawn points must be validated against runtime colliders\n\nPlayer spawn / respawn座標は見た目上の空き位置だけで決めず、Player radiusを含む実Runtime colliderとの重なりを検証する。Collider内から開始するとKey input自体は正常でも全Movementがcollisionで拒否され、Input Bugに見える。Fresh Start / Reset後 / Respawnは実ブラウザでPointer LockとWASD移動まで確認する。\n'''
+              learn.write_text(text)
+          PY
+      - name: Remove temporary workflows
+        run: |
+          git rm .github/workflows/fresh-spawn-browser-smoke.yml
+          git rm .github/workflows/finalize-fresh-spawn-fix.yml
+      - name: Validate clean final tree
+        run: npm run validate
+      - name: Commit final bug fix state
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add WORK_REPORT.md PROJECT_LEARNINGS.md games/scrap-factory/home-system.js scripts/home-system.test.mjs
+          git commit -m 'docs: record fresh-spawn movement fix'
+          git push
