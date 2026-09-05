@@ -1,0 +1,86 @@
+.post-clear-optimization-hud {
+  position: absolute;
+  right: 20px;
+  top: 274px;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-left: 3px solid var(--accent);
+  background: rgb(20 24 25 / 0.84);
+  color: #e7e9e2;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+}
+.post-clear-optimization-hud[hidden] { display: none; }
+.post-clear-optimization-hud:hover { border-color: rgb(255 255 255 / 0.34); background: rgb(31 36 37 / 0.94); }
+.post-clear-optimization-hud strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+.post-clear-optimization-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 42;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 28px;
+  background: rgb(11 14 15 / 0.8);
+  backdrop-filter: blur(6px);
+}
+.post-clear-optimization-panel[hidden] { display: none; }
+.post-clear-optimization-card {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 56px);
+  overflow: auto;
+  border: 1px solid #444b4c;
+  border-top: 4px solid var(--accent);
+  background: #202526;
+  box-shadow: var(--shadow);
+}
+.post-clear-optimization-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.post-clear-optimization-header h2 { margin: 0; font-size: clamp(1.7rem, 3vw, 2.5rem); letter-spacing: -0.035em; }
+.post-clear-optimization-header p:last-child { max-width: 680px; margin: 8px 0 0; color: var(--muted); font-size: 0.8rem; line-height: 1.55; }
+.post-clear-optimization-content { padding: 20px 24px 26px; }
+.optimization-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; padding: 15px 16px; border-left: 4px solid var(--accent); background: #272d2e; }
+.optimization-summary > div { display: grid; gap: 4px; min-width: 170px; }
+.optimization-summary span, .optimization-mastered span { color: var(--accent); font-size: 0.6rem; font-weight: 900; letter-spacing: 0.12em; }
+.optimization-summary strong { font-size: 1.4rem; font-variant-numeric: tabular-nums; }
+.optimization-summary p { margin: 0; color: #a7afa9; font-size: 0.74rem; line-height: 1.55; }
+.optimization-mastered { margin-top: 12px; padding: 14px 16px; border: 1px solid #55705b; background: #253027; }
+.optimization-mastered strong { display: block; margin-top: 4px; color: #a3d7aa; font-size: 1rem; }
+.optimization-mastered p { margin: 6px 0 0; color: #a9b8ab; font-size: 0.72rem; line-height: 1.5; }
+.optimization-list { display: grid; gap: 8px; margin-top: 12px; }
+.optimization-objective { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 14px; align-items: center; padding: 13px; border: 1px solid #3b4243; background: #272d2e; }
+.optimization-objective.is-complete { border-color: #526b57; background: #253027; }
+.optimization-objective__state { width: 52px; height: 52px; display: grid; place-items: center; border: 1px solid #596061; color: var(--accent); font-size: 0.7rem; font-weight: 900; }
+.optimization-objective.is-complete .optimization-objective__state { border-color: #6a8b70; color: #8fd098; }
+.optimization-objective__body { min-width: 0; display: grid; gap: 4px; }
+.optimization-objective__body strong { font-size: 0.86rem; }
+.optimization-objective__body span { color: #a4aca6; font-size: 0.72rem; line-height: 1.45; }
+.optimization-objective__body small { color: #8f9791; font-size: 0.66rem; }
+.optimization-history { color: #8fc397 !important; }
+.optimization-progress { height: 3px; margin: 3px 0 1px; background: #42494a; }
+.optimization-progress i { display: block; height: 100%; background: var(--accent); }
+
+@media (max-width: 620px) {
+  .post-clear-optimization-hud { display: none; }
+  .post-clear-optimization-panel { padding: 10px; }
+  .post-clear-optimization-card { max-height: calc(100vh - 20px); }
+  .post-clear-optimization-header, .post-clear-optimization-content { padding-left: 14px; padding-right: 14px; }
+  .optimization-summary { grid-template-columns: 1fr; gap: 8px; }
+  .optimization-objective { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
+  .optimization-objective__state { width: 44px; height: 44px; font-size: 0.62rem; }
+}

@@ -37,7 +37,7 @@ Factory / Scrap Yard
 → same SaveでFactory Optimization継続
 ```
 
-現在は **Final Phase: Mega Factory Stability / Main Clear** まで実装済み。
+現在は **Final Phase: Mega Factory Stability / Main Clear** に加え、**Post Clear: Factory Optimization Objectives** まで実装済み。
 
 `REQUIREMENTS.md` の Rank 7 → Main Clear 手順8「最終製品の完全自動Line」、手順9「Mega Factoryを一定時間安定稼働」、手順10「Main Clear」を通常Gameplayへ接続している。
 
@@ -57,6 +57,8 @@ Scrap Factory
 ├─ final-automation.js
 ├─ final-phase.js
 ├─ final-phase-ui.js
+├─ post-clear-optimization.js
+├─ post-clear-optimization-ui.js
 ├─ production-recipes.js
 ├─ logistics.js
 ├─ power.js
@@ -484,6 +486,17 @@ Main Clearは歴史的Milestone。
 - Clear後はOptimization継続可能と表示
 
 Final Phase UIは1秒pollingで更新し、self-triggering `MutationObserver` を使わない。
+
+### Post Clear Factory Optimization
+
+Main Clear後はRank 8を追加せず、同じSaveで次の任意目標を追跡する。
+
+- Power Headroom: Power状態OK + 240以上のreserve
+- Buffer Reserve: Factory Storage 3600容量 + 1800以上の空き
+- Logistics Backbone: Conveyor Mk.3 18基 + Priority/Overflow 4基 + Logistics Warehouse 2基
+- Redundant Automation: Final Automation維持 + Experimental Power 2基 + Advanced Drone Port 6基
+
+現在条件は既存Factory stateからderiveし、二重のFactory snapshotは保存しない。達成済みObjective ID / timestamp / Mastered timestampだけを `postClearOptimization` へadditive保存する。Save Schemaはv1維持。
 
 ---
 

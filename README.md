@@ -19,7 +19,7 @@
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Final Phase: Mega Factory Stability / Main Clear** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Post Clear: Factory Optimization Objectives** まで通常Gameplayへ接続しています。
 
 通常のRank Upは **Rank 1 → 7**。Rank 7からFinal Chapterへ入り、Rank 8は追加しません。
 
@@ -50,6 +50,9 @@ Factory / Scrap Yard
 → 最終製品をStorageまで完全自動化
 → Mega Factoryを180秒連続安定稼働
 → MAIN CLEAR
+→ KでFactory Optimization
+→ Post Clear Objectives 4種
+→ OPTIMIZATION MASTERED
 → 同じSaveでFactory Optimization継続
 ```
 
@@ -57,9 +60,20 @@ Factory / Scrap Yard
 
 Main Clear後も同じSaveで工場を拡張・最適化できます。
 
+## Post Clear Factory Optimization
+
+Main Clear確認後は **K** でFactory Optimization Panelを開けます。Rank 8や新通貨は追加しません。
+
+- **POWER HEADROOM** — Power状態OK + 240以上の余力
+- **BUFFER RESERVE** — Factory Storage 3,600容量 + 1,800以上の空き
+- **LOGISTICS BACKBONE** — Conveyor Mk.3 18基 + Priority/Overflow 4基 + Logistics Warehouse 2基
+- **REDUNDANT AUTOMATION** — Final Automation維持 + Experimental Power 2基 + Advanced Drone Port 6基
+
+4 / 4達成で `OPTIMIZATION MASTERED` を履歴保存します。達成後にFactoryを組み替えても達成履歴は失われません。
+
 残っている主要作業:
 
-1. Clear後Optimization / Challengeの拡張
+1. Factory Optimization / Challengeのlong-term content追加
 2. final Hybrid Asset / Lighting / VFX / LOD quality pass
 3. Mega FactoryのBrowser / Performance / Visual / Balance検証
 

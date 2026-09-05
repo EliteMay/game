@@ -544,3 +544,17 @@ result: success
 - Optional Player UpgradeはMain Progressionと別状態に置き、取得判定をRank/Main Clear条件へ混ぜない。
 - Secure Caseのような保護機能は「何を保護できないか」を先に固定し、Main Objective CargoやFinal progression itemを自動保護しない。
 - System Diagnosticsは既存Runtime/Analyzerを再利用し、別の真実を保存しない。原因候補と確認先を提示し、自動修正はしない。
+
+### Post-clear optimization should derive current factory quality and persist only historical milestones
+
+Factory OptimizationのPower余力、Storage空き、物流構成、Final Automation成立は現在のFactory graphから再計算できるため、Saveへ二重snapshotを持たせない。一方で「一度達成したOptional Objective」は現在状態だけでは復元できないため、Objective IDと達成時刻だけを履歴としてadditive保存する。
+
+```text
+current optimization condition
+→ derive from Factory state
+
+objective completion / mastered timestamp
+→ persist minimal history
+```
+
+これによりClear後にFactoryを自由に組み替えられ、既存Save Contractを膨らませずEndgame Challengeを継続できる。
