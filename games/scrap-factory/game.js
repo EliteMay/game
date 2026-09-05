@@ -18,12 +18,15 @@ import {
   selectDirectionalRoute,
 } from './logistics.js';
 import {
+  RESEARCH,
+  buildingUnlockState,
   isBuildingUnlocked,
   isHandCraftUnlocked,
   requiredBuildingRank,
 } from './progression.js';
 import {
   GENERATOR_FUEL_SECONDS,
+  buildingPowerStorageCapacity,
   computePowerSnapshot,
   generatorActive,
   isBuildingPowered,
@@ -31,7 +34,16 @@ import {
   powerReason,
   powerSummary,
   tickGeneratorFuel,
+  tickPowerStorage,
 } from './power.js';
+import {
+  isStorageBuilding,
+  storageAmount,
+  storageCapacity,
+  storageFillRatio,
+  storageRemaining,
+  storageTransferAmount,
+} from './storage-capacity.js';
 import { loadGameSave, saveGameSave, resetGameSave, exportSaveText } from './storage.js';
 import { ScrapWorld } from './world.js';
 
@@ -534,11 +546,21 @@ function getBuilding(id) {
   return game.buildings.find((building) => building.id === id) || null;
 }
 
+function unlockMessage(type) {
+  const def = BUILDINGS[type];
+  const state = buildingUnlockState(game, type);
+  if (state.reason === 'research') {
+    const research = RESEARCH[state.requiredResearch];
+    return `${def.name}は「${research?.name || state.requiredResearch}」研究で解放されます`;
+  }
+  return `${def.name}は Rank ${state.requiredRank || requiredBuildingRank(type)} で解放されます`;
+}
+
 function handleBuildPlacement({ type, x, z, rotation }) {
   const def = BUILDINGS[type];
   if (!def?.buildable) return false;
   if (!isBuildingUnlocked(game, type)) {
-    toast(`${def.name}は Rank ${requiredBuildingRank(type)} で解放されます`, 'warn');
+    toast(unlockMessage(type), 'warn');
     sound('error');
     return false;
   }
@@ -558,6 +580,7 @@ function handleBuildPlacement({ type, x, z, rotation }) {
     output: {},
     progress: 0,
     powerFuelSeconds: 0,
+    powerStored: 0,
     logisticsCursor: 0,
     permanent: false,
   };
@@ -588,15 +611,16 @@ function renderBuildMenu() {
   ui.buildList.replaceChildren();
   for (const type of BUILD_MENU_ORDER) {
     const def = BUILDINGS[type];
-    const unlocked = isBuildingUnlocked(game, type);
+    const unlock = buildingUnlockState(game, type);
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'build-option';
-    button.disabled = !unlocked || game.money < def.cost;
+    button.disabled = !unlock.unlocked || game.money < def.cost;
     const extra = isLogisticsNode(type) ? `帯域 ${logisticsThroughput(type).toFixed(1)}個/秒。設置後もEで向きを変更可能。` : '';
+    const lockText = unlock.reason === 'research' ? 'RESEARCH' : `RANK ${unlock.requiredRank}`;
     button.innerHTML = `
       <span class="build-option__main"><strong>${def.name}</strong><small>${def.description}${extra ? `<br>${extra}` : ''}</small></span>
-      <span class="build-option__cost">${unlocked ? `$${def.cost}` : `RANK ${requiredBuildingRank(type)}`}</span>
+      <span class="build-option__cost">${unlock.unlocked ? `$${def.cost}` : lockText}</span>
     `;
     button.addEventListener('click', () => {
       if (!isBuildingUnlocked(game, type)) return;
@@ -616,16 +640,19 @@ function depositIntoBuilding(building) {
   building.output ??= {};
   for (const [itemId, amount] of Object.entries(game.inventory)) {
     if (amount <= 0 || !acceptsItem(building, itemId)) continue;
-    const destination = building.type === 'storage' ? building.output : building.input;
-    destination[itemId] = Number(destination[itemId] || 0) + amount;
-    game.inventory[itemId] = 0;
-    moved += amount;
+    const destination = isStorageBuilding(building) ? building.output : building.input;
+    const moveAmount = isStorageBuilding(building) ? storageTransferAmount(building, amount) : amount;
+    if (moveAmount <= 0) continue;
+    destination[itemId] = Number(destination[itemId] || 0) + moveAmount;
+    game.inventory[itemId] -= moveAmount;
+    moved += moveAmount;
   }
   if (moved > 0) {
     toast(`${def.name}へ ${moved}個投入`, 'success');
     sound('click');
     persist('設備投入');
-  } else toast(accepts.length ? '対応する素材を持っていません' : '投入できません', 'info');
+  } else if (isStorageBuilding(building) && storageRemaining(building) <= 0) toast(`${def.name}は満杯です`, 'warn');
+  else toast(accepts.length ? '対応する素材を持っていません' : '投入できません', 'info');
   renderMachinePanel();
   renderAll();
 }
@@ -658,6 +685,12 @@ function acceptsItem(building, itemId) {
   return (def.accepts || []).includes(itemId) || (item && (def.accepts || []).includes(item.category));
 }
 
+function canReceiveItem(building, itemId) {
+  if (!acceptsItem(building, itemId)) return false;
+  if (isStorageBuilding(building)) return storageRemaining(building) > 0;
+  return true;
+}
+
 function bufferText(buffer) {
   const entries = Object.entries(buffer || {}).filter(([, amount]) => Number(amount) > 0);
   if (!entries.length) return '空';
@@ -679,6 +712,8 @@ function renderMachinePanel() {
   const logisticsNode = isLogisticsNode(building.type);
   const isGenerator = Number(def.powerGeneration || 0) > 0;
   const isPowerPole = building.type === 'power_pole';
+  const isBattery = buildingPowerStorageCapacity(building) > 0;
+  const storageBuilding = isStorageBuilding(building);
   const powered = isBuildingPowered(game, building, powerSnapshot);
   const reason = powerReason(building, powerSnapshot);
   const d = directionFromRotation(building.rotation);
@@ -707,6 +742,14 @@ function renderMachinePanel() {
     ui.machineStatus.textContent = connected
       ? `電力網へ接続済み / ${powerSummary(powerSnapshot)}`
       : '未接続 / Starter Grid・Generator・接続済みPoleから12.5m以内へ設置してください';
+  } else if (isBattery) {
+    const capacity = buildingPowerStorageCapacity(building);
+    const stored = Math.min(capacity, Math.max(0, Number(building.powerStored || 0)));
+    const connected = powerSnapshot.connectedBatteryIds?.has(building.id);
+    ui.machineFlow.innerHTML = `<span>余剰電力</span><span class="flow-arrow">→</span><strong>${Math.floor(stored)} / ${capacity}</strong><span class="flow-arrow">→</span><span>不足時 最大${def.powerDischargeRate} Power</span>`;
+    ui.machineStatus.textContent = connected
+      ? `Grid接続済み / 充電上限 ${def.powerChargeRate} Power / ${powerSummary(powerSnapshot)}`
+      : '未接続 / Starter Gridまたは接続済みPower Poleの給電範囲へ設置してください';
   } else if (recipe) {
     ui.machineFlow.innerHTML = recipeFlowHtml(recipe);
     if (powerEnabled(game) && !powered) {
@@ -717,23 +760,29 @@ function renderMachinePanel() {
       const powerNote = powerEnabled(game) && Number(def.powerUse || 0) > 0 ? ` / ${def.powerUse} Power` : '';
       ui.machineStatus.textContent = `${building.progress > 0 ? '稼働中' : '待機中'} / ${recipe.seconds.toFixed(1)}秒サイクル${powerNote}`;
     }
-  } else if (building.type === 'storage') {
-    ui.machineFlow.innerHTML = '<span>受取</span><span class="flow-arrow">→</span><strong>一時保管</strong><span class="flow-arrow">→</span><span>次のライン</span>';
-    ui.machineStatus.textContent = '自動ラインの中間バッファ';
+  } else if (storageBuilding) {
+    const used = storageAmount(building);
+    const capacity = storageCapacity(building);
+    ui.machineFlow.innerHTML = `<span>受取</span><span class="flow-arrow">→</span><strong>${used} / ${capacity}</strong><span class="flow-arrow">→</span><span>次のライン</span>`;
+    ui.machineStatus.textContent = storageRemaining(building) > 0
+      ? `Storage ${Math.round(storageFillRatio(building) * 100)}% / 残り ${storageRemaining(building)}個`
+      : 'STORAGE FULL / 上流搬送を停止してItem消失を防止';
   } else {
     ui.machineFlow.textContent = '設備';
     ui.machineStatus.textContent = '設備';
   }
 
-  ui.machineBuffers.hidden = logisticsNode || isPowerPole;
+  ui.machineBuffers.hidden = logisticsNode || isPowerPole || isBattery;
   ui.machineInput.textContent = bufferText(building.input);
   ui.machineOutput.textContent = bufferText(building.output);
-  ui.machineDeposit.hidden = logisticsNode || isPowerPole || !(def.accepts || []).length;
-  ui.machineCollect.hidden = logisticsNode || isPowerPole || isGenerator;
+  ui.machineDeposit.hidden = logisticsNode || isPowerPole || isBattery || !(def.accepts || []).length;
+  ui.machineCollect.hidden = logisticsNode || isPowerPole || isGenerator || isBattery;
   ui.machineRotate.hidden = !logisticsNode;
   ui.machineReverse.hidden = !logisticsNode;
-  ui.machineDeposit.textContent = building.type === 'storage' ? '持ち物を保管' : isGenerator ? '鉄くずを燃料投入' : '対応素材を投入';
-  ui.machineDeposit.disabled = !Object.entries(game.inventory).some(([itemId, amount]) => amount > 0 && acceptsItem(building, itemId));
+  ui.machineDeposit.textContent = storageBuilding ? '持ち物を保管' : isGenerator ? '鉄くずを燃料投入' : '対応素材を投入';
+  ui.machineDeposit.disabled = storageBuilding && storageRemaining(building) <= 0
+    ? true
+    : !Object.entries(game.inventory).some(([itemId, amount]) => amount > 0 && acceptsItem(building, itemId));
   ui.machineCollect.disabled = !Object.values(building.output || {}).some((amount) => amount > 0);
   ui.machineRemove.hidden = Boolean(building.permanent);
   if (!building.permanent) ui.machineRemove.textContent = `撤去 +$${def.cost || 0}（100%返金）`;
@@ -827,6 +876,13 @@ function processMachines(delta) {
       });
       continue;
     }
+    if (buildingPowerStorageCapacity(building) > 0) {
+      const capacity = buildingPowerStorageCapacity(building);
+      const stored = Math.min(capacity, Math.max(0, Number(building.powerStored || 0)));
+      const connected = powerSnapshot.connectedBatteryIds?.has(building.id);
+      world.updateBuildingState(building.id, { active: Boolean(connected && stored > 0), progress: capacity > 0 ? stored / capacity : 0 });
+      continue;
+    }
     if (!recipe) {
       world.updateBuildingState(building.id, { active: false, progress: 0 });
       continue;
@@ -867,6 +923,10 @@ function findRoutes(source, itemId, specificTargetId = null) {
   return findDirectionalRoutes(game.buildings, source, itemId, acceptsItem, specificTargetId);
 }
 
+function findTransferRoutes(source, itemId) {
+  return findDirectionalRoutes(game.buildings, source, itemId, canReceiveItem);
+}
+
 function hasConveyorPath(source, target, itemId) {
   return Boolean(findRoute(source, itemId, target.id));
 }
@@ -884,11 +944,12 @@ function detectAutomationComplete() {
 
 function transferOne(source, itemId, route) {
   const target = route.target;
+  if (isStorageBuilding(target) && storageRemaining(target) <= 0) return false;
   source.output[itemId] -= 1;
   if (target.type === 'seller') {
     addRevenue(ITEMS[itemId]?.value || 0);
     sound('sell');
-  } else if (target.type === 'storage') {
+  } else if (isStorageBuilding(target)) {
     target.output ??= {};
     target.output[itemId] = Number(target.output[itemId] || 0) + 1;
   } else {
@@ -897,6 +958,7 @@ function transferOne(source, itemId, route) {
   }
   const animationSpeed = route.throughput >= 3 ? 9.5 : 5.8;
   world.animateTransfer(route.path, itemId, animationSpeed);
+  return true;
 }
 
 function transportTick(delta) {
@@ -906,7 +968,7 @@ function transportTick(delta) {
     const itemEntry = Object.entries(source.output).find(([, amount]) => Number(amount) > 0);
     if (!itemEntry) continue;
     const [itemId] = itemEntry;
-    const routes = findRoutes(source, itemId);
+    const routes = findTransferRoutes(source, itemId);
     const creditKey = `${source.id}:${itemId}`;
     if (!routes.length) {
       transportCredits.set(creditKey, 0);
@@ -919,10 +981,11 @@ function transportTick(delta) {
     let moved = 0;
 
     while (credit >= 1 && Number(source.output[itemId] || 0) > 0 && moved < 4) {
-      const choice = selectDirectionalRoute(routes, source.logisticsCursor);
+      const currentRoutes = findTransferRoutes(source, itemId);
+      const choice = selectDirectionalRoute(currentRoutes, source.logisticsCursor);
       if (!choice.route) break;
+      if (!transferOne(source, itemId, choice.route)) break;
       source.logisticsCursor = choice.nextCursor;
-      transferOne(source, itemId, choice.route);
       credit -= 1;
       moved += 1;
       movedAny = true;
@@ -1118,10 +1181,10 @@ function persist(reason = 'autosave') {
 
 function updatePower(delta) {
   if (started) tickGeneratorFuel(game.buildings, delta);
-  const next = computePowerSnapshot(game);
+  const next = started ? tickPowerStorage(game, delta) : computePowerSnapshot(game);
   if (started && powerEnabled(game) && next.status !== previousPowerStatus) {
     if (next.status === 'shortage') toast(powerSummary(next), 'warn');
-    else if (previousPowerStatus === 'shortage') toast(`POWER RESTORED: ${next.generation}供給 / ${next.demand}需要`, 'success');
+    else if (previousPowerStatus === 'shortage') toast(`POWER RESTORED: ${Math.floor(next.generation)}供給 / ${next.demand}需要`, 'success');
   }
   powerSnapshot = next;
   previousPowerStatus = next.status;
