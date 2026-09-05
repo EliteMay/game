@@ -41,6 +41,7 @@ export function makeDefaultGameSave() {
       circuit: 0,
       motor: 0,
       control_unit: 0,
+      rare_alloy: 0,
     },
     buildings: structuredClone(DEFAULT_BUILDINGS),
     tutorialStep: 0,
