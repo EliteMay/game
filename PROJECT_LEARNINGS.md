@@ -90,7 +90,7 @@ User playtestで次を確認。
 ### Watch
 
 - 旧SaveのConveyor rotationは以前Gameplayへ影響しなかったため、Directional化後に既存Lineが止まる可能性がある。Save破壊ではないがBehavior migrationとして案内が必要。
-- 現在のConveyorは1出力方向のみ。Splitter / Mergerを追加するときは暗黙の多方向探索へ戻さず、明示的なLogistics nodeとして設計する。
+- Splitter / Mergerを追加するときは暗黙の多方向探索へ戻さず、明示的なLogistics nodeとして設計する。
 - Dismantle / RotateはStatic CIだけではRaycast targetや操作感を検証できない。公開BrowserでUser validationを続ける。
 
 ## 2026-09-05 / Progression Rank & Legacy Compatibility
@@ -114,8 +114,8 @@ User playtestで次を確認。
 ### Watch
 
 - Progression UIは既存`game.js`のRuntime stateを直接所有していないため、Rank Up / Research確定時はReload前の最後のSave順序を意識する必要がある。現在は`beforeunload` / `pagehide`で確定Progressionを最後に再Mergeする。
-- UI側のBuild / Craft Guardは通常操作を防げるが、将来ProgressionがGame Coreの主要機能になった段階では`game.js`側のCore validationへ移す方が堅牢。
-- MutationObserverでHUD自身を更新するとSelf-trigger loopを起こしうる。今回のProgression UIではDOM全体Observerを使わず、Capture Guard + 定期表示更新にした。
+- UI側のBuild / Craft Guardだけへ依存せず、ProgressionがCore機能になった段階では`game.js`側でもvalidationする。
+- MutationObserverでHUD自身を更新するとSelf-trigger loopを起こしうる。Progression UIではDOM全体Observerを使わず、Capture Guard + 定期表示更新にした。
 - Static TestではPointer Lock復帰、HUD位置、実Save Reload操作、実Legacy Saveの見た目を確認できない。Browser Validationを別Gateとして残す。
 
 ## 2026-09-05 / Phase 2-A Power Core
@@ -134,7 +134,7 @@ User playtestで次を確認。
 - Power snapshotは`buildings[]`とProgressionから導出し、Saveへ重複保存しない。
 - Generatorで永続化が必要なのは燃焼途中の`powerFuelSeconds`だけにする。
 - Shortage中はMachineのInput / Output /途中Progressを保持し、Power復旧時にそのまま再開する。
-- ConveyorをPhase 2-AではPassiveに保ち、停電中もGeneratorへ燃料を届けられるようにする。Recovery loopをPower自身が塞がない。
+- ConveyorをPassiveに保ち、停電中もGeneratorへ燃料を届けられるようにする。Recovery loopをPower自身が塞がない。
 - Power allocationはPriority + Building IDでdeterministicにする。Reloadや配列順で給電対象が揺れないようにする。
 - Build / Craft Unlockを`game.js` Coreでも再検証し、DOM guardだけに依存しない。
 - Power計算はPure Functionへ切り出し、Starter Grid / Shortage / Fuel / Recovery / Pole coverage / Buffer非破壊をRegression Testする。
@@ -143,6 +143,55 @@ User playtestで次を確認。
 
 - 現在のPower計算はPhase 2-AのStarter Grid向け基盤。複数の独立Power NetworkやBatteryを導入するときは、Generationを単純な全体Poolとして扱わずNetwork component単位へ拡張する必要がある。
 - Scrap Generator / Power PoleはCore追加時点では既存Generic Machine fallback visualを使う。専用SilhouetteはVisual passで追加し、Generic Boxのまま完成扱いしない。
-- Factory ManagementのPower専用Dashboard / persistent Alertは次Sliceで追加する。現状はRuntime ToastとMachine Panelで原因を表示する。
+- Factory ManagementのPower専用Dashboard / persistent Alertは後続Sliceで追加する。
 - Rank 4への通常到達条件はまだ探索Progressionへ接続されていない。Power Coreの存在とPlayable progression capを混同しない。
 - BrowserでGenerator燃料投入 → Shortage → Recovery、Pole coverage、Pointer Lock、専用Machine Panelを実操作確認する必要がある。
+
+## 2026-09-05 / Phase 2-B Logistics Expansion
+
+### Problem
+
+- Splitter / Mergerを追加するためにLogisticsを単純な多方向BFSへ戻すと、以前修正した「矢印と実搬送が一致しない」問題を再発させる。
+- 新しいInput Port modelを既存Conveyorへそのまま厳密適用すると、既存Contractの「途中Conveyorは横から入って曲がれる」を壊す。
+- `BUILD_MENU_ORDER`へ新設備を途中追加すると、Factory Managementの`1〜5` Quick BuildがIndex依存のため、4=Storage / 5=Sellerという既存操作が別設備へずれる。
+- 固定Transport TickのままではConveyor Mk.1 / Mk.2のSpeed Tierを同じRuntimeで表現できない。
+- Splitterの分配位置をRuntimeだけで持つと、Save / Reloadで出口順が不安定になりやすい。
+
+### Evidence
+
+PR #7の最初の`project-contract` CIで次を検出した。
+
+- `scripts/logistics.test.mjs`
+- `AssertionError: east then north route should resolve`
+
+Phase 2-B初版では、Line途中の2本目ConveyorにもRear Input接続を要求したため、既存の直進 → 90°曲がりLineが消えていた。
+
+### Root Cause
+
+- 「Advanced Nodeは明示Port」という新しいルールと、「Legacy Conveyorは途中Side entryを許可」という既存Contractを同じ入力判定へまとめてしまった。
+- 物流方向の厳密化で守るべき対象はSplitter / Mergerの分岐・合流Portであり、既存Conveyor corner behaviorまで変更する必要はなかった。
+
+### Keep
+
+- `logistics.js`をLogistics routeの唯一のSource of Truthにし、Production / Progression / Tutorial / Factory Analysisで共有する。
+- Source Machineから最初のConveyor / Mk.2だけRear側接続を要求し、途中Conveyorは既存Side entryを維持する。
+- Splitter / MergerはLine途中でも明示Input Portを厳密適用する。
+- SplitterはRear 1 Input → Forward / Left / Right 3 Output、MergerはRear / Left / Right 3 Input → Forward 1 Outputとして明示する。
+- Route cycleはPath-local visited setで防止する。
+- Splitter分配はRouteをstable sortし、`logisticsCursor`でdeterministicなRound-robinにする。
+- ThroughputはRoute上の最小Node speedを採用し、Mk.2の途中にMk.1があればMk.1をBottleneckとして扱う。
+- Transport speedは固定Intervalではなく`delta × throughput` Creditで表現する。
+- Quick Build `1〜5`はPublic Control Contractとして先頭5設備を固定し、Regression Testを持つ。
+- Advanced LogisticsはRank 4未満でCore側からBuild不可にする。
+- SaveへRoute graphやthroughputを複製せず、永続化が必要な`logisticsCursor`だけをadditive fieldとして持つ。
+- CIが既存Contract破壊を検出した場合、Testを弱めず実装を互換方向へ直す。
+
+### Watch
+
+- 現在のSplitterはSourceから見た最終到達Route単位でRound-robinする。Nested Splitterがそれぞれ独立Queue / local stateを持つModelではない。
+- ThroughputはRoute-level Credit Modelで、per-segment Belt occupancy、Buffer capacity、Back Pressureはまだない。大規模FactoryのBottleneck表現には次段階が必要。
+- `world-runtime.js`へAdvanced Logistics Visualを明示的に追加したが、長期的には新Machine visualを`industrial-art.js`側へ統合する方がLayer責務は明確になる。
+- Build PreviewのAdvanced VisualはBase previewへ追加する方式のため、Invalid placement tintが専用Shape全体へ完全には連動しない可能性がある。Browser Reviewで確認する。
+- Mk.2の3 items/secに合わせてPacket animationを高速化したため、多数LineでのPacket数 / Draw Costを実ブラウザFPSで確認する。
+- Splitter / MergerのPort Markingが一人称視点で十分読みやすいかはStatic CIでは判断できない。
+- Generator / Power Pole専用Visual、Battery、Storage expansion、新Recipe、Smart Sorter / Priority / Overflowは別Sliceとして残す。
