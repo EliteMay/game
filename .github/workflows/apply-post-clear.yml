@@ -1,0 +1,35 @@
+name: Apply Post Clear Optimization
+
+on:
+  push:
+    branches:
+      - feat/post-clear-optimization
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply implementation patch
+        run: node scripts/apply-post-clear.mjs
+      - name: Validate game
+        run: npm run validate
+      - name: Commit generated implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "feat: add post-clear factory optimization objectives"
+          git push
