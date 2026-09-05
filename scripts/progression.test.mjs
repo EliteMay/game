@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import {
+  PLAYABLE_MAX_RANK,
+  RANK4_STABLE_FUEL_SECONDS,
+  analyzeRank4AdvancedLine,
+  analyzeRank4Power,
   buildingUnlockState,
   claimRankUp,
   completeResearch,
@@ -14,8 +18,22 @@ import {
   requiredBuildingRank,
 } from '../games/scrap-factory/progression.js';
 
-function building(id, type, x, z, rotation = 0, permanent = false) {
-  return { id, type, x, z, rotation, permanent, input: {}, output: {}, progress: 0 };
+function building(id, type, x, z, rotation = 0, permanent = false, extra = {}) {
+  return {
+    id,
+    type,
+    x,
+    z,
+    rotation,
+    permanent,
+    input: {},
+    output: {},
+    progress: 0,
+    powerFuelSeconds: 0,
+    powerStored: 0,
+    logisticsCursor: 0,
+    ...extra,
+  };
 }
 
 function rankOneLineGame() {
@@ -54,6 +72,37 @@ function rankTwoLineGame() {
       building('seller', 'seller', 7.5, 0, Math.PI, true),
       building('storage', 'storage', 0, 5, 0),
       building('extra-crusher', 'crusher', 2.5, 5, 0),
+    ],
+  };
+}
+
+function rankFourAdvancedGame() {
+  return {
+    money: 0,
+    lifetimeRevenue: 1800,
+    inventory: {},
+    discoveredItems: ['metal_scrap', 'crushed_metal', 'iron_ingot', 'copper_wire', 'plastic', 'cable_bundle'],
+    tutorialStats: { collected: 30, processed: 20, automationComplete: true },
+    progression: { ...makeDefaultProgression(), progressionRank: 4, researchData: 2 },
+    buildings: [
+      building('hopper', 'hopper', 0, 0, 0, true),
+      building('splitter', 'splitter', 2.5, 0, 0),
+      building('mk-a1', 'conveyor_mk2', 5, 0, 0),
+      building('crusher-a', 'crusher', 7.5, 0, 0),
+      building('mk-a2', 'conveyor_mk2', 10, 0, 0),
+      building('merger', 'merger', 12.5, 0, 0),
+      building('seller-a', 'seller', 15, 0, Math.PI, true),
+      building('mk-b1', 'conveyor_mk2', 2.5, 2.5, 3 * Math.PI / 2),
+      building('mk-b2', 'conveyor_mk2', 2.5, 5, 0),
+      building('crusher-b', 'crusher', 5, 5, 0),
+      building('mk-b3', 'conveyor_mk2', 7.5, 5, 0),
+      building('smelter', 'smelter', 10, 5, 0),
+      building('mk-b4', 'conveyor_mk2', 12.5, 5, 0),
+      building('seller-b', 'seller', 15, 5, Math.PI, true),
+      building('generator', 'generator', 0, -5, 0, false, {
+        powerFuelSeconds: 24,
+        input: { metal_scrap: 1 },
+      }),
     ],
   };
 }
@@ -105,6 +154,56 @@ function rankTwoLineGame() {
   assert.equal(isBuildingUnlocked(game, 'industrial_storage'), false, 'Industrial Storage must remain locked until Rank 5');
   assert.equal(requiredBuildingRank('industrial_storage'), 5);
   assert.equal(isBuildingUnlocked(game, 'conveyor'), true, 'Mk.1 conveyor must remain available before and after Rank 4');
+}
+
+{
+  const game = rankFourAdvancedGame();
+  const line = analyzeRank4AdvancedLine(game);
+  assert.equal(PLAYABLE_MAX_RANK, 5, 'normal gameplay should now reach Rank 5');
+  assert.equal(line.qualifies, true, 'Rank 4 line must use Splitter and Merger across two automated outputs');
+  assert.deepEqual(line.productTypes, ['crushed_metal', 'iron_ingot']);
+  assert.equal(line.usesSplitter, true);
+  assert.equal(line.usesMerger, true);
+  assert.equal(line.usesMk2, true);
+  assert.equal(line.throughput, 3, 'all-Mk2 route should expose 3 items/sec effective throughput');
+
+  const power = analyzeRank4Power(game);
+  assert.equal(power.selfPowered, true, 'active generator capacity must cover Rank 4 factory demand without Starter Grid credit');
+  assert.equal(power.stable, true, `generator fuel runway must cover at least ${RANK4_STABLE_FUEL_SECONDS}s`);
+  assert.equal(power.ownGeneration, 80);
+  assert.equal(power.demand, 66);
+  assert.equal(power.reserve, 14);
+  assert.equal(power.fuelRunwaySeconds, 48);
+
+  const progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, true, 'advanced line + stable own power should satisfy Rank 4 mandatory goal');
+  assert.ok(progress.optionalDone >= 2, 'Rank 4 should still require two optional goals');
+  assert.equal(progress.eligible, true, 'Rank 4 fixture should be able to reach Rank 5');
+  const result = claimRankUp(game);
+  assert.equal(result.changed, true);
+  assert.equal(game.progression.progressionRank, 5);
+  assert.equal(isBuildingUnlocked(game, 'industrial_storage'), true, 'Rank 5 should make Industrial Storage naturally reachable');
+  const cap = claimRankUp(game);
+  assert.equal(cap.changed, false);
+  assert.equal(cap.reason, 'phase-cap', 'Rank 5 is the current playable Rank-Up cap');
+}
+
+{
+  const game = rankFourAdvancedGame();
+  game.buildings.find((entry) => entry.id === 'merger').type = 'conveyor_mk2';
+  assert.equal(analyzeRank4AdvancedLine(game).qualifies, false, 'removing Merger usage must invalidate the Rank 4 topology');
+  assert.equal(rankProgress(game).mandatory.done, false);
+}
+
+{
+  const game = rankFourAdvancedGame();
+  const generator = game.buildings.find((entry) => entry.id === 'generator');
+  generator.powerFuelSeconds = 0;
+  generator.input = { metal_scrap: 9 };
+  const power = analyzeRank4Power(game);
+  assert.equal(power.selfPowered, false, 'queued fuel alone must not count as active own generation');
+  assert.equal(power.stable, false);
+  assert.equal(rankProgress(game).mandatory.done, false, 'inactive own generation must block Rank 5 progression');
 }
 
 {
