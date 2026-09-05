@@ -170,7 +170,7 @@ function patchProgressionPanel(game) {
     section.append(inline);
   }
   const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
-  inline.innerHTML = `
+  const html = `
     <div class="final-phase-inline__head"><span>STEP 9 → 10 / MEGA FACTORY</span><strong>${status.cleared ? 'MAIN CLEAR' : `${Math.round(status.progress * 100)}%`}</strong></div>
     <div class="final-phase-meter"><i style="--final-progress:${Math.round(status.progress * 100)}%"></i></div>
     <p>${status.cleared
@@ -180,11 +180,13 @@ function patchProgressionPanel(game) {
           ? `${MEGA_FACTORY_STABLE_SECONDS}秒の連続安定稼働を確認中。残り ${formatSeconds(status.remainingSeconds)}。`
           : `安定稼働が中断中: ${missing || 'Factory状態を確認してください'}。連続時間は0から再計測します。`
         : 'Step 8のAutonomous Industrial Core完全自動Lineを先に完成させてください。'}</p>`;
+  if (inline.innerHTML !== html) inline.innerHTML = html;
 
   [...section.querySelectorAll('p')].forEach((paragraph) => {
     if (paragraph === inline.querySelector('p')) return;
     if (paragraph.textContent?.includes('Requirement Step 9')) {
-      paragraph.textContent = 'Step 9はMega Factoryの連続安定稼働、Step 10はMain Clearです。Final Phase runtimeが現在のFactory状態を監視します。';
+      const text = 'Step 9はMega Factoryの連続安定稼働、Step 10はMain Clearです。Final Phase runtimeが現在のFactory状態を監視します。';
+      if (paragraph.textContent !== text) paragraph.textContent = text;
     }
   });
 }
@@ -202,10 +204,11 @@ function patchAutomationConsole(game) {
   }
   const status = finalPhaseStatus(game);
   const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
-  inline.innerHTML = `
+  const html = `
     <div class="final-phase-inline__head"><span>MEGA FACTORY STABILITY</span><strong>${status.cleared ? 'MAIN CLEAR' : `${Math.round(status.progress * 100)}%`}</strong></div>
     <div class="final-phase-meter"><i style="--final-progress:${Math.round(status.progress * 100)}%"></i></div>
     <p>${status.cleared ? 'Main Clear達成済み。' : status.analysis.stable ? `連続安定稼働 ${formatSeconds(status.stableSeconds)} / ${formatSeconds(status.targetSeconds)}` : `未安定: ${missing || 'Step 8未完成'}`}</p>`;
+  if (inline.innerHTML !== html) inline.innerHTML = html;
 }
 
 function renderAll() {
@@ -220,7 +223,7 @@ function maybePersist(result) {
   if (!result?.changed) return;
   const stable = Math.floor(Number(result.state.megaFactoryStableSeconds || 0));
   const bucket = Math.floor(stable / PERSIST_BUCKET_SECONDS);
-  const reset = stable === 0 && lastPersistBucket > 0;
+  const reset = stable === 0 && !result.analysis.stable;
   if (result.justCleared || reset || bucket > lastPersistBucket) {
     persistRuntimeGame();
     lastPersistBucket = bucket;
@@ -263,9 +266,6 @@ function waitForGame() {
   const game = getRuntimeGame();
   if (game) lastPersistBucket = Math.floor(Number(game.finalChapter?.megaFactoryStableSeconds || 0) / PERSIST_BUCKET_SECONDS);
   window.setInterval(tick, TICK_MS);
-
-  const observer = new MutationObserver(() => renderAll());
-  observer.observe(document.body, { childList: true, subtree: true });
 }
 
 waitForGame();
