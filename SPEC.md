@@ -18,35 +18,33 @@ Factory / Scrap Yard
 → Rank 6
 → Military Facility / Drone Control
 → Drone Port automated recovery
-→ Conveyor Mk.3 / Priority / Overflow Logistics
+→ Conveyor Mk.3 / Priority / Overflow
+→ Configurable Drone Routes / Industrial Generator / Logistics Warehouse
 → Rank 7
 ```
 
-現在は **Phase 5-B: Priority / Overflow Logistics**。
+現在は **Phase 5-C**。
 
 実装済みPhase 5要素:
 
-- Rank 6 Military Facility
-- Expedition HP / Security Turret threat
-- guaranteed Drone Control Blueprint
-- `military-alloy-cache`
-- `rare_alloy`
-- Drone Control Research
-- Drone Port
-- Rank 6 → 7 progression
-- Conveyor Mk.3
-- Priority Splitter
-- Overflow Splitter
-- dedicated Phase 5 logistics visuals
+- Military Facility / HP / Security Turret
+- Drone Control Blueprint / Research
+- Drone Port / Rank 6→7
+- Conveyor Mk.3 / Priority / Overflow
+- 3 secured Resource Point Drone routes
+- Automation Console
+- Industrial Generator
+- Logistics Warehouse
+- Industrial Storage → Logistics Warehouse in-place upgrade
+- Phase 5-C dedicated visual wrapper
 
 後続Phase:
 
-- configurable multiple Drone routes
-- Drone assignment UI
-- Advanced / Industrial Generator
-- Logistics Warehouse / in-place storage upgrade
+- Runtime API経由のReloadなしRoute切替
+- Advanced / Experimental Power tier
 - full weapon / patrol AI
 - ruined research facility / Fabricator / Advanced Drone
+- Mega Factory / Main Clear
 - Final Hybrid Asset quality pass
 
 ---
@@ -60,9 +58,11 @@ Scrap Factory
 ├─ power.js
 ├─ storage-capacity.js
 ├─ storage.js
+├─ drone-routes.js
 ├─ game.js
 ├─ world.js
-├─ world-runtime.js
+├─ world-runtime-phase5b.js   # validated Phase 5-B visual base
+├─ world-runtime.js           # Phase 5-C visual wrapper
 ├─ factory-management.js
 │  └─ phase4b-management-ui.js
 ├─ feature-pack.js
@@ -70,21 +70,18 @@ Scrap Factory
 │  ├─ progression-core.js
 │  ├─ progression-phase4b.js
 │  ├─ progression-phase5a.js
-│  └─ progression-phase5b.js
+│  ├─ progression-phase5b.js
+│  └─ progression-phase5c.js
 ├─ progression-ui.js
+│  └─ phase5c-automation-ui.js
 ├─ exploration.js
 │  └─ exploration-core-v3.js
 └─ exploration-ui.js
-
-Independent Exploration Scenes
-├─ residential.html / .css / .js
-├─ industrial.html / .css / .js
-└─ military.html / .css / .js
 ```
 
 Compatibility entrypoint `progression.js` / `exploration.js` は既存Import pathを維持する。
 
-`world-runtime.js` はVisual Layerであり、Save / Production / LogisticsのSource of Truthにはしない。
+Phase 5-Cでは大きい`game.js`へ新Simulationを追加せず、既存Recipe / Power / Storage Runtimeを再利用する。
 
 ---
 
@@ -97,21 +94,37 @@ Progression Schema: 1
 Exploration Schema: 1
 ```
 
-Phase 5-BでもSchema変更なし。
+Phase 5-CでもSchema変更なし。
 
-Phase 5-Bで追加したLogistics Priorityは現在のRoute topologyから毎回導出し、Saveしない。
+Additive building field:
+
+```text
+resourcePointId: string | null
+```
+
+用途:
+- Drone PortのUser-selected Resource Point IDのみ保存する
+
+保存しないDrone Route定義:
+- output item
+- cycle seconds
+- capacity/min
+- distance
+- danger
+- droneAllowed
+
+これらは `drone-routes.js` が正本。
+
+旧Save:
+- `resourcePointId` がない / null → Military Alloy Resource Pointが確保済みなら従来RouteへFallback
 
 保存しないDerived Data:
-
 - Directional route graph
-- route throughput
-- route priority
+- route throughput / priority
 - Power snapshot
 - Factory diagnostics
 - Rank topology result
-- Drone Port → Storage route result
-
-既存Factory Layout / Building buffers / `logisticsCursor` は維持する。
+- Resource Point performance metadata
 
 ---
 
@@ -123,6 +136,7 @@ Phase 5-Bで追加したLogistics Priorityは現在のRoute topologyから毎回
 - Visual Logistics direction = Runtime direction
 - Quick Build 1〜5順序を維持
 - GitHub Pages Relative Path対応
+- Storage Tier UpgradeでBuilding ID / x / z / rotationを維持
 
 ---
 
@@ -137,66 +151,55 @@ Source of Truth: `logistics.js`
 | Conveyor Mk.3 | 6.0/s | basic | Forward |
 | Splitter | 3.0/s | Rear | Forward / Left / Right Round-robin |
 | Merger | 3.0/s | Rear / Left / Right | Forward |
-| Smart Sorter | 3.0/s | Rear | Item categoryで1方向 |
+| Smart Sorter | 3.0/s | Rear | category固定Lane |
 | Priority Splitter | 6.0/s | Rear | Forward Priority / Left+Right Backup |
 | Overflow Splitter | 6.0/s | Rear | Forward Main / Right Overflow |
 
-### Smart Sorter
+Route throughput = 経路上の最小Logistics throughput。
 
-```text
-advanced            → Forward
-processed / product → Left
-raw                 → Right
-```
-
-### Route Priority
-
-Route探索時、各Branchは`priority`値を持つ。
-
-- 通常Conveyor / Splitter / Merger / Smart Sorter: `0`
-- Priority Splitter Forward: `0`
-- Priority Splitter Left / Right: `+1`
-- Overflow Splitter Forward: `0`
-- Overflow Splitter Right: `+2`
-
-複数Routerを通る場合はRoute上でPriority costを加算する。
-
-`selectDirectionalRoute()` は:
-
-1. 現在受入可能なRouteだけを対象にする
-2. 最小PriorityのRoute群だけを選ぶ
-3. 同Priority内は既存`logisticsCursor`でRound-robinする
-
-これにより既存Splitterは従来挙動を維持する。
-
-### Overflow Back Pressure Contract
-
-Storage Full等でMain Targetが`canReceiveItem()`を満たさなくなると、そのRouteは候補から外れる。
-
-```text
-Production
-→ Overflow Splitter
-├─ Forward → Storage
-└─ Right   → Seller
-```
-
-Storage受入可能中はForwardだけを使用し、満杯時のみSeller Routeが選ばれる。
-
-Source OutputはTarget受入確認後のみ減らすため、Item lossを発生させない。
-
-### Throughput
-
-Route throughputは経路上の最小Logistics throughput。
-
-例:
-
-- Mk.3のみのRoute: `6.0/s`
-- Mk.3 + Mk.2混在: `3.0/s`
-- Mk.3 + Mk.1混在: `1.5/s`
+PriorityはRoute探索時のDerived DataでSaveしない。
 
 ---
 
-## 6. Building Unlocks
+## 6. Drone Resource Point Routing
+
+Source of Truth: `drone-routes.js`
+
+| ID | Area | Output | Cycle | Capacity/min | Distance | Danger | Runtime type |
+| --- | --- | --- | ---: | ---: | ---: | ---: | --- |
+| `residential-copper-network` | residential | copper_wire ×1 | 8s | 7.5 | 620m | 1 | `drone_port_copper` |
+| `industrial-electronics-cache` | industrial | e_waste ×1 | 10s | 6 | 890m | 2 | `drone_port_electronics` |
+| `military-alloy-cache` | military | rare_alloy ×1 | 12s | 5 | 1180m | 3 | `drone_port` |
+
+Playerが各AreaでResource Pointを攻略済みの場合のみAutomation Consoleの選択肢に出す。
+
+Drone Route変更:
+
+```text
+resourcePointId更新
+→ compatibility runtime type更新
+→ partial progress = 0
+→ input / output bufferは維持
+→ Save APIで保存
+→ ReloadしてMemory stateと再同期
+```
+
+`drone_port_copper` / `drone_port_electronics` はBuild Menuへ直接出さない内部Compatibility type。新規建築は常に`drone_port`から開始する。
+
+### Rank 6 → 7 compatibility
+
+既存MandatoryはMilitary Alloyの自動回収を要求するため、`analyzeRank6DroneLine()`はMilitary-assigned Portだけを対象にする。
+
+Copper / E-Waste RouteのみではMandatoryを満たさない。
+
+Target Storage:
+- Small Storage
+- Industrial Storage
+- Logistics Warehouse
+
+---
+
+## 7. Building Unlocks
 
 Phase 5-B:
 
@@ -206,47 +209,95 @@ priority_splitter → Rank 6
 overflow_splitter → Rank 6
 ```
 
-追加Researchは要求しない。
+Phase 5-C:
 
-`progression-phase5b.js` がPhase 5-AのProgressionを包み、既存Rank / Drone Research Gateを維持したまま新Building Gateだけを追加する。
+```text
+industrial_generator → Rank 6
+logistics_warehouse  → Rank 6
+```
 
-`PLAYABLE_MAX_RANK = 7` は維持。
+Drone Port:
+- Rank 6
+- `drone_control_systems` Research必須
+
+`PLAYABLE_MAX_RANK = 7` 維持。
 
 ---
 
-## 7. Power
+## 8. Power
 
 PowerはRank 4から有効。
 
-| Device | Power |
+| Device | Supply / Use |
 | --- | ---: |
-| Starter Grid | 55 supply |
-| Scrap Generator | 80 supply |
-| Crusher | 18 use |
-| Smelter | 30 use |
-| Assembler | 50 use |
-| Drone Port | 65 use |
+| Starter Grid | +55 |
+| Scrap Generator | +80 |
+| Industrial Generator | +180 |
+| Crusher | -18 |
+| Smelter | -30 |
+| Assembler | -50 |
+| Drone Port | -65 |
 
-Battery: 960 Energy / charge 60 / discharge 80。
+Generator fuel definition:
 
-通常Conveyor / Splitter / Priority / Overflowは電力不要。
+```text
+Scrap Generator:
+metal_scrap ×1 / 24s / 80 Power
 
-Advanced / Industrial Generatorは未実装。
+Industrial Generator:
+metal_scrap ×1 / 24s / 180 Power
+```
+
+`power.js` はGeneratorごとに:
+- `powerFuelItem`
+- `powerFuelSeconds`
+- `powerGeneration`
+を読む。
+
+既存Scrap Generatorの24秒Contractを維持する。
+
+Battery:
+- 960 Energy
+- charge 60
+- discharge 80
 
 ---
 
-## 8. Storage / Back Pressure
+## 9. Storage / In-place Upgrade
 
-- Small Storage: 120
-- Industrial Storage: 600
-- Full Targetへ新Itemを移送しない
+| Storage | Capacity | Rank |
+| --- | ---: | ---: |
+| Small Storage | 120 | early |
+| Industrial Storage | 600 | 5 |
+| Logistics Warehouse | 1800 | 6 |
+
+Back Pressure:
+- Full TargetへItemを移送しない
 - Target受入確認後のみSource Outputを減らす
 - Legacy over-capacity stateの既存Itemを削除しない
-- Priority / Overflow Routeも同じBack Pressure helperを利用する
+
+### Industrial Storage → Logistics Warehouse
+
+Cost:
+
+```text
+620 - 240 = 380
+```
+
+UpgradeはBuilding objectの`type`を変更する。
+
+維持:
+- ID
+- x / z / rotation
+- input
+- output
+- existing items
+
+撤去→再建を要求しない。
 
 ---
 
-## 9. Production / Drone Automation
+## 10. Production / Generic Runtime
 
 Existing:
 
@@ -256,121 +307,94 @@ Crushed Metal → Smelter / 3.0s → Iron Ingot
 Motor + Circuit + Plastic → Assembler / 8.0s → Control Unit
 ```
 
-Drone:
+Drone variantsも既存Generic Recipe Runtimeを利用:
 
 ```text
-secured military-alloy-cache
-→ Drone Port / 12.0s / 65 Power
-→ Rare Alloy ×1
+Copper route      → 8s  → Copper Wire
+Electronics route → 10s → E-Waste
+Military route    → 12s → Rare Alloy
 ```
 
-Drone Portは既存Generic Recipe Runtimeを再利用する。
-
-現段階ではResource Point選択はMilitary Alloyへ固定。複数Resource Point / Route assignmentは未実装。
+Power / Output Buffer / Back Pressure / Directional LogisticsをDrone専用Simulationへ複製しない。
 
 ---
 
-## 10. Progression / Research
+## 11. Automation Console
 
-`PLAYABLE_MAX_RANK = 7`
+Browser module: `phase5c-automation-ui.js`
 
-### Drone Control Research
+機能:
+- Drone Port一覧
+- Portごとのsecured Resource Point選択
+- Output / cycle / capacity / distance / danger表示
+- Industrial Storage一覧
+- Logistics WarehouseへのUpgrade
 
-```text
-id: drone_control_systems
-requiredRank: 6
-researchDataCost: 3
-requiredBlueprint: military_drone_control_blueprint
-unlock: building:drone_port
-```
+現在は`game.js`のMemory stateがModule localであるため、Saveだけ変更した後のAutosave競合を避ける目的で変更適用後にReloadする。
 
-### Rank 6 → 7 Mandatory
-
-1. Military Facility Main Objective complete
-2. Drone Control Research complete
-3. `military-alloy-cache` secured
-4. Drone Port → Small / Industrial Storage Rare Alloy Route成立
-
-Phase 5-B LogisticsはRank 6の横拡張であり、既存Rank 6→7 Mandatoryを破壊的に変更しない。
+将来Runtime mutation APIを公開した場合はReload依存を除去できる。
 
 ---
 
-## 11. Exploration Contract
+## 12. Progression / Exploration
 
-Shared:
+Exploration shared contract:
+- Normal Returnまで通常Loot未確定
+- Abandon / HP 0ではCurrent Session Lootのみ失う
+- Objective / Shortcut / Resource Pointは永続
+- Progression BlueprintはGuaranteed / Idempotent
 
-- Expedition Pack 12 slots
-- Normal Returnまで通常LootをFactoryへ確定しない
-- Normal Return → Transport Depot
-- Abandon / HP 0 → Current Session Lootのみ失う
-- Discovered Zones / Objective / Shortcut / Resource Pointは保持
-- Progression Blueprintはguaranteed reward
-- rewardはidempotent
+Secured Resource Points:
+- Residential: `residential-copper-network`
+- Industrial: `industrial-electronics-cache`
+- Military: `military-alloy-cache`
 
-Residential: `Fuse → Power → Survey`
-
-Industrial: `Generator → Control Room → Assembly Blueprint`
-
-Military:
-
-```text
-Access Card
-→ Security Grid OFFLINE
-→ Drone Control Bay ONLINE
-→ Drone Control Blueprint
-```
-
-Military completion reward:
-
-- `military_drone_control_blueprint`
-- Research Data +3
-- `military-alloy-cache`
+Rank 6 → 7 Mandatory自体はPhase 5-Aから変更しない。
 
 ---
 
-## 12. Visual Layer
+## 13. Visual Layer
 
 Visual direction: `Stylized Industrial Realism`。
 
-Phase 5-B visual:
+Phase 5-B Visual Runtimeを`world-runtime-phase5b.js`としてCompatibility Base化。
 
-- Conveyor Mk.3: Mk.2より強いRail / 4 arrowで高帯域を区別
-- Priority Splitter: Forward Priority laneをGreen系で強調、左右Backupを副表示
-- Overflow Splitter: Forward Main + Right Overflowのみを表示
-- Visual Arrowと`logisticsOutputKeys()`の方向を一致させる
+Phase 5-C `world-runtime.js`はそのSubclass Wrapperとして次だけ追加:
+- Copper Drone Port: warm copper Route identity
+- Electronics Drone Port: green electronics Route identity
+- Industrial Generator: large engine block / twin exhaust / rotor
+- Logistics Warehouse: tall rack silhouette / high-density storage facade
 
-Procedural visualはGameplay-readable implementationであり、Final Hybrid Asset passではない。
+Simulation source of truthにはしない。
 
 ---
 
-## 13. Validation
+## 14. Validation
 
 `npm run validate`
 
 Static CI:
-
-- all JS/MJS syntax
+- JS/MJS syntax
 - JSON parse
 - local HTML refs
-- existing Directional Logistics regression
-- existing Splitter round-robin
-- Factory Management / Phase 4-B
-- Progression Rank 1→7
+- existing Directional Logistics / Phase 5-B regressions
+- Rank 1→7 Progression
 - Power / Storage / Back Pressure
 - Residential / Industrial / Military Exploration
-- Drone Research / Drone Route
-- Conveyor Mk.3 throughput `6.0/s`
-- Phase 5-B Rank 6 unlock gates
-- Priority Forward route selection
-- Priority backup round-robin
-- Overflow Main route selection
-- Main unavailable → Overflow fallback
-- Phase 5-B visual / progression runtime markers
+- old Drone Port fallback
+- 3 secured Drone Route definitions
+- route recipe/type switching
+- output Buffer preservation on route switch
+- non-Military route rejection for Rank 6→7 mandatory
+- Industrial Generator Rank gate / 180 Power
+- Logistics Warehouse Rank gate / 1800 capacity
+- Quick Build 1〜5
+- Phase 5-B visual compatibility base marker
+- Phase 5-C visual wrapper / Automation Console marker
 
 Static CIで保証しない:
-
-- Pointer Lock操作感
-- Phase 5-B Build Preview
-- Priority / Overflow arrowの一人称可読性
-- collider / placement feel
+- Automation Consoleの実Layout
+- Pointer Lock handoff / close時復帰
+- Route変更・Upgrade後Reloadの体感
+- Phase 5-C設備のBuild Preview / Collider / first-person scale
 - WebGL FPS
