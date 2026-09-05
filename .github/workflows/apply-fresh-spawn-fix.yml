@@ -22,7 +22,6 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-
           home = Path('games/scrap-factory/home-system.js')
           text = home.read_text()
           old = "export const HOME_RESPAWN_POSITION = Object.freeze({ x: -12.2, y: 1.7, z: 36.8, yaw: Math.PI });"
@@ -34,24 +33,8 @@ jobs:
           test = Path('scripts/home-system.test.mjs')
           text = test.read_text()
           text = text.replace('  HOME_RESPAWN_POSITION,\n', '  HOME_POSITION,\n  HOME_RESPAWN_POSITION,\n', 1)
-          marker = "function makeInventory(amount = 50) {"
-          regression = """{
-  const playerRadius = 0.42;
-  const bed = {
-    minX: HOME_POSITION.x - 2.65 - 3.25 / 2,
-    maxX: HOME_POSITION.x - 2.65 + 3.25 / 2,
-    minZ: HOME_POSITION.z + 1.6 - 1.6 / 2,
-    maxZ: HOME_POSITION.z + 1.6 + 1.6 / 2,
-  };
-  const p = HOME_RESPAWN_POSITION;
-  const overlapsBed = p.x + playerRadius > bed.minX
-    && p.x - playerRadius < bed.maxX
-    && p.z + playerRadius > bed.minZ
-    && p.z - playerRadius < bed.maxZ;
-  assert.equal(overlapsBed, false, 'fresh/Home respawn must not overlap the bed collider');
-}
-
-"""
+          marker = 'function makeInventory(amount = 50) {'
+          regression = "{\n  const playerRadius = 0.42;\n  const bed = {\n    minX: HOME_POSITION.x - 2.65 - 3.25 / 2,\n    maxX: HOME_POSITION.x - 2.65 + 3.25 / 2,\n    minZ: HOME_POSITION.z + 1.6 - 1.6 / 2,\n    maxZ: HOME_POSITION.z + 1.6 + 1.6 / 2,\n  };\n  const p = HOME_RESPAWN_POSITION;\n  const overlapsBed = p.x + playerRadius > bed.minX\n    && p.x - playerRadius < bed.maxX\n    && p.z + playerRadius > bed.minZ\n    && p.z - playerRadius < bed.maxZ;\n  assert.equal(overlapsBed, false, 'fresh/Home respawn must not overlap the bed collider');\n}\n\n"
           if regression not in text:
               text = text.replace(marker, regression + marker, 1)
           test.write_text(text)
