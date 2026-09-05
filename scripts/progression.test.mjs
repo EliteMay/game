@@ -10,6 +10,7 @@ import {
   normalizeProgression,
   rankProgress,
   researchState,
+  requiredBuildingRank,
 } from '../games/scrap-factory/progression.js';
 
 function building(id, type, x, z, rotation = 0, permanent = false) {
@@ -85,6 +86,20 @@ function rankTwoLineGame() {
   assert.equal(result.changed, true);
   assert.equal(game.progression.progressionRank, 3);
   assert.equal(game.progression.researchData, 3);
+}
+
+{
+  const game = rankTwoLineGame();
+  game.progression.progressionRank = 3;
+  for (const type of ['conveyor_mk2', 'splitter', 'merger', 'generator', 'power_pole']) {
+    assert.equal(requiredBuildingRank(type), 4, `${type} should be a Rank 4 building`);
+    assert.equal(isBuildingUnlocked(game, type), false, `${type} must stay locked at Rank 3`);
+  }
+  game.progression.progressionRank = 4;
+  for (const type of ['conveyor_mk2', 'splitter', 'merger', 'generator', 'power_pole']) {
+    assert.equal(isBuildingUnlocked(game, type), true, `${type} should unlock at Rank 4`);
+  }
+  assert.equal(isBuildingUnlocked(game, 'conveyor'), true, 'Mk.1 conveyor must remain available before and after Rank 4');
 }
 
 {
