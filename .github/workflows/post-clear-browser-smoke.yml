@@ -13,6 +13,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Validate current branch
+        run: npm run validate
       - name: Install browser dependencies
         run: |
           npm install --no-save playwright@1.55.0 three@0.185.0
@@ -66,9 +68,11 @@ jobs:
             return button && button.hidden === false && document.querySelector('#post-clear-optimization-count')?.textContent?.trim() === '0 / 4';
           }, null, { timeout: 8000 });
           assert.equal(await page.isVisible('#post-clear-optimization-hud'), true, 'optimization HUD must be visible after acknowledged Main Clear');
-          const blockers = await page.evaluate(() => [...document.querySelectorAll('.overlay-panel')].filter((panel) => !panel.hidden).map((panel) => panel.id || panel.className));
+          assert.equal((await page.textContent('#post-clear-optimization-hud'))?.includes('K'), true, 'HUD must expose the K gameplay shortcut');
+          const blockers = await page.evaluate(() => [...document.querySelectorAll('.overlay-panel, .factory-management-panel, .progression-panel, .transport-terminal-panel, .home-system-panel')].filter((panel) => !panel.hidden).map((panel) => panel.id || panel.className));
           assert.deepEqual(blockers, [], 'acknowledged post-clear state must not leave a blocking overlay open');
-          await page.click('#post-clear-optimization-hud', { force: true });
+
+          await page.keyboard.press('k');
           await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === false, null, { timeout: 5000 });
           const text = await page.textContent('#post-clear-optimization-panel');
           for (const label of ['Factory Optimization', 'POWER HEADROOM', 'BUFFER RESERVE', 'LOGISTICS BACKBONE', 'REDUNDANT AUTOMATION']) {
@@ -77,6 +81,9 @@ jobs:
           const overflow = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }));
           assert.ok(overflow.scrollWidth <= overflow.width + 2, 'page-level horizontal overflow detected');
           await page.screenshot({ path: 'post-clear-optimization.png', fullPage: true });
+
+          await page.keyboard.press('k');
+          await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === true, null, { timeout: 5000 });
 
           await page.evaluate(() => {
             const runtime = window.__scrapFactoryRuntime;
@@ -97,9 +104,10 @@ jobs:
           const savedState = await page.evaluate(() => window.__scrapFactoryRuntime.getGame().postClearOptimization);
           assert.deepEqual(savedState.completedObjectiveIds, ['power_headroom']);
           assert.equal(savedState.completedAt.power_headroom, '2026-09-06T00:10:00.000Z');
-          await page.click('#post-clear-optimization-hud', { force: true });
+
+          await page.keyboard.press('k');
           await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === false, null, { timeout: 5000 });
-          await page.click('#close-post-clear-optimization', { force: true });
+          await page.keyboard.press('Escape');
           await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === true, null, { timeout: 5000 });
 
           const meaningfulConsoleErrors = consoleErrors.filter((message) => !message.toLowerCase().includes('favicon'));
