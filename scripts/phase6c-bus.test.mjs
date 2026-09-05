@@ -236,8 +236,8 @@ function buildBusFactory() {
   assert.equal(before.stages.circuitAutomation, true);
   assert.equal(before.stages.controlAutomation, true);
   assert.equal(before.stages.experimentalSetAutomation, true);
-  assert.equal(before.stages.coreAutomation, true);
-  assert.equal(before.stages.finalStorage, true);
+  assert.equal(before.stages.autonomousCoreAutomation, true);
+  assert.equal(before.stages.finalStorageRoute, true);
   assert.equal(before.stages.experimentalPowerRouted, true);
   assert.equal(before.stages.experimentalPowerActive, true);
   assert.equal(powerA.powerFuelSeconds > 0, true);
