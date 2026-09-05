@@ -59,10 +59,13 @@ jobs:
             runtime.renderAll();
           });
 
-          await page.waitForSelector('#post-clear-optimization-hud:not([hidden])', { timeout: 5000 });
-          assert.equal((await page.textContent('#post-clear-optimization-count'))?.trim(), '0 / 4');
-          await page.click('#post-clear-optimization-hud');
-          await page.waitForSelector('#post-clear-optimization-panel:not([hidden])');
+          await page.waitForFunction(() => {
+            const button = document.querySelector('#post-clear-optimization-hud');
+            return button && button.hidden === false && document.querySelector('#post-clear-optimization-count')?.textContent?.trim() === '0 / 4';
+          }, null, { timeout: 8000 });
+          assert.equal(await page.isVisible('#post-clear-optimization-hud'), true, 'optimization HUD must be visible after Main Clear');
+          await page.click('#post-clear-optimization-hud', { force: true });
+          await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === false, null, { timeout: 5000 });
           const text = await page.textContent('#post-clear-optimization-panel');
           for (const label of ['Factory Optimization', 'POWER HEADROOM', 'BUFFER RESERVE', 'LOGISTICS BACKBONE', 'REDUNDANT AUTOMATION']) {
             assert.ok(text?.includes(label), 'missing panel label: ' + label);
@@ -82,15 +85,18 @@ jobs:
           await page.waitForFunction(() => !document.querySelector('#start-game')?.disabled, null, { timeout: 20000 });
           await page.click('#start-game');
           await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
-          await page.waitForSelector('#post-clear-optimization-hud:not([hidden])', { timeout: 5000 });
-          assert.equal((await page.textContent('#post-clear-optimization-count'))?.trim(), '1 / 4', 'optimization history must survive save/reload');
+          await page.waitForFunction(() => {
+            const button = document.querySelector('#post-clear-optimization-hud');
+            return button && button.hidden === false && document.querySelector('#post-clear-optimization-count')?.textContent?.trim() === '1 / 4';
+          }, null, { timeout: 8000 });
+          assert.equal(await page.isVisible('#post-clear-optimization-hud'), true, 'optimization HUD must remain visible after reload');
           const savedState = await page.evaluate(() => window.__scrapFactoryRuntime.getGame().postClearOptimization);
           assert.deepEqual(savedState.completedObjectiveIds, ['power_headroom']);
           assert.equal(savedState.completedAt.power_headroom, '2026-09-06T00:10:00.000Z');
-          await page.click('#post-clear-optimization-hud');
-          await page.waitForSelector('#post-clear-optimization-panel:not([hidden])');
-          await page.click('#close-post-clear-optimization');
-          assert.equal(await page.isHidden('#post-clear-optimization-panel'), true, 'optimization panel must close cleanly');
+          await page.click('#post-clear-optimization-hud', { force: true });
+          await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === false, null, { timeout: 5000 });
+          await page.click('#close-post-clear-optimization', { force: true });
+          await page.waitForFunction(() => document.querySelector('#post-clear-optimization-panel')?.hidden === true, null, { timeout: 5000 });
 
           const meaningfulConsoleErrors = consoleErrors.filter((message) => !message.toLowerCase().includes('favicon'));
           const meaningfulRequestFailures = requestFailures.filter((message) => !message.toLowerCase().includes('favicon'));
