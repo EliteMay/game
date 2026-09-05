@@ -193,6 +193,7 @@ function buildFullAutomationFixture() {
   const storage = add('storage-final', 'logistics_warehouse', 6, 6);
   const powerA = add('experimental-power-a', 'experimental_power_system', -3, 4, { powerFuelSeconds: 20 });
   add('experimental-power-b', 'experimental_power_system', -1, 6, { powerFuelSeconds: 20 });
+  const branchingSourceIds = new Set([smelter.id, copper.id, plastic.id, circuit.id, control.id, alloy.id]);
 
   const dirs = [
     { dx: 1, dz: 0, rotation: 0 },
@@ -305,12 +306,24 @@ function buildFullAutomationFixture() {
 
     let solved = null;
     let first = null;
+    const needsBranchTrunk = branchingSourceIds.has(source.id);
     for (const dir of dirs) {
       const firstCell = { gx: sourceGrid.gx + dir.dx, gz: sourceGrid.gz + dir.dz };
+      const firstKey = key(firstCell.gx, firstCell.gz);
+      if (occupied.has(firstKey) || firstKey === key(targetGrid.gx, targetGrid.gz)) continue;
+
+      if (!needsBranchTrunk) {
+        const direct = bfsFrom(firstCell, joins, sourceGrid, targetGrid);
+        if (!direct) continue;
+        first = firstCell;
+        solved = direct;
+        break;
+      }
+
       const secondCell = { gx: sourceGrid.gx + dir.dx * 2, gz: sourceGrid.gz + dir.dz * 2 };
-      if (occupied.has(key(firstCell.gx, firstCell.gz)) || occupied.has(key(secondCell.gx, secondCell.gz))) continue;
-      if (key(firstCell.gx, firstCell.gz) === key(targetGrid.gx, targetGrid.gz) || key(secondCell.gx, secondCell.gz) === key(targetGrid.gx, targetGrid.gz)) continue;
-      const tail = bfsFrom(secondCell, joins, sourceGrid, targetGrid, [key(firstCell.gx, firstCell.gz)]);
+      const secondKey = key(secondCell.gx, secondCell.gz);
+      if (occupied.has(secondKey) || secondKey === key(targetGrid.gx, targetGrid.gz)) continue;
+      const tail = bfsFrom(secondCell, joins, sourceGrid, targetGrid, [firstKey]);
       if (!tail) continue;
       first = firstCell;
       solved = { path: [firstCell, ...tail.path], join: tail.join };
@@ -319,7 +332,7 @@ function buildFullAutomationFixture() {
     assert.ok(solved && first, `could not route ${label}`);
     layPath(solved.path, solved.join, label);
     registerTargetNetwork(target, solved.path, existing);
-    sourceTrunks.set(source.id, { firstKey: key(first.gx, first.gz), branches: 1 });
+    if (needsBranchTrunk) sourceTrunks.set(source.id, { firstKey: key(first.gx, first.gz), branches: 1 });
   }
 
   connect(scrap, crusher, 'scrap-crusher');
