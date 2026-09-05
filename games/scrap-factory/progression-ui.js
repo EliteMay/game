@@ -186,7 +186,7 @@ function renderPanel() {
   ` : `
     <section class="progression-section progression-section--cap">
       <div class="progression-section__head"><div><span>PLAYABLE RANK-UP CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>ACTIVE</strong></div>
-      <p>通常GameplayのRank Upは現在Rank 4まで接続済みです。次のRank 4 → 5では、Splitter / Mergerを使った複数製品ラインと自前電力の安定稼働を本格的な進行条件へ接続します。</p>
+      <p>通常GameplayのRank Upは現在Rank 5まで接続済みです。Industrial Storageが利用可能です。次のRank 5 → 6では、廃工場の設備復旧とAssembler自動ラインを進行条件へ接続します。</p>
     </section>
   `;
 

@@ -239,7 +239,7 @@ PR #8 implementation-only headで次のRegressionを追加し、`Validate Web Ga
 - Battery charge/dischargeはPower量×秒の単純Energy model。Efficiency / max cycle / degradationはまだない。
 - Back PressureはFinal Storage TargetをRoute候補から外すModelで、Belt segment上の物理Queueや詰まりAnimationはまだない。
 - SplitterはStorage Full時に別Final Routeへ再選択できるが、各Intermediate Nodeの独立Bufferは持たない。
-- Industrial StorageはRank5 future-state featureで、自然なRank5 Progressionは未接続。
+- Industrial Storageはこの時点ではRank5 future-state featureで、自然なRank5 Progressionは未接続だった。Phase 3-Bで解消。
 - Battery charge gauge / Industrial Storage scale / collision / Pointer LockはStatic CIでは評価できない。
 - `world-runtime.js`のCustom Visualが増えてきたため、次のVisual architecture整理では`industrial-art.js`への責務移動を検討する。
 - Generator / Pole final visuals、Assembler / advanced recipes、Smart Sorter / Priority / Overflowは後続Slice。
@@ -318,3 +318,51 @@ PR #9初回CI `Validate Web Game` run #49でExploration regressionが失敗し�
 - Residential Procedural GeometryのDraw Cost、Fog、Landmark readability、Loot visibilityは実FPS / Screenshotで評価する。
 - Active ExpeditionをHubからどうResume導線へ見せるかは、現在TerminalのResume button中心。Hub cardへSession indicatorを出す余地がある。
 - 今後複数Areaを追加するときは`EXPLORATION_AREAS`を増やしてもResidential固有ObjectiveをGeneric化しすぎず、AreaごとのGameplay差を維持する。
+
+## 2026-09-05 / Phase 3-B Rank 5 Production / Power Progression
+
+### Problem
+
+- Phase 2でRank4用Advanced Logistics / Power / Industrial Storageを実装しても、Rank4→5の自然なProgressionがなければIndustrial Storageは通常Gameplayから到達できない。
+- Rank Upのために新しい`stableSeconds`や`advancedLineComplete`をSaveすると、実際のFactory配置・Route / Power stateとProgression用Cached stateが二重化する。
+- Starter Gridを「自前電力」に含めると、Generatorを置いただけで実質Starter Grid依存のFactoryでもMandatoryを通せる。
+- Generator inputにFuelが積まれているだけで「安定発電」と見なすと、停止中Generatorでも条件達成できる。
+
+### Keep
+
+- Rank4→5も既存`findDirectionalRoutes()`を唯一の物流Source of Truthとして使う。
+- `crushed_metal`と`iron_ingot`の2つの自動加工Outputを同一Factoryから検出し、Route bundleにSplitter / Mergerが両方含まれることをMandatoryにする。
+- Mk.2利用とRoute minimum throughputは同じRoute結果から導出する。
+- Power条件は既存`computePowerSnapshot()` / `generatorActive()` / `buildingPowerGeneration()`を再利用する。
+- 「自前発電」は稼働中Generator容量だけで評価し、Starter Grid 55 PowerとBattery dischargeをOwn Generationへ加算しない。
+- Demandを賄うGenerator群について、`powerFuelSeconds + input.metal_scrap × 24秒`からFuel Runwayを導出する。
+- Mandatoryは最低30秒Runway、Optionalは120秒Runwayを使う。
+- Rank4→5専用のTimer / topology cache / power cacheをSaveしない。Factoryを崩せば昇格前の判定も未達へ戻る。
+- Industrial StorageはRank5 gateを変えず、Rank5への正常到達経路を追加することで自然に解放する。
+- `PLAYABLE_MAX_RANK`だけ5へ拡張し、1〜7を保存できる既存Progression contractは維持する。
+
+### Evidence
+
+PR #10 implementation head `6444578932c8520050b000c0e1c7605500f43ea3` に対する `Validate Web Game` run #56が成功した。
+
+Regressionでは:
+
+- Splitter + Merger + Mk.2を含む2加工Output topology
+- Throughput 3.0
+- Generator 80 Power / Covered Demand 66 / Own Reserve 14
+- Fuel Runway 48秒
+- Rank4 mandatory + optionals → Rank5
+- Industrial Storage unlock
+- Rank5 phase cap
+- Merger removal rejection
+- inactive Generator rejection
+
+を確認した。
+
+### Watch
+
+- 現在の「安定稼働」は履歴を一定秒数連続観測する方式ではなく、現在Power正常 + Own Generation capacity + Fuel Runwayで決めるDeterministic state check。将来Production Order等で履歴が必要になれば、その時点で明示的なTelemetry contractを設計する。
+- 2加工Outputは現行RecipeのCrushed Metal / Iron Ingotを使用する。Rank5 Assembler / Advanced Productionを追加した後は、Rank5→6側で製品多様化を本格化する。
+- Route bundleにSplitter / Mergerが含まれることを検出するが、現PhaseではSplitter分岐数やMerger実入力数をProgression専用に別計測しない。
+- Rank4→5のFactory構築操作、HUDのREADY変化、Rank Up後のIndustrial Storage BuildはBrowserで実操作確認が必要。
+- Generator / Pole visual、Assembler、Advanced Recipes、Smart Sorter / Priority / Overflow、廃工場探索は後続Slice。

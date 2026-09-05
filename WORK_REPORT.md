@@ -18,6 +18,7 @@ Date: 2026-09-05
 8. Phase 2-B Logistics Expansion
 9. Phase 2-C Power Buffer & Storage
 10. Phase 3-A Residential Exploration Progression
+11. Phase 3-B Rank 5 Production / Power Progression
 
 ## Current Gameplay
 
@@ -41,13 +42,14 @@ Date: 2026-09-05
 - Machine buffers / processing cycles
 - Hand crafting
 - Tutorial / Free Play
-- Progression Rank 1 → 2 → 3 → 4 playable
+- Progression Rank 1 → 2 → 3 → 4 → 5 playable
 - Research Data / Blueprint / Research unlock
 - Residential Main Objective / persistent district discovery / Resource Point
+- Rank 4 Advanced Logistics + Own Power progression condition
 - Autosave / Recovery / JSON Export
 - Factory Management / Codex / Planner / Alerts
 
-通常GameplayでRank 4まで自然に到達できる。Rank 4→5の進行条件は後続Phase。
+通常GameplayでRank 5まで自然に到達できる。Rank 5到達後はIndustrial Storageを利用可能。Rank 5→6の廃工場復旧 / Assemblerは後続Phase。
 
 ## Visual Foundation
 
@@ -76,7 +78,7 @@ User playtest由来の既存Contract:
 - Splitter / Mergerは明示Portを厳密適用
 - Tutorial / Progression / Factory Managementも同じRoute Source of Truthを使用
 
-Phase 3-AでもこのContractを変更していない。
+Phase 3-BでもこのContractを変更していない。
 
 ## Factory Management Pack
 
@@ -447,6 +449,138 @@ Validator:
 - Residential runtime integration markers
 - Exploration regression execution
 
+## Phase 3-B Rank 5 Production / Power Progression — 2026-09-05
+
+### Scope Decision
+
+REQUIREMENTSのRank 4→5 Mandatory:
+
+> Splitter / Mergerを使った複数製品自動ラインを、自前電力で安定稼働させる。
+
+を、既に実装済みの物流・Power Source of Truthへ直接接続した。
+
+新しいSave counterや別のProgression graphを追加せず、現在のFactory stateからRank 5 eligibilityを導出する。
+
+### Rank 4 Advanced Line Analysis
+
+`progression.js`へ`analyzeRank4AdvancedLine(game)`を追加。
+
+対象:
+
+```text
+Hopper
+→ Splitter / Mk.2等
+→ Crusher
+→ Crushed Metal final route
++
+Hopper
+→ Splitter / Mk.2等
+→ Crusher
+→ Smelter
+→ Iron Ingot final route
+```
+
+Final target:
+
+- Seller
+- Small Storage
+- Industrial Storage
+
+判定:
+
+- 2加工Outputが成立
+- Route bundleにSplitterを含む
+- Route bundleにMergerを含む
+- Mk.2利用有無を導出
+- 全対象Routeのminimum throughputを導出
+
+`findDirectionalRoutes()`をそのまま利用するため、Legacy corner / strict Splitter-Merger port contractをProgression側で複製しない。
+
+### Rank 4 Own Power Analysis
+
+`analyzeRank4Power(game)`を追加。
+
+MandatoryのOwn Power:
+
+- `computePowerSnapshot()`が正常
+- 給電範囲外Consumerなし
+- Active Scrap Generator容量だけでCovered Demand以上
+- Starter Grid 55 PowerはOwn Generationへ加算しない
+- Battery dischargeもOwn Generator capacityへ加算しない
+- Demandを賄うGenerator群が最低30秒分のFuel Runwayを持つ
+
+Fuel Runway:
+
+```text
+current powerFuelSeconds
++ generator.input.metal_scrap × 24秒
+```
+
+Generatorが停止中なら、InputにFuelがあってもActive own generationとは扱わない。
+
+### Rank 4 → 5 Goals
+
+Mandatory:
+
+- Splitter + Mergerを使うCrushed Metal / Iron Ingot 2加工Output
+- Stable Own Power 30秒以上
+
+Optionalから2つ:
+
+- Advanced lineにConveyor Mk.2
+- effective throughput 3.0 items/sec
+- Grid Storage research
+- Generator fuel runway 120秒
+- Own generation reserve 10 Power
+
+Reward:
+
+- Rank 5
+- Industrial Storage
+
+`PLAYABLE_MAX_RANK`を5へ更新。Progression save自体は従来通り1〜7を保持可能。
+
+### Save / Compatibility
+
+追加Persistent Fieldなし。
+
+- Root Schema Version `1`
+- Progression Version `1`
+- Existing Building fieldsを利用
+- Route graphを保存しない
+- Power snapshotを保存しない
+- Rank4→5専用Timerを保存しない
+
+既存Rank 1→4、Legacy Migration、Exploration、Battery、Storage、Quick Build、Directional corner compatibilityを変更しない。
+
+### Regression Coverage
+
+`scripts/progression.test.mjs`へ追加:
+
+- `PLAYABLE_MAX_RANK = 5`
+- Splitter + Merger + Mk.2 topology
+- 2加工Output detection
+- throughput 3.0
+- Own Generator 80 Power
+- Covered Demand 66
+- Own Reserve 14
+- Fuel Runway 48秒
+- Rank4 mandatory + optionals → Rank5
+- Industrial Storage unlock
+- Rank5 phase cap
+- Merger removal → mandatory fail
+- inactive generator → mandatory fail
+
+PR #10 implementation head:
+
+`6444578932c8520050b000c0e1c7605500f43ea3`
+
+`Validate Web Game` run #56:
+
+- completed
+- conclusion: success
+- reusable baseline included
+
 ## Save / Compatibility
 
 Core Save:
@@ -470,6 +604,8 @@ Factory Management preference key:
 
 - `scrap-factory-management-v1`
 
+Phase 3-BではSave fieldを増やしていない。
+
 ## Validation
 
 ### Automated
@@ -480,7 +616,8 @@ Factory Management preference key:
 - Required files
 - Directional Logistics regression
 - Factory Management regression
-- Progression regression
+- Progression Rank 1→5 regression
+- Rank4→5 Advanced Logistics / Own Power regression
 - Power / Battery regression
 - Storage capacity regression
 - Exploration / Return / Rank3→4 regression
@@ -488,6 +625,10 @@ Factory Management preference key:
 ### Browser / Visual — 未確認
 
 - Progression HUD / Research reload / Pointer Lock
+- Rank4→5用Advanced Lineの実建築操作
+- Rank conditionのREADY切替
+- Rank5昇格後のIndustrial Storage Build
+- Generator燃料Runwayを維持した実稼働
 - Transport Terminal open/close + pointer-lock transition
 - Residential start orientation
 - Residential movement / collision
@@ -511,7 +652,8 @@ Static CI成功をBrowser / Visual Validationへ読み替えない。
 
 Not yet implemented / connected:
 
-- natural Rank4→5 Progression path
+- Rank5→6 Progression path
+- abandoned factory restoration
 - deeper Residential building interiors
 - Residential enemies / HP / environmental hazards
 - additional independent exploration areas
@@ -523,7 +665,7 @@ Not yet implemented / connected:
 - Combat / weapons / enemies
 - authored external 3D assets
 
-次SliceはREQUIREMENTSを再確認し、**Rank4→5 Production/Power Progression**、**Residential探索の危険/内部空間拡張**、**Assembler前段**の依存関係から選ぶ。
+次SliceはREQUIREMENTSを再確認し、**Rank5→6の廃工場 / Assembler foundation** と **Residential危険Gameplay拡張** の依存関係から選ぶ。
 
 ## Requirements Planning Update
 
