@@ -492,3 +492,46 @@ Regressionで確認:
 - Turret threat radius / HP damage cadenceが一人称で納得できるかはStatic CIでは判断できない。
 - Empty-input Recipeは「Research取得済みならResource Pointも確保済み」という通常進行Contractに依存する。将来複数Drone Resourceを扱うときはBuildingごとのroute assignment stateを明示設計する。
 - `exploration-core-v3.js` / `progression-phase5a.js`のLayeringは安全なVertical Sliceには有効だが、Phase追加ごとにFileを増やし続けず、安定後にCore ownershipを整理する。
+
+## 2026-09-05 / Phase 6-C Final Automation Regression
+
+### Problem
+
+- 最終製品の完全自動Lineは5種類のAdvanced Drone source、複数input Assembler、2段Fabricator、Experimental Power、Storageまでを同時に検証する必要がある。
+- 最初のE2E fixtureは空きGridをBFSで自動探索して配線していたため、Factoryが密になるにつれinput/output branchの予約順に結果が依存した。
+- `plastic-control`、`motor-control`、`circuit-experimental`等、Product runtimeではなくFixture自身の自動配線Algorithmをdebugする状態になった。
+
+### Root Cause
+
+- 自由配置ゲームのRegression fixtureに「自動で最適な工場Layoutを設計する」という別問題まで担当させた。
+- Test対象はDirectional Logistics / Production contractなのに、Fixture生成が第二のrouting systemになっていた。
+- Explicit input gateway / branch reservationを追加しても、経路予約順序の競合は別箇所へ移るだけだった。
+
+### Keep
+
+- **E2E Testは代表的な明示Layoutを使い、Product runtimeだけを動的に検証する。**
+- Phase 6-Cでは `Advanced Sources → Merger → Conveyor Mk.3 Main Bus → Splitter → Machine → Merger → Main Bus → Final Storage` のbuildable topologyへ変更した。
+- Test fixtureを単純化しても、`findDirectionalRoutes()` / Power / Production analyzerを迂回しなければRegressionを弱めたことにはならない。
+- Final progression stateは`finalAutomationComplete`のようなSave flagを持たず、Drone assignment / route / Machine recipe / Power / produced itemから毎回導出する。
+- Topologyだけで完成扱いにせず、`Autonomous Industrial Core`を実際に1個以上生産したEvidenceを要求する。
+- Recipe変更はOutput Bufferを保持し、incompatible Input Bufferがある場合は切替を拒否する。
+- Utility / Advanced Droneは同じResource Point registryを共有しつつtier availabilityを明示して、旧Drone contractを壊さない。
+
+### Evidence
+
+最終implementation head:
+
+```text
+1e3a2bae14c1f9861b25e7d14c88190f486faa3a
+Validate Web Game #135
+result: success
+```
+
+このrunでexisting regression through Phase 6-BとPhase 6-C Main Bus testがすべて成功した。
+
+### Watch
+
+- Main Bus fixtureは代表LayoutのRegressionであり、任意のPlayer layoutの使いやすさや最適性を保証しない。
+- Automation ConsoleのRoute / Recipe変更はcurrent module-local runtimeとの整合のためreloadを使う。将来runtime mutation APIを用意できればreload dependencyを外す。
+- Static CIではAutomation Consoleのlayout、Pointer Lock、Build Preview、Collider、Advanced Drone / Experimental Powerの一人称Scale、WebGL FPS、Final line balanceを確認できない。
+- Requirements step 9のMega Factory stable-operationは履歴時間を持つObjectiveになる可能性が高い。現在のPhase 6-C derived topology stateと安易に同じpersistent flagへまとめない。
