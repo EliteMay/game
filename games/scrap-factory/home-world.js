@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { HOME_POSITION } from './home-system.js';
+import { addPanelLabel, corrugatedTexture } from './visual-kit.js';
 
 const HOME = { x: HOME_POSITION.x, z: HOME_POSITION.z, width: 10, depth: 9 };
 
@@ -32,11 +33,15 @@ export function installHomeWorld(world) {
   group.name = 'player-home';
   world.scene.add(group);
 
-  const wall = mat(0x586260, 0.9, 0.36);
+  const wallTexture = corrugatedTexture('#667372', 412);
+  wallTexture.repeat.set(5, 1.6);
+  const wall = new THREE.MeshStandardMaterial({ map: wallTexture, color: 0xaeb5ae, roughness: 0.9, metalness: 0.34 });
   const frame = mat(0x2a3031, 0.72, 0.68);
   const floorMat = mat(0x5f625b, 0.96, 0.06);
   const fabric = mat(0x5f6f75, 0.94, 0.05);
   const wood = mat(0x6b5742, 0.9, 0.05);
+  const roofMat = mat(0x394141, 0.9, 0.48);
+  const glass = new THREE.MeshStandardMaterial({ color: 0x263a3d, emissive: 0x31585b, emissiveIntensity: 0.85, roughness: 0.28, metalness: 0.18 });
   const screenMat = new THREE.MeshStandardMaterial({ color: 0x1a2729, emissive: 0x4a9ba0, emissiveIntensity: 1.2, roughness: 0.42 });
   const yellow = mat(0xb69637, 0.75, 0.34);
 
@@ -47,7 +52,7 @@ export function installHomeWorld(world) {
   world.scene.add(path);
 
   addBox(group, [HOME.width, 0.18, HOME.depth], floorMat, [HOME.x, 0.09, HOME.z]);
-  addBox(group, [HOME.width + 0.4, 0.25, HOME.depth + 0.4], frame, [HOME.x, 3.75, HOME.z]);
+  addBox(group, [HOME.width + 0.55, 0.28, HOME.depth + 0.55], roofMat, [HOME.x, 3.78, HOME.z]);
 
   const westX = HOME.x - HOME.width / 2;
   const eastX = HOME.x + HOME.width / 2;
@@ -60,10 +65,31 @@ export function installHomeWorld(world) {
   addBox(group, [3.45, 3.7, 0.22], wall, [eastX - 1.72, 1.9, southZ]);
   addBox(group, [3.1, 0.55, 0.24], frame, [HOME.x, 3.43, southZ]);
 
+  // Exterior cues keep the Home readable as a small worker cabin instead of another Factory machine shell.
+  addBox(group, [4.25, 0.16, 1.35], roofMat, [HOME.x, 3.18, southZ - 0.62]);
+  for (const x of [HOME.x - 2.0, HOME.x + 2.0]) addBox(group, [0.14, 3.05, 0.14], frame, [x, 1.54, southZ - 1.13]);
+  addBox(group, [3.4, 0.16, 0.72], floorMat, [HOME.x, 0.09, southZ - 0.44]);
+  for (const x of [HOME.x - 1.55, HOME.x + 1.55]) addBox(group, [0.13, 3.5, 0.16], yellow, [x, 1.76, southZ - 0.14]);
+  addBox(group, [3.22, 0.14, 0.16], yellow, [HOME.x, 3.47, southZ - 0.14]);
+
+  for (const x of [HOME.x - 3.3, HOME.x + 3.3]) {
+    addBox(group, [1.82, 1.34, 0.09], frame, [x, 2.02, southZ - 0.14]);
+    addBox(group, [1.55, 1.08, 0.06], glass, [x, 2.02, southZ - 0.2]);
+    addBox(group, [0.08, 1.08, 0.08], frame, [x, 2.02, southZ - 0.25]);
+  }
+
+  addPanelLabel(group, 'HOME 01', [HOME.x, 3.05, southZ - 0.77], [0, Math.PI, 0], [2.55, 0.62], {
+    background: '#202627', foreground: '#e0c452', sub: 'PLAYER QUARTERS',
+  });
+  const porchLight = new THREE.PointLight(0xf1d18a, 1.45, 9, 2);
+  porchLight.position.set(HOME.x, 2.75, southZ - 1.05);
+  group.add(porchLight);
+  addBox(group, [0.25, 0.18, 0.18], new THREE.MeshStandardMaterial({ color: 0xc8b46d, emissive: 0xffd77a, emissiveIntensity: 2.3 }), [HOME.x, 2.73, southZ - 1.08]);
+
   const doorPivot = new THREE.Group();
   doorPivot.position.set(HOME.x - 1.45, 0, southZ);
   group.add(doorPivot);
-  const door = addBox(doorPivot, [2.9, 3.35, 0.16], mat(0x414a49, 0.88, 0.45), [1.45, 1.68, 0]);
+  const door = addBox(doorPivot, [2.9, 3.35, 0.16], mat(0x4d5856, 0.84, 0.5), [1.45, 1.68, 0]);
   addBox(doorPivot, [0.18, 0.18, 0.12], yellow, [2.5, 1.65, -0.12]);
   registerInteractive(world, door, 'door', 'Home Door');
 
