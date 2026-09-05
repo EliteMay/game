@@ -10,40 +10,34 @@ Updated: 2026-09-05
 
 ```text
 Factory / Scrap Yard
-→ Residential / Rank 4 Logistics & Power
+→ Residential Exploration
+→ Rank 4 Logistics / Power
 → Abandoned Factory / Advanced Assembly
-→ Military Facility / Drone Control
-→ Rank 6 Advanced Logistics / Drone Routes / Industrial Power & Storage
+→ Rank 6 Military / Drone Automation
+→ Conveyor Mk.3 / Priority / Overflow
+→ Configurable Drone Routes / Industrial Generator / Logistics Warehouse
 → Rank 7
 → Ruined Research Facility
-→ Access Relay
 → Robotics / Materials / Energy Lab
-→ Special Cargo normal return
+→ Special Cargo 3 / 3 normal return
+→ Experimental Fabrication Research
+→ Fabricator
+→ Final Component Set
+→ Central Core Gate
+→ Core Stabilizer
+→ Experimental Archive
+→ Experimental Technology Research
 ```
 
-現在は **Phase 6-A: Ruined Research Facility / Three Labs**。
-
-Phase 6-A実装済み:
-- Rank 7 Research Facility Transport Terminal entry
-- Central Atrium / Access Relay
-- Robotics Lab
-- Materials Lab
-- Energy Lab
-- 3種類のSpecial Cargo
-- Lab別environment hazard
-- Lab recoveryの永続化
-- failed expedition後のSpecial Cargo再回収
-- normal returnでFactory側へCargo確定
-- Phase 6-A専用3D Scene / UI
+現在は **Phase 6-B: Fabricator / Central Core / Experimental Technology**。
 
 未実装:
-- Central Core攻略
-- Fabricator
-- Experimental Research / Experimental Power
-- AI Control Module / Experimental Frame / Experimental Power Module recipe
 - Advanced Drone
-- Autonomous Industrial Core
-- Mega Factory / Main Clear
+- Experimental Power System
+- Autonomous Industrial Core complete production line
+- Mega Factory stable-operation objective
+- Main Clear
+- final Hybrid Asset quality pass
 
 ---
 
@@ -52,6 +46,7 @@ Phase 6-A実装済み:
 ```text
 Scrap Factory
 ├─ config.js
+├─ final-chapter.js
 ├─ logistics.js
 ├─ power.js
 ├─ storage-capacity.js
@@ -61,133 +56,280 @@ Scrap Factory
 ├─ world.js
 ├─ world-runtime-phase5b.js
 ├─ world-runtime.js
-├─ factory-management.js
-├─ feature-pack.js
 ├─ progression.js
 │  ├─ progression-core.js
 │  ├─ progression-phase4b.js
 │  ├─ progression-phase5a.js
 │  ├─ progression-phase5b.js
-│  └─ progression-phase5c.js
+│  ├─ progression-phase5c.js
+│  └─ progression-phase6b.js
 ├─ progression-ui.js
+│  ├─ progression-ui-v3.js
 │  └─ phase5c-automation-ui.js
-├─ exploration.js                 # compatibility entrypoint
-│  └─ exploration-core-v4.js      # Rank 1-7 exploration state
+├─ exploration.js
+│  ├─ exploration-core-v4.js
+│  └─ exploration-core-v5.js
 ├─ exploration-ui.js
-│  └─ exploration-ui-v2.js        # Transport Terminal
+│  └─ exploration-ui-v2.js
 └─ exploration/
    ├─ residential.*
    ├─ industrial.*
    ├─ military.*
-   └─ research.html / research.css / research.js
+   └─ research.html / research.css / research-phase6b.js
 ```
 
-`exploration.js`のImport pathは維持し、内部Coreだけv4へ更新する。
+Compatibility entrypoints `progression.js` / `exploration.js` / `progression-ui.js` を維持する。
 
-Phase 6-AはFactory `game.js`へFinal Chapter専用Simulationを増やさず、探索SceneとExploration stateへ閉じ込める。
+Phase 6-Bでも巨大な`game.js`へ新しいFabricator専用Simulationは追加しない。`config.js`のRecipe / Building定義を既存Generic Production Runtimeへ接続する。
 
 ---
 
-## 3. Save / Compatibility Contract
+## 3. Save Contract
 
 ```text
 localStorage key: elitemay-game-hub-v1
 Root Save Schema: 1
+Game Schema: 1
 Progression Schema: 1
 Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-AでもSchema番号は変更しない。
+Phase 6-BでもSchema Version変更なし。
 
-Phase 6-A additive exploration state:
+### Additive Research Area state
 
 ```text
-exploration.areas.research
-exploration.areas.research.objective.accessRelayOnline
-exploration.areas.research.objective.roboticsRecovered
-exploration.areas.research.objective.materialsRecovered
-exploration.areas.research.objective.energyRecovered
-exploration.areas.research.objective.labsCompleted
-exploration.areas.research.objective.shortcutOpened
-exploration.areas.research.objective.centralCoreUnlocked
-exploration.areas.research.objective.completed
-exploration.areas.research.securedComponents[]
-exploration.activeSession.researchCargo[]
+areas.research.centralCore = {
+  fabricationSetInstalled: boolean,
+  stabilizerOnline: boolean,
+  archiveRecovered: boolean,
+  rewardClaimed: boolean
+}
 ```
 
-Legacy Save normalize:
-- Research Areaが無い → default research state追加
-- `researchCargo`が無いactive session → `[]`
-- Residential / Industrial / Military stateは既存値を維持
-- unknown research component IDは除外
+Existing `areas.research.objective.centralCoreUnlocked` / `completed` と組み合わせる。
 
-`centralCoreUnlocked` / Research Facility `completed` はPhase 6-Aでは進行でtrueにしない。
+Normalize:
+- Phase 6-A Saveに`centralCore`がない場合は全falseを補完
+- `archiveRecovered=true`ならCore install / Stabilizer / Objective completionを整合させる
+- Residential / Industrial / Military / Three-Lab stateを維持
 
-既存Phase 5-C additive field:
-- Drone Port `resourcePointId`
+### Final Component inventory
 
-保存しないDerived Data:
-- Directional route graph / throughput / priority
-- Power snapshot
-- Factory diagnostics
-- Resource Point performance metadata
-- Lab UI表示状態
+Default inventoryへAdditive key:
+- `ai_control_module`
+- `experimental_frame`
+- `experimental_power_module`
+
+既存Saveは0で補完。
 
 ---
 
-## 4. Research Facility State Contract
+## 4. Rank / Research
+
+`PLAYABLE_MAX_RANK = 7` 維持。
+
+Rank 7以降はRank 8へ上げず、Final Chapter Objective / Researchで進む。
+
+### `experimental_fabrication`
+
+```text
+Rank: 7
+Cost: Research Data 1
+Blueprint: tri_lab_fabrication_blueprint
+Unlock: building:fabricator
+```
+
+Blueprint normal flow:
+```text
+Three Labs recovered
+→ Special Cargo 3 / 3正常帰還
+→ tri_lab_fabrication_blueprint
+```
+
+Legacy Phase 6-A compatibility:
+- 既に`securedComponents` 3/3のSaveはBlueprint fieldがなくてもResearch gateを満たす
+- Research完了時にBlueprintをProgressionへmaterializeする
+- 再探索を要求しない
+
+### `experimental_technology`
+
+```text
+Rank: 7
+Cost: Research Data 4
+Blueprint: central_core_experimental_blueprint
+Unlocks:
+- tier:experimental
+- production:autonomous_core
+```
+
+Central Core Archive回収でBlueprint + Research Data 4を保証する。
+
+Phase 6-Bではunlock markerだけを追加し、Autonomous Industrial Core Recipe / Advanced Drone / Experimental Powerを実装済みとは扱わない。
+
+---
+
+## 5. Fabricator
+
+Building:
+
+```text
+id: fabricator
+Rank: 7
+Research: experimental_fabrication
+Cost: $1250
+Power Use: 110
+Category: production
+```
+
+FabricatorはAssemblerの単純高速上位互換ではなくExperimental Tier専用Machine。
+
+### Phase 6-B batch recipe
+
+```text
+fabricator_experimental_set
+
+Input:
+- control_unit ×2
+- rare_alloy ×3
+- circuit ×2
+- iron_plate ×2
+
+20.0 sec
+
+Output:
+- ai_control_module ×1
+- experimental_frame ×1
+- experimental_power_module ×1
+```
+
+Input種類は要件のFinal Tier原則4種類以内を満たす。
+
+既存Generic Runtimeを再利用:
+- Power
+- Input Buffer
+- Progress
+- Output Buffer
+- Directional Logistics
+- Back Pressure先のStorage / logistics
+- Save
+- discoveredItems
+
+Recipe変更UIはPhase 6-Bでは不要。現在FabricatorはこのExperimental batch専用。
+
+---
+
+## 6. Final Component Set Contract
+
+Source: `final-chapter.js`
+
+Final Component ID:
+- `ai_control_module`
+- `experimental_frame`
+- `experimental_power_module`
+
+Central Core install stockとして数える場所:
+- Factory `inventory`
+- Building `output` buffer
+
+数えない場所:
+- Machine `input` queue
+
+理由:
+- 他Recipeへ投入済みの予約素材をProgression側が横取りしない
+
+### Atomic consume
+
+`consumeFinalComponentSet(game)`:
+
+```text
+3種すべて1個以上存在確認
+↓
+不足 → no mutation
+↓
+揃っている → 各1個をInventory → Building Output順で消費
+```
+
+一部だけ消費してGate解放失敗する状態を作らない。
+
+---
+
+## 7. Research Facility / Central Core
 
 Area ID: `research`
-
-Unlock:
-- Progression Rank 7
+Required Rank: 7
+Danger: 4
 
 Zones:
-1. `atrium`
-2. `robotics_lab`
-3. `materials_lab`
-4. `energy_lab`
-5. `central_core`
+- Central Atrium
+- Robotics Lab
+- Materials Lab
+- Energy Lab
+- Central Core
 
-Main Phase 6-A flow:
+### Phase 6-B Main sequence
 
 ```text
 Access Relay
-→ Robotics / Materials / Energy Lab（任意順）
-→ 各LabのSpecial Cargo回収
-→ Normal Return
-→ securedComponents 3 / 3
+→ Three Labs
+→ Special Cargo 3 / 3 Factory secured
+→ Factory Fabricator final components
+→ Central Core Gate install
+→ Core Stabilizer
+→ Experimental Archive
+→ Research Facility completed
 ```
 
-Lab dependency:
-- Access Relay前は3 Lab recovery不可
-- 3 LabはRelay後なら任意順
-- 全Lab recovery → `labsCompleted = true`
-- Central Core interaction → `phase-locked`
-- Lab phase完了だけではArea `completed = false`
+### Central Gate prerequisites
 
-Optional Service Lift:
-- 3 Lab recovery後に開通可能
-- Phase 6-AではPersistent shortcut stateだけ保存
+1. `labsCompleted = true`
+2. `securedComponents.length >= 3`
+3. Final Component Set ready
+
+成功時:
+- Final ComponentsをAtomic consume
+- `centralCore.fabricationSetInstalled = true`
+- `objective.centralCoreUnlocked = true`
+
+Repeat interaction:
+- `done`
+- componentsを二重消費しない
+
+### Core Stabilizer
+
+前提:
+- Central Core unlocked
+- fabrication set installed
+
+成功:
+- `centralCore.stabilizerOnline = true`
+- Central Core environmental field停止
+
+### Experimental Archive
+
+前提:
+- Stabilizer online
+
+成功:
+- `centralCore.archiveRecovered = true`
+- `objective.completed = true`
+- Research Facility `completedAt`
+- `central_core_experimental_blueprint`
+- Research Data +4
+- reward idempotent
+
+Research Facility completionは**Main Clearではない**。
 
 ---
 
-## 5. Special Cargo Contract
+## 8. Special Cargo Contract
 
-Special Cargoは通常`ITEMS` / Backpack itemではなく、Final ChapterのProgression Cargoとして独立管理する。
-
-| Lab | Cargo ID | Display Name |
-| --- | --- | --- |
-| Robotics | `robotics-control-core` | AI制御コア試作機 |
-| Materials | `materials-alloy-sample` | 実験合金サンプル |
-| Energy | `energy-cell-prototype` | 高密度Energy Cell試作機 |
-
-状態を3段階に分ける:
+Phase 6-A contract維持:
 
 ```text
 Lab recovered
-→ persistent objective flag
+→ persistent objective
 
 Cargo carried
 → activeSession.researchCargo[]
@@ -196,169 +338,171 @@ Factory secured
 → areas.research.securedComponents[]
 ```
 
-Failure:
-- Abandon / HP 0で`researchCargo`は失う
-- Lab recoveryは失わない
-- 復旧済みLabから未確定Cargoを次回Guaranteed recollect可能
+Abandon / HP 0:
+- normal Loot loss
+- current Special Cargo loss
+- Lab recovery persists
+- lost cargo can be guaranteed-recollected
 
 Normal Return:
-- normal loot → existing Transport Depot
-- new Special Cargo → `securedComponents[]`
-- duplicate secureは拒否
-
-この分離により「失敗でLab攻略まで巻き戻す」と「Cargo消失で進行不能になる」の両方を避ける。
+- normal Loot → Transport Depot
+- Special Cargo → securedComponents
+- 3/3到達時Fabrication Blueprintを保証
 
 ---
 
-## 6. Research Facility Runtime / Hazard
+## 9. Research Facility Browser Runtime
 
-Browser runtime: `exploration/research.js`
+Current runtime:
+- `exploration/research-phase6b.js`
 
-Scene:
-- Central AtriumをNavigation anchorにする
-- West = Robotics Lab
-- East = Materials Lab
-- North = Energy Lab
-- Far North = sealed Central Core
+Scene layout:
+- Atrium / Access Relay
+- west Robotics
+- east Materials
+- north Energy
+- far north Central Core
 
-Hazard:
-- Robotics: unstable actuator zone
-- Materials: hot process chamber
-- Energy: electrical arc field
+Environmental hazards:
+- Robotics actuator
+- Materials heat
+- Energy electrical field
+- Central Core unstable field until Stabilizer
 
-Shared exploration contract:
-- HP baseline 100
+HP:
+- baseline 100
 - HP 0 → `abandonExpedition()`
-- Abandon / HP 0 → current normal loot + unreturned Special Cargo loss
-- discovered zones / Lab recoveryは保持
-- player/session state autosave
-- normal return pointへ到達して初めてCargo確定
 
-Phase 6-AではCombat AIは追加しない。Research Facilityは既存の探索・電源・環境Hazard統合を先にPlayableにする。
+Persistent stateとVisual stateを同じObjective / Central stateから反映する。
+
+Static CIでは実際のCollider / distance / Pointer Lock / threat feelは保証しない。
 
 ---
 
-## 7. Transport Terminal
+## 10. Transport Terminal / Progression UI
 
-`exploration-ui-v2.js`は`EXPLORATION_AREAS`から4エリアを表示する。
+Transport Terminal Research Facility status:
+- Labs recovered but cargo未確定 → `CARGO RETURN REQUIRED`
+- Cargo 3/3 → `FABRICATION REQUIRED`
+- 3 Final Components ready → `CORE ACCESS READY`
+- Core opened → `CORE OPEN`
+- Stabilizer → `CORE STABLE`
+- completed → `CLEARED`
 
-Research Facility:
-- Rank 7未満 → LOCKED
-- active session → SESSION ACTIVE
-- 3 Lab + Special Cargo 3/3 secured → `LABS SECURED`
-- whole-area `completed`はfalseのため`CLEARED`とは表示しない
-
-Phase 6-A完了表示:
-
-```text
-LAB PHASE COMPLETE / CENTRAL CORE LOCKED
-Special Cargo 3 / 3 / Central Coreは次Phase
-```
+Rank 7 Progression UI:
+- Rank 7をRank-Up capとして表示
+- Main Clearではない旨を表示
+- Three Labs → Fabricator → Central Core → Experimental Technologyを案内
+- Research listは`RESEARCH`定義から自動表示
 
 ---
 
-## 8. Existing Rank 1-6 Systems Preserved
+## 11. Existing Systems Preserved
 
-### Directional Logistics
+### Logistics
 
 | Node | Throughput | Rule |
 | --- | ---: | --- |
 | Conveyor Mk.1 | 1.5/s | Forward |
 | Conveyor Mk.2 | 3.0/s | Forward |
 | Conveyor Mk.3 | 6.0/s | Forward |
-| Splitter | 3.0/s | Forward / Left / Right Round-robin |
-| Merger | 3.0/s | Rear / Left / Right → Forward |
-| Smart Sorter | 3.0/s | category fixed lane |
-| Priority Splitter | 6.0/s | Forward Priority / backup |
-| Overflow Splitter | 6.0/s | Forward Main / Right Overflow |
+| Splitter | 3.0/s | Round-robin |
+| Merger | 3.0/s | 3 input → forward |
+| Smart Sorter | 3.0/s | category lane |
+| Priority | 6.0/s | forward priority |
+| Overflow | 6.0/s | forward main / right overflow |
 
-### Drone Routes
+### Drone
+- Residential Copper: 8s
+- Industrial E-Waste: 10s
+- Military Rare Alloy: 12s
 
-| Area | Output | Cycle |
-| --- | --- | ---: |
-| Residential | Copper Wire | 8s |
-| Industrial | E-Waste | 10s |
-| Military | Rare Alloy | 12s |
-
-Rank 6→7 MandatoryはMilitary Alloy assigned Drone Portを引き続き要求する。
+Rank 6→7 Mandatory still requires Military Alloy Drone route.
 
 ### Power
 - Starter Grid 55
 - Scrap Generator 80
 - Industrial Generator 180
 - Battery 960 Energy
+- Fabricator consumes 110
 
 ### Storage
-- Small Storage 120
-- Industrial Storage 600
+- Small 120
+- Industrial 600
 - Logistics Warehouse 1800
 - Back Pressure / no item loss維持
 
----
-
-## 9. Visual Layer
-
-Factory visual directionは引き続き`Stylized Industrial Realism`。
-
-Research Facilityは人工照明主体のFinal Chapter Scene:
-- cool cyan/steel Atrium
-- Robotics = cool technical blue
-- Materials = warm amber process equipment
-- Energy = violet/blue energy equipment
-- Central Coreは遠方のlocked destinationとして見せる
-
-Procedural visualでGameplay readabilityを優先しており、Final Hybrid Asset quality passではない。
+### Spatial
+- 2.5m Grid
+- Factory coordinate system維持
+- Quick Build 1〜5維持
 
 ---
 
-## 10. Validation
+## 12. Visual Layer
 
-`npm run validate`
+Visual direction: `Stylized Industrial Realism`。
 
-Single entrypoint:
+Fabricator dedicated silhouette:
+- heavy experimental base
+- central fabrication chamber
+- twin field coils
+- energy rings
+- front control panel
+- status light
 
-```text
-package.json
-→ node scripts/validate.mjs
+Generic production box fallbackではなくRank 7 rewardとして識別可能にする。
+
+Simulation source of truthにはしない。
+
+---
+
+## 13. Validation
+
+Canonical command:
+
+```bash
+npm run validate
 ```
 
-`validate.mjs`がPhase 6-Aを正式に含み、Research Sceneの必須File / HTML local refs / Runtime marker / `scripts/phase6a.test.mjs`を既存Regressionと同じ経路で確認する。
+Execution:
 
-Phase 6-A regression:
-- Rank 6 research facility locked
-- Rank 7 unlock
-- Exploration Schema v1 legacy normalization
-- old area state preservation
-- Access Relay dependency
-- 3 Lab recovery
-- `labsCompleted` true
-- whole Research Facility `completed` false
-- Central Core phase-lock
-- Special Cargo collection
-- Abandon loss
-- Lab state persistence after failure
-- guaranteed cargo recollection
-- normal return secure
-- duplicate secure prevention
-- normal loot Transport Depot preservation
-- Research HTML / CSS / JS integration markers
-- exploration compatibility entrypoint → v4
+```text
+scripts/validate.mjs
+→ existing regressions through Phase 6-A
+→ scripts/phase6b.test.mjs
+```
 
-Existing validator continues:
-- JS/MJS syntax
-- JSON parse
-- local HTML refs
-- Rank 1→7 progression
-- Directional Logistics
-- Factory Management
-- Power / Storage
-- Residential / Industrial / Military
-- Phase 4-B / Phase 5-A / 5-B / 5-C
+Phase 6-B regression covers:
+- Rank 7 cap unchanged
+- Quick Build 1〜5
+- Fabricator config / 110 Power / Research gate
+- final recipe <=4 input types
+- exact 3 output component IDs
+- Exploration Schema v1
+- Phase 6-A state normalization
+- current / legacy 3/3 Cargo Fabrication gate
+- Fabrication Research unlock
+- input queue excluded from Final Component stock
+- atomic component consume
+- Central needs cargo / needs components
+- Central install idempotence
+- Stabilizer dependency
+- Archive dependency
+- Research Facility completion
+- Central reward +4 exactly once
+- Experimental Technology Research
+- current exploration/progression entrypoint markers
+- current Research Facility runtime
 
-Static CIで保証しない:
-- Research Facility Pointer Lock / pause feel
-- first-person navigation readability
-- Hazard damage balance
-- Lab / Central Core visual scale
-- collider / route feel
+Existing regressions continue to cover Rank 1→7, Directional Logistics, Factory Management, Power, Storage, Residential, Industrial, Military, Drone, Phase 4-B, Phase 5-A/B/C, Phase 6-A.
+
+### Unverified by static CI
+
+- real browser Pointer Lock / Pause flow
+- Three-Lab / Central Core actual reachability
+- Central Gate and Fabricator collider / first-person scale
+- Fabricator Build Preview readability
+- Central Hazard balance
+- Transport / Progression panel actual layout
 - WebGL FPS
