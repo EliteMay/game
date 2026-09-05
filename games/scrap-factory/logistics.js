@@ -72,6 +72,14 @@ export function logisticsOutputKeys(building) {
   return outputDirectionIndexes(building).map((index) => cellForDirection(building, index));
 }
 
+export function logisticsAcceptsFrom(building, fromKey, { sourceConnection = false } = {}) {
+  if (!building || !isLogisticsNode(building.type)) return false;
+  if ((building.type === 'conveyor' || building.type === 'conveyor_mk2') && !sourceConnection) {
+    return adjacentKeys(building).includes(fromKey);
+  }
+  return logisticsInputKeys(building).includes(fromKey);
+}
+
 export function conveyorOutputKey(conveyor) {
   return logisticsOutputKeys(conveyor)[0] || positionKey(conveyor?.x || 0, conveyor?.z || 0);
 }
@@ -113,7 +121,7 @@ export function findDirectionalRoutes(buildings, source, itemId, acceptsItem, sp
   for (const neighborKey of adjacentKeys(source)) {
     const entry = byCell.get(neighborKey);
     if (!entry || !isLogisticsNode(entry.type)) continue;
-    if (!logisticsInputKeys(entry).includes(sourceKey)) continue;
+    if (!logisticsAcceptsFrom(entry, sourceKey, { sourceConnection: true })) continue;
     queue.push({ key: neighborKey, pathKeys: [neighborKey], visited: new Set([sourceKey, neighborKey]) });
   }
 
@@ -130,7 +138,7 @@ export function findDirectionalRoutes(buildings, source, itemId, acceptsItem, sp
       if (!next || next.id === source.id) continue;
 
       if (isLogisticsNode(next.type)) {
-        if (!logisticsInputKeys(next).includes(state.key)) continue;
+        if (!logisticsAcceptsFrom(next, state.key)) continue;
         const visited = new Set(state.visited);
         visited.add(nextKey);
         queue.push({ key: nextKey, pathKeys: [...state.pathKeys, nextKey], visited });
