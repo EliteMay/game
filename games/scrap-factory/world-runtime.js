@@ -6,6 +6,7 @@ const PHASE5C_VISUALS = new Set([
   'drone_port_electronics',
   'industrial_generator',
   'logistics_warehouse',
+  'fabricator',
 ]);
 
 function material(color, { preview = false, metalness = 0.5, roughness = 0.7 } = {}) {
@@ -91,8 +92,6 @@ function addDroneRouteVisual(root, type, preview) {
     addBox(drone, [0.42, 0.06, 0.08], frame, [x * 0.5, 0, z * 0.5]);
     addCylinder(drone, 0.18, 0.18, 0.025, 12, route, [x, 0.04, z]);
   }
-
-  // Route identity stripe: copper route is warm, electronics route is green.
   addBox(group, [1.18, 0.07, 0.12], route, [-0.2, 0.62, -0.72]);
   finalize(group, preview);
   root.add(group);
@@ -140,12 +139,48 @@ function addWarehouseVisual(root, preview) {
   root.add(group);
 }
 
+function addFabricatorVisual(root, preview) {
+  hideBase(root);
+  const group = new THREE.Group();
+  const frame = material(0x20282c, { preview, metalness: 0.82, roughness: 0.46 });
+  const body = material(0x596b72, { preview, metalness: 0.56, roughness: 0.56 });
+  const dark = material(0x11171a, { preview, metalness: 0.68, roughness: 0.58 });
+  const field = material(0x6da8b5, { preview, metalness: 0.36, roughness: 0.34 });
+  const energy = material(0x777fd0, { preview, metalness: 0.38, roughness: 0.34 });
+  const warning = material(0xc1a34d, { preview, metalness: 0.3, roughness: 0.5 });
+
+  addBox(group, [2.3, 0.2, 2.1], frame, [0, 0.12, 0]);
+  addBox(group, [2.05, 0.52, 1.85], body, [0, 0.45, 0]);
+  addBox(group, [1.72, 1.65, 1.4], dark, [0, 1.45, 0.08]);
+  const chamber = addCylinder(group, 0.62, 0.75, 1.55, 24, field, [0, 1.5, 0.05]);
+  chamber.material.transparent = true;
+  chamber.material.opacity = preview ? 0.35 : 0.58;
+  for (const y of [0.92, 2.08]) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.82, 0.09, 10, 30), energy);
+    ring.position.set(0, y, 0.05);
+    ring.rotation.x = Math.PI / 2;
+    group.add(ring);
+    if (y > 2) root.userData.spinner = ring;
+  }
+  for (const x of [-0.88, 0.88]) {
+    addBox(group, [0.24, 1.62, 0.34], frame, [x, 1.45, 0.05]);
+    addCylinder(group, 0.13, 0.13, 1.12, 12, energy, [x, 1.52, 0.05]);
+  }
+  addBox(group, [1.55, 0.42, 0.18], body, [0, 1.2, -0.84]);
+  addBox(group, [0.9, 0.24, 0.05], field, [0, 1.26, -0.95]);
+  addBox(group, [1.48, 0.09, 0.08], warning, [0, 0.64, -0.91]);
+  root.userData.statusLight = addBox(group, [0.26, 0.16, 0.05], statusMaterial(preview, 0x7dbcc6), [0.62, 1.4, -0.95]);
+  finalize(group, preview);
+  root.add(group);
+}
+
 function addPhase5CVisual(root, type, preview = false) {
   if (!root || !PHASE5C_VISUALS.has(type) || root.userData.phase5cVisual) return;
   root.userData.phase5cVisual = true;
   if (type === 'drone_port_copper' || type === 'drone_port_electronics') addDroneRouteVisual(root, type, preview);
   else if (type === 'industrial_generator') addIndustrialGeneratorVisual(root, preview);
   else if (type === 'logistics_warehouse') addWarehouseVisual(root, preview);
+  else if (type === 'fabricator') addFabricatorVisual(root, preview);
 }
 
 export class ScrapWorld extends Phase5BWorld {
