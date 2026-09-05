@@ -9,6 +9,15 @@ import {
 
 export * from './exploration-core-v4.js';
 
+export const EXPLORATION_AREAS = {
+  ...v4.EXPLORATION_AREAS,
+  research: {
+    ...v4.EXPLORATION_AREAS.research,
+    objective: '3 Labの技術をFactoryへ持ち帰り、FabricatorでExperimental部品を製造してCentral Coreを復旧する。',
+    recommended: '空き4枠以上 / Special Cargoは正常帰還で確定 / Central CoreはFactory製造部品3種が必要',
+  },
+};
+
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
