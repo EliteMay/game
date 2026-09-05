@@ -3,7 +3,15 @@ import { ScrapWorld as BaseScrapWorld } from './world.js?base=v2';
 
 const FENCE_ALPHA_TEST = 0.12;
 const GROUND_CLEARANCE = 0.025;
-const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger', 'smart_sorter']);
+const ADVANCED_LOGISTICS = new Set([
+  'conveyor_mk2',
+  'conveyor_mk3',
+  'splitter',
+  'merger',
+  'smart_sorter',
+  'priority_splitter',
+  'overflow_splitter',
+]);
 const INFRASTRUCTURE_VISUALS = new Set(['battery', 'industrial_storage']);
 const ADVANCED_PRODUCTION_VISUALS = new Set(['assembler']);
 const AUTOMATION_VISUALS = new Set(['drone_port']);
@@ -115,21 +123,64 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
   group.userData.advancedLogisticsArt = true;
   const frame = material(0x2d3436, { preview, metalness: 0.72, roughness: 0.58 });
   const belt = material(
-    type === 'merger' ? 0x473d4d : type === 'splitter' ? 0x4c4a35 : type === 'smart_sorter' ? 0x304b46 : 0x26383b,
+    type === 'merger' ? 0x473d4d
+      : type === 'splitter' ? 0x4c4a35
+        : type === 'smart_sorter' ? 0x304b46
+          : type === 'priority_splitter' ? 0x304832
+            : type === 'overflow_splitter' ? 0x4b3b2e
+              : type === 'conveyor_mk3' ? 0x203c42
+                : 0x26383b,
     { preview, metalness: 0.42, roughness: 0.76 },
   );
   const rail = material(
-    type === 'merger' ? 0x8f79a0 : type === 'splitter' ? 0xb5a34c : type === 'smart_sorter' ? 0x5d9b87 : 0x5aa0a8,
+    type === 'merger' ? 0x8f79a0
+      : type === 'splitter' ? 0xb5a34c
+        : type === 'smart_sorter' ? 0x5d9b87
+          : type === 'priority_splitter' ? 0x78ad6d
+            : type === 'overflow_splitter' ? 0xc08552
+              : type === 'conveyor_mk3' ? 0x6ac0ce
+                : 0x5aa0a8,
     { preview, metalness: 0.55, roughness: 0.5 },
   );
   const accent = material(0xd3b23e, { preview, metalness: 0.32, roughness: 0.48 });
 
-  if (type === 'conveyor_mk2') {
+  if (type === 'conveyor_mk2' || type === 'conveyor_mk3') {
+    const fast = type === 'conveyor_mk3';
     addBox(group, [2.36, 0.18, 1.25], frame, [0, 0.29, 0]);
     addBox(group, [2.16, 0.09, 0.82], belt, [0, 0.49, 0]);
-    for (const z of [-0.57, 0.57]) addBox(group, [2.38, 0.11, 0.09], rail, [0, 0.58, z]);
-    for (const x of [-0.65, 0, 0.65]) addArrow(group, [x, 0.63, 0], -Math.PI / 2, accent, 0.9);
+    for (const z of [-0.57, 0.57]) {
+      addBox(group, [2.38, 0.11, 0.09], rail, [0, 0.58, z]);
+      if (fast) addBox(group, [2.14, 0.055, 0.055], accent, [0, 0.68, z * 0.84]);
+    }
+    const arrowXs = fast ? [-0.82, -0.28, 0.28, 0.82] : [-0.65, 0, 0.65];
+    for (const x of arrowXs) addArrow(group, [x, fast ? 0.69 : 0.63, 0], -Math.PI / 2, fast ? rail : accent, fast ? 1.0 : 0.9);
     for (const x of [-0.93, 0.93]) for (const z of [-0.54, 0.54]) addBox(group, [0.1, 0.52, 0.1], frame, [x, 0.22, z]);
+  } else if (type === 'priority_splitter') {
+    const backup = material(0xb6944b, { preview, metalness: 0.4, roughness: 0.5 });
+    addBox(group, [1.3, 0.22, 1.3], frame, [0, 0.28, 0]);
+    addBox(group, [2.25, 0.17, 0.72], frame, [0, 0.32, 0]);
+    addBox(group, [0.72, 0.17, 2.25], frame, [0, 0.32, 0]);
+    addBox(group, [2.05, 0.08, 0.48], belt, [0, 0.49, 0]);
+    addBox(group, [0.48, 0.08, 2.05], belt, [0, 0.49, 0]);
+    addBox(group, [0.48, 0.46, 0.48], rail, [0, 0.76, 0]);
+    addArrow(group, [0.76, 0.68, 0], -Math.PI / 2, rail, 1.25);
+    addArrow(group, [0, 0.62, -0.74], Math.PI, backup, 0.82);
+    addArrow(group, [0, 0.62, 0.74], 0, backup, 0.82);
+    addBox(group, [0.6, 0.08, 0.16], rail, [0.64, 0.58, 0]);
+    addBox(group, [0.16, 0.07, 0.46], backup, [0, 0.57, -0.62]);
+    addBox(group, [0.16, 0.07, 0.46], backup, [0, 0.57, 0.62]);
+  } else if (type === 'overflow_splitter') {
+    const overflow = material(0xe0924f, { preview, metalness: 0.34, roughness: 0.46 });
+    addBox(group, [1.3, 0.22, 1.3], frame, [0, 0.28, 0]);
+    addBox(group, [2.25, 0.17, 0.72], frame, [0, 0.32, 0]);
+    addBox(group, [0.72, 0.17, 1.48], frame, [0, 0.32, 0.39]);
+    addBox(group, [2.05, 0.08, 0.48], belt, [0, 0.49, 0]);
+    addBox(group, [0.48, 0.08, 1.28], belt, [0, 0.49, 0.39]);
+    addBox(group, [0.46, 0.42, 0.46], rail, [0, 0.74, 0]);
+    addArrow(group, [0.76, 0.67, 0], -Math.PI / 2, rail, 1.12);
+    addArrow(group, [0, 0.65, 0.76], 0, overflow, 1.15);
+    addBox(group, [0.62, 0.08, 0.16], rail, [0.64, 0.58, 0]);
+    addBox(group, [0.16, 0.08, 0.55], overflow, [0, 0.58, 0.6]);
   } else {
     addBox(group, [1.25, 0.22, 1.25], frame, [0, 0.28, 0]);
     addBox(group, [1.15, 0.11, 1.15], belt, [0, 0.48, 0]);
@@ -247,7 +298,6 @@ function addAutomationVisual(root, type, preview = false) {
   const accent = material(0x7ea9b7, { preview, metalness: 0.36, roughness: 0.4 });
   const warning = material(0xc0a14b, { preview, metalness: 0.34, roughness: 0.48 });
 
-  // Low launch deck + raised control mast creates a silhouette distinct from production machines.
   addBox(group, [2.25, 0.2, 2.05], frame, [0, 0.12, 0]);
   addBox(group, [1.85, 0.28, 1.65], body, [0, 0.34, 0]);
   addBox(group, [1.35, 0.08, 1.15], dark, [0, 0.53, 0]);
@@ -265,7 +315,6 @@ function addAutomationVisual(root, type, preview = false) {
   root.userData.spinner = radar;
   root.userData.statusLight = addBox(group, [0.24, 0.16, 0.06], statusMaterial(preview), [0.7, 1.7, 0.16]);
 
-  // Docked utility drone silhouette.
   const drone = new THREE.Group();
   drone.position.set(-0.35, 0.85, -0.1);
   group.add(drone);
