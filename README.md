@@ -19,7 +19,7 @@
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Phase 6-B: Fabricator / Central Core / Experimental Technology** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Phase 6-C: Final Automation / Autonomous Industrial Core** まで通常Gameplayへ接続しています。
 
 通常のRank Upは **Rank 1 → 7**。Rank 7はMain ClearではなくFinal Chapterの開始点です。
 
@@ -43,19 +43,32 @@ Factory / Scrap Yard
 → Core Stabilizer
 → Experimental Archive
 → Experimental Technology Research
+→ Advanced Drone / Experimental Power
+→ Iron Plate / Motor / Circuit 自動Assembler
+→ Experimental部品 Fabricator
+→ Autonomous Industrial Core Fabricator
+→ 最終製品をStorageまで完全自動化
 ```
 
-**まだMain Clearではありません。** Advanced Drone / Experimental Power System / Autonomous Industrial Core / Mega Factory安定稼働 / Main Clearは後続Phaseです。
+Phase 6-Cで `REQUIREMENTS.md` の **Rank 7 → Main Clear 手順8「最終製品の完全自動Line」** まで実装済みです。
+
+**まだMain Clearではありません。** 残っている主要要件は:
+
+1. Mega Factoryを一定時間安定稼働
+2. Main Clear
+3. Clear後Optimization
+4. final Hybrid Asset / Lighting / VFX / LOD quality pass
 
 ## Rank 7 Final Chapter
 
-### 1. Three Labs
+### 1. Three Labs / Central Core
 
 崩壊した研究施設で以下を攻略します。
 
 - Robotics Lab
 - Materials Lab
 - Energy Lab
+- Central Core
 
 Special Cargo:
 
@@ -63,65 +76,161 @@ Special Cargo:
 - 実験合金サンプル
 - 高密度Energy Cell試作機
 
-Lab復旧は永続化されます。Special Cargoは正常帰還でFactoryへ確保され、Abandon / HP 0で未確定分を失っても復旧済みLabから再回収できます。
+Special Cargo 3/3をFactoryへ正常帰還させると `実験部品製造技術` Researchへ進めます。
 
-### 2. Tri-Lab Fabrication
-
-Special Cargo 3/3をFactoryへ確保すると `実験部品製造技術` Researchへ進めます。
-
-Phase 6-Aですでに3/3確保済みのSaveも再探索不要でResearch可能です。
-
-Research完了で **Fabricator** を解放します。
-
-### 3. Fabricator
-
-FabricatorはAssemblerの単純高速版ではなく、Rank 7 Experimental Tier専用設備です。
+Fabricatorで3種類のExperimental部品を製造し、Central CoreへAtomic Installすると:
 
 ```text
-制御ユニット ×2
-+ 軍用レア合金 ×3
-+ 制御回路 ×2
-+ 鉄板 ×2
-↓ 20秒 / 110 Power
-AI制御モジュール ×1
-+ 実験フレーム ×1
-+ 実験電力モジュール ×1
+Central Core Open
+→ Core Stabilizer
+→ Experimental Archive
+→ Experimental Technology Research
 ```
 
-- Cost: `$1250`
-- Rank 7
-- `experimental_fabrication` Research必須
-- 既存Generic Production / Power / Buffer / Directional Logisticsを再利用
-- Fabricator専用の別Simulationは作っていません
+へ進みます。
 
-### 4. Central Core
+### 2. Experimental Technology
 
-Central Coreは探索だけでは解放できません。
+`experimental_technology` ResearchでFinal Experimental Tierを解放します。
 
-必須:
+Unlock:
 
-- Three Labs復旧
-- Special Cargo 3/3 Factory確保
-- AI制御モジュール ×1
-- 実験フレーム ×1
-- 実験電力モジュール ×1
+- Advanced Drone Port
+- Experimental Power System
+- Automated Component Recipes
+- Autonomous Industrial Core Recipe
 
-3部品はGate解放成功時に**Atomicに1個ずつ消費**します。不足時に一部だけ消えることはありません。
+Rankは7のまま維持し、Rank 8は追加していません。
+
+## Advanced Drone Automation
+
+Utility Droneは既存Rank 6 Contractを維持します。
+
+| Utility Resource Point | Output | Cycle |
+| --- | --- | ---: |
+| Residential Copper Network | Copper Wire ×1 | 8s |
+| Industrial Electronics Cache | E-Waste ×1 | 10s |
+| Military Alloy Cache | Rare Alloy ×1 | 12s |
+
+Experimental Technology後はAdvanced Droneで攻略済み地域の5資源を反復回収できます。
+
+| Advanced Resource Point | Output | Cycle |
+| --- | --- | ---: |
+| Industrial Scrap Reserve | Metal Scrap ×1 | 4s |
+| Residential Copper Network | Copper Wire ×1 | 5s |
+| Residential Polymer Stockpile | Plastic ×1 | 6s |
+| Industrial Electronics Cache | E-Waste ×1 | 6s |
+| Military Alloy Cache | Rare Alloy ×1 | 8s |
+
+Utility PortはAdvanced専用のPlastic / Scrap Resource Pointを選べません。
+
+Rank 6 → 7 Mandatoryは引き続きUtility / Military Alloy Drone routeを要求します。
+
+## Automated Production
+
+Automation ConsoleからAssembler / FabricatorのRecipeを切り替えられます。
+
+Assembler:
+
+| Recipe | Input | Output | Cycle |
+| --- | --- | --- | ---: |
+| Control Unit | Motor ×1 + Circuit ×2 + Plastic ×1 | Control Unit ×1 | 8s |
+| Iron Plate | Iron Ingot ×2 | Iron Plate ×1 | 4s |
+| Motor | Iron Ingot ×2 + Copper Wire ×2 | Motor ×1 | 6s |
+| Circuit | Copper Wire ×2 + E-Waste ×1 + Plastic ×1 | Circuit ×1 | 6s |
+
+Fabricator:
 
 ```text
-Experimental部品Install
-→ Central Core開放
-→ Core Stabilizer復旧
-→ Experimental Archive回収
+Control Unit ×2
++ Rare Alloy ×3
++ Circuit ×2
++ Iron Plate ×2
+↓ 20秒
+AI Control Module ×1
++ Experimental Frame ×1
++ Experimental Power Module ×1
 ```
 
-Archive回収でResearch FacilityのMain Objectiveが完了し、`central_core_experimental_blueprint` と Research Data +4を保証します。
+Final Recipe:
 
-### 5. Experimental Technology
+```text
+AI Control Module ×1
++ Experimental Frame ×1
++ Experimental Power Module ×1
++ Control Unit ×1
+↓ 30秒
+Autonomous Industrial Core ×1
+```
 
-Central Core攻略後、FactoryのResearch画面で `実験技術統合` をResearchできます。
+Recipe変更時:
 
-これはFinal Experimental Tierへの入口です。Phase 6-B時点ではAdvanced Drone / Experimental Power / Autonomous Industrial Coreそのものはまだ実装していません。
+- Output Bufferは保持
+- Progressは0へ戻す
+- 新Recipeで受け付けないInputが残っている場合は切替を拒否
+- Save後にFactoryをReloadしてRuntime stateを同期
+
+## Experimental Power System
+
+```text
+Cost: $1900
+Rank: 7
+Research: experimental_technology
+Fuel: Rare Alloy ×1
+Fuel duration: 24 sec
+Generation: 480 Power
+```
+
+既存Generator Runtimeを再利用しており、別Power Simulationは追加していません。
+
+Final Automation Contractでは:
+
+- Advanced Alloy DroneからExperimental Power SystemへDirectional Routeがある
+- Experimental Power Systemが実際に稼働している
+- Final production line上のPower使用設備が給電されている
+
+ことを確認します。
+
+## Final Automation Contract
+
+Phase 6-Cの最終Lineは専用達成Flagを保存せず、現在のFactory graphから導出します。
+
+```text
+Advanced Drone / Scrap
+→ Crusher
+→ Smelter
+→ Iron Plate / Motor / Circuit Assembler
+
+Advanced Drone / Copper / Plastic / Electronics
+→ Assembler inputs
+
+Advanced Drone / Rare Alloy
+→ Experimental Fabricator inputs
+→ Experimental Power fuel
+
+Control Unit / Iron Plate / Circuit / Rare Alloy
+→ Experimental Component Fabricator
+
+Experimental Components + Control Unit
+→ Autonomous Industrial Core Fabricator
+
+Autonomous Industrial Core
+→ Storage
+```
+
+`final-automation.js` は既存 `findDirectionalRoutes()` / Power snapshotを使って次を判定します。
+
+- 5種類のAdvanced Drone source
+- Crusher → Smelter
+- Iron Plate / Motor / Circuit / Control Unit automation
+- Experimental Component Fabricator
+- Autonomous Industrial Core Fabricator
+- Final Storage route
+- Experimental Power fuel route / active generation
+- Final lineへの給電
+- Autonomous Industrial Coreを実際に1個以上生産
+
+Test fixtureもDirectional Logisticsを迂回せず、**Main Bus + Splitter + Merger** の実構成でEnd-to-End routeを証明します。
 
 ## Exploration
 
@@ -154,18 +263,6 @@ Central Core攻略後、FactoryのResearch画面で `実験技術統合` をRese
 
 Visual ArrowとRuntime方向は同じContractを使います。
 
-## Drone Automation
-
-攻略済みResource PointをDrone Portごとに選択できます。
-
-| Resource Point | Output | Cycle |
-| --- | --- | ---: |
-| Residential Copper Network | Copper Wire ×1 | 8s |
-| Industrial Electronics Cache | E-Waste ×1 | 10s |
-| Military Alloy Cache | Rare Alloy ×1 | 12s |
-
-Rank 6 → 7 Mandatoryは引き続きMilitary Alloy Routeを要求します。
-
 ## Power / Storage
 
 Power:
@@ -173,8 +270,11 @@ Power:
 - Starter Grid — 55 Power
 - Scrap Generator — 80 Power
 - Industrial Generator — 180 Power
+- Experimental Power System — 480 Power
 - Battery — 960 Energy
+- Assembler — 50 Power use
 - Fabricator — 110 Power use
+- Advanced Drone Port — 95 Power use
 
 Storage:
 
@@ -194,19 +294,15 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-BでもSchema番号は変更していません。
+Phase 6-CでもSchema番号は変更していません。
 
-Additive state:
+Additive inventory:
 
-```text
-areas.research.centralCore
-├─ fabricationSetInstalled
-├─ stabilizerOnline
-├─ archiveRecovered
-└─ rewardClaimed
-```
+- `autonomous_industrial_core`
 
-既存Factory Layout / Rank 1→7 / Phase 6-A Three-Lab progress / Drone routes / Power / Storageを維持します。
+Advanced Drone route、Recipe mode、Generator fuel等は既存Building state / type contractへ追加的に接続します。
+
+既存Factory Layout / Rank 1→7 / Three-Lab progress / Central Core state / Utility Drone routes / Power / Storage / Quick Build 1〜5を維持します。
 
 ## 操作
 
@@ -222,7 +318,7 @@ areas.research.centralCore
 | O | Guide |
 | P | Factory Management |
 | T | Transport Terminal |
-| AUTOMATION | Drone Route / Storage Upgrade |
+| AUTOMATION | Drone Route / Recipe / Storage Upgrade / Final Automation status |
 | 1〜5 | 基本設備Quick Build |
 | Esc | Pause / Panelを閉じる |
 
@@ -232,19 +328,30 @@ areas.research.centralCore
 npm run validate
 ```
 
-既存のRank 1→7 / Logistics / Factory Management / Power / Storage / 3探索エリア / Military / Drone / Phase 6-A Regressionに加え、Phase 6-Bで次を確認します。
+実行順:
 
-- Fabricator Rank / Research Gate
-- 4入力以内のExperimental batch recipe
-- 3種類のFinal Component output
-- Phase 6-A既存3/3 Cargo Save互換
-- Final Component countでMachine input queueを除外
-- Central Core部品Atomic consume
-- Central Gate → Stabilizer → Archive dependency
-- Central reward idempotence
-- Experimental Technology Research
-- Exploration Schema v1維持
-- Quick Build 1〜5維持
-- Research Facility current runtime / Fabricator visual marker
+```text
+scripts/validate.mjs
+→ regressions through Phase 6-A
+→ scripts/phase6b.test.mjs
+→ scripts/phase6c.test.mjs
+  → scripts/phase6c-bus.test.mjs
+```
 
-Static CIでは実ブラウザPointer Lock、Central Coreへの実到達性、Collider、Fabricatorの一人称Scale / Build Preview、Hazard体感、WebGL FPSまでは保証しません。
+Phase 6-Cでは特に次を固定しています。
+
+- Rank 7 cap / Quick Build 1〜5維持
+- Experimental Technology gate
+- Advanced Drone 5 resource routes
+- Utility / Advanced Drone tier compatibility
+- Assembler / Fabricator safe Recipe switching
+- Autonomous Industrial Core recipeが4 input以内
+- Experimental Power 480 / Rare Alloy fuel
+- Save Schema v1維持
+- full directional final automation topology
+- Main Bus + Splitter + Merger regression
+- Experimental Power route / active state
+- final line power state
+- actual Autonomous Industrial Core production requirement
+
+Static CIでは実ブラウザPointer Lock、Automation Console layout、Factory layout ergonomics、Build Preview、Advanced Drone / Experimental Powerの一人称Scale、Collider、WebGL FPS、最終LineのBalance /操作感までは保証しません。
