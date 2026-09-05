@@ -154,6 +154,7 @@ function buildFullAutomationFixture() {
   const plastic = add('src-plastic', 'advanced_drone_port_plastic', -6, 0, { resourcePointId: 'residential-polymer-stockpile' });
   const electronics = add('src-electronics', 'advanced_drone_port_electronics', -6, 2, { resourcePointId: 'industrial-electronics-cache' });
   const alloy = add('src-alloy', 'advanced_drone_port', -6, 4, { resourcePointId: 'military-alloy-cache' });
+  const plasticControl = add('src-plastic-control', 'advanced_drone_port_plastic', -6, 6, { resourcePointId: 'residential-polymer-stockpile' });
 
   const crusher = add('crusher-final', 'crusher', -3, -4);
   const smelter = add('smelter-final', 'smelter', 0, -4);
@@ -209,7 +210,7 @@ function buildFullAutomationFixture() {
         }
         for (const nextDir of dirs) {
           const next = { gx: current.gx + nextDir.dx, gz: current.gz + nextDir.dz };
-          if (Math.abs(next.gx) > 14 || Math.abs(next.gz) > 14) continue;
+          if (Math.abs(next.gx) > 18 || Math.abs(next.gz) > 18) continue;
           const nextKey = key(next.gx, next.gz);
           if (seen.has(nextKey) || occupied.has(nextKey) || nextKey === key(targetGrid.gx, targetGrid.gz)) continue;
           seen.add(nextKey);
@@ -235,7 +236,7 @@ function buildFullAutomationFixture() {
   connect(plastic, circuit, 'plastic-circuit');
   connect(motor, control, 'motor-control');
   connect(circuit, control, 'circuit-control');
-  connect(plastic, control, 'plastic-control');
+  connect(plasticControl, control, 'plastic-control');
   connect(control, experimental, 'control-experimental');
   connect(alloy, experimental, 'alloy-experimental');
   connect(circuit, experimental, 'circuit-experimental');
@@ -265,7 +266,7 @@ function buildFullAutomationFixture() {
     assert.fail(`no free coverage pole for ${id}`);
   }
   addCoveragePole('pole-scrap', { gx: -5, gz: -3 }, [scrap]);
-  addCoveragePole('pole-alloy', { gx: -5, gz: 3 }, [alloy]);
+  addCoveragePole('pole-alloy', { gx: -5, gz: 3 }, [alloy, plasticControl]);
   return { game, core };
 }
 
