@@ -20,10 +20,13 @@ const required = [
   'games/scrap-factory/power.js',
   'games/scrap-factory/storage-capacity.js',
   'games/scrap-factory/exploration.js',
+  'games/scrap-factory/exploration-core.js',
   'games/scrap-factory/exploration-ui.js',
+  'games/scrap-factory/exploration-ui-v2.js',
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
   'games/scrap-factory/progression.js',
+  'games/scrap-factory/progression-core.js',
   'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
@@ -32,12 +35,16 @@ const required = [
   'games/scrap-factory/exploration/residential.html',
   'games/scrap-factory/exploration/residential.css',
   'games/scrap-factory/exploration/residential.js',
+  'games/scrap-factory/exploration/industrial.html',
+  'games/scrap-factory/exploration/industrial.css',
+  'games/scrap-factory/exploration/industrial.js',
   'scripts/logistics.test.mjs',
   'scripts/factory-management.test.mjs',
   'scripts/progression.test.mjs',
   'scripts/power.test.mjs',
   'scripts/storage-capacity.test.mjs',
   'scripts/exploration.test.mjs',
+  'scripts/industrial-exploration.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -76,6 +83,7 @@ for (const [name, script] of [
   ['Power', 'scripts/power.test.mjs'],
   ['Storage capacity', 'scripts/storage-capacity.test.mjs'],
   ['Exploration', 'scripts/exploration.test.mjs'],
+  ['Industrial exploration', 'scripts/industrial-exploration.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -84,7 +92,13 @@ for (const [name, script] of [
   }
 }
 
-const htmlFiles = ['index.html', '404.html', 'games/scrap-factory/index.html', 'games/scrap-factory/exploration/residential.html'];
+const htmlFiles = [
+  'index.html',
+  '404.html',
+  'games/scrap-factory/index.html',
+  'games/scrap-factory/exploration/residential.html',
+  'games/scrap-factory/exploration/industrial.html',
+];
 for (const relative of htmlFiles) {
   const full = path.join(root, relative);
   if (!fs.existsSync(full)) continue;
@@ -117,9 +131,14 @@ const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/f
 if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push('Factory management must load progression-ui.js in browser runtime');
 if (!factoryManagement.includes("import('./exploration-ui.js')")) failures.push('Factory management must load exploration-ui.js in browser runtime');
 
-const explorationRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/residential.js'), 'utf8');
+const residentialRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/residential.js'), 'utf8');
 for (const marker of ['startExpedition', 'collectExplorationLoot', 'advanceResidentialObjective', 'returnFromExpedition', 'abandonExpedition']) {
-  if (!explorationRuntime.includes(marker)) failures.push(`Residential exploration runtime missing core integration: ${marker}`);
+  if (!residentialRuntime.includes(marker)) failures.push(`Residential exploration runtime missing core integration: ${marker}`);
+}
+
+const industrialRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/industrial.js'), 'utf8');
+for (const marker of ['INDUSTRIAL_AREA_ID', 'collectExplorationLoot', 'advanceIndustrialObjective', 'returnFromExpedition', 'abandonExpedition']) {
+  if (!industrialRuntime.includes(marker)) failures.push(`Industrial exploration runtime missing core integration: ${marker}`);
 }
 
 const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
@@ -154,4 +173,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + exploration tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + exploration + industrial exploration tests.`);
