@@ -1,10 +1,10 @@
 # Work Report
 
-Date: 2026-09-05
+Date: 2026-09-06
 
 ## Current Milestone
 
-`Scrap Factory` は **Final Phase: Mega Factory Stability / Main Clear** まで実装。
+`Scrap Factory` は **Post Clear: Factory Optimization Objectives** まで実装。
 
 Rank Upは **Rank 1 → 7**。Rank 7はFinal Chapter開始点で、Rank 8は追加しない。
 
@@ -26,6 +26,8 @@ Rank 7
 → Autonomous Industrial Core → Storage complete directional line
 → Mega Factory 180秒連続安定稼働
 → MAIN CLEAR
+→ Factory Optimization Objectives
+→ OPTIMIZATION MASTERED
 → same SaveでFactory Optimization継続
 ```
 
@@ -375,8 +377,8 @@ Main progressionのRequirement 1〜10は実装済み。
 後続:
 
 ### Post Clear / Optimization
-- clear-after Optimization objectivesの拡張
-- Factory Optimization / Challengeのlong-term content
+- Core Factory Optimization Objectives 4種は実装済み
+- Factory Optimization / Challengeのlong-term content追加は今後の拡張対象
 
 ### Final Quality
 - final Hybrid Asset / Lighting / VFX / LOD quality pass
@@ -487,4 +489,28 @@ Browser Smoke用Workflowとintegration patch scriptsは検証後に削除し、P
 
 ### Verification
 
-Implementation branchの`npm run validate`で既存RegressionとPost Clear unit/contract testsを実行する。Browser / Visual確認はFinal commitのVerification Stateへ別途記録する。
+Final successful validation:
+
+```text
+Post Clear Browser Smoke #5
+Run: 33998104085
+Head: 99de3908fe800bc4ef2ea83d724550aaaaeb607d
+Result: success
+```
+
+確認済み:
+
+- 現行headで `npm run validate` 成功
+- Main Clear確認済みSaveでOPTIMIZE HUDが解放
+- Pointer Lock中に `K` でFactory Optimization Panelを開ける
+- 4 Objectiveと現在進捗を表示
+- `K` / `Escape` でPanelを閉じられる
+- Objective達成履歴を保存し、Reload後も `1 / 4` を保持
+- 1440×900でpage-level horizontal overflowなし
+- page error / meaningful console error / request failureなし
+
+### Visual Review
+
+Noto CJKを導入したChromium Screenshotを確認。既存Factory OSの工業UIと整合し、4 Objectiveのタイトル・進捗バー・現在条件が判読可能で、横overflowや大きなレイアウト崩れは見られなかった。
+
+Browser Smoke用Workflowは検証後に削除し、恒久実装だけをPRへ残す。
