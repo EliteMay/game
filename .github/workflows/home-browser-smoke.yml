@@ -78,8 +78,10 @@ jobs:
           await page.click('#start-game');
           await page.waitForFunction(() => !document.querySelector('#hud').hidden);
           assert.match(await page.locator('#inventory-slots').innerText(), /\/ 12$/);
+          await page.evaluate(() => window.__scrapFactoryRuntime.world.setPlayerState({ x: -10, y: 1.7, z: 27, yaw: Math.PI }));
           await page.waitForTimeout(500);
           await page.screenshot({ path: '/tmp/home-world.png', fullPage: true });
+          await page.evaluate(() => window.__scrapFactoryRuntime.world.setPlayerState({ x: -12.2, y: 1.7, z: 36.8, yaw: Math.PI }));
 
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'door', label: 'Home Door' }));
           assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.homeController.doorOpen), true, 'Door should open');
@@ -115,6 +117,9 @@ jobs:
             game.player = { x: 5, y: 1.7, z: 5, yaw: 0.4 };
             return root;
           });
+          if (errors.length) throw new Error(`Browser console errors:\n${errors.join('\n')}`);
+          await context.close();
+
           const legacyContext = await browser.newContext({
             viewport,
             storageState: {
@@ -143,8 +148,6 @@ jobs:
           if (legacyErrors.length) throw new Error(`Legacy browser console errors:\n${legacyErrors.join('\n')}`);
           await legacyContext.close();
 
-          if (errors.length) throw new Error(`Browser console errors:\n${errors.join('\n')}`);
-          await context.close();
           await browser.close();
           console.log('Home Chromium smoke passed: boot, Home scene, fresh spawn, door collider, Bed save, PC UI, legacy migration, overflow.');
           EOF
