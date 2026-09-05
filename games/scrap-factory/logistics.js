@@ -1,4 +1,4 @@
-import { GRID_SIZE, positionKey } from './config.js';
+import { GRID_SIZE, ITEMS, positionKey } from './config.js';
 
 const CARDINAL = [
   { dx: 1, dz: 0, name: '東', symbol: '→' },
@@ -12,6 +12,14 @@ const LOGISTICS_THROUGHPUT = {
   conveyor_mk2: 3,
   splitter: 3,
   merger: 3,
+  smart_sorter: 3,
+};
+
+export const SMART_SORTER_LANES = {
+  advanced: 'forward',
+  processed: 'left',
+  product: 'left',
+  raw: 'right',
 };
 
 export function rotationIndex(rotation = 0) {
@@ -44,6 +52,11 @@ export function logisticsThroughput(type) {
   return Number(LOGISTICS_THROUGHPUT[type] || 0);
 }
 
+export function smartSorterLaneForItem(itemId) {
+  const category = ITEMS[itemId]?.category;
+  return SMART_SORTER_LANES[category] || 'right';
+}
+
 function cellForDirection(building, directionIndex) {
   const [gx, gz] = positionKey(building?.x || 0, building?.z || 0).split(',').map(Number);
   const { dx, dz } = CARDINAL[((directionIndex % 4) + 4) % 4];
@@ -57,9 +70,16 @@ function inputDirectionIndexes(building) {
   return [];
 }
 
-function outputDirectionIndexes(building) {
+function outputDirectionIndexes(building, itemId = null) {
   const facing = rotationIndex(building?.rotation);
   if (building?.type === 'splitter') return [facing, facing + 1, facing + 3];
+  if (building?.type === 'smart_sorter') {
+    if (!itemId) return [facing, facing + 1, facing + 3];
+    const lane = smartSorterLaneForItem(itemId);
+    if (lane === 'forward') return [facing];
+    if (lane === 'left') return [facing + 1];
+    return [facing + 3];
+  }
   if (isLogisticsNode(building?.type)) return [facing];
   return [];
 }
@@ -68,8 +88,8 @@ export function logisticsInputKeys(building) {
   return inputDirectionIndexes(building).map((index) => cellForDirection(building, index));
 }
 
-export function logisticsOutputKeys(building) {
-  return outputDirectionIndexes(building).map((index) => cellForDirection(building, index));
+export function logisticsOutputKeys(building, itemId = null) {
+  return outputDirectionIndexes(building, itemId).map((index) => cellForDirection(building, index));
 }
 
 export function logisticsAcceptsFrom(building, fromKey, { sourceConnection = false } = {}) {
@@ -132,7 +152,7 @@ export function findDirectionalRoutes(buildings, source, itemId, acceptsItem, sp
     const node = byCell.get(state.key);
     if (!node || !isLogisticsNode(node.type)) continue;
 
-    for (const nextKey of logisticsOutputKeys(node)) {
+    for (const nextKey of logisticsOutputKeys(node, itemId)) {
       if (state.visited.has(nextKey)) continue;
       const next = byCell.get(nextKey);
       if (!next || next.id === source.id) continue;
