@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: integrate-home-feature
+  group: integrate-home-feature-v2
   cancel-in-progress: false
 
 jobs:
@@ -25,6 +25,8 @@ jobs:
           node-version: '22'
       - name: Apply runtime integration patches
         run: node scripts/apply-home-feature.mjs
+      - name: Preserve Home state identity
+        run: node scripts/fix-home-normalization.mjs
       - name: Validate integrated runtime
         run: npm run validate
       - name: Update implementation documentation
