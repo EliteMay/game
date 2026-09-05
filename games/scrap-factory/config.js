@@ -98,15 +98,16 @@ export const HAND_CRAFTS = {
   tool_kit: { id: 'tool_kit', name: '工具セット', input: { iron_plate: 2, copper_wire: 1 }, output: { tool_kit: 1 } },
 };
 
+// Keep the first five entries stable: Factory Management quick-build 1-5 is a public control contract.
 export const BUILD_MENU_ORDER = [
   'crusher',
   'smelter',
   'conveyor',
+  'storage',
+  'seller',
   'conveyor_mk2',
   'splitter',
   'merger',
-  'storage',
-  'seller',
   'generator',
   'power_pole',
 ];
