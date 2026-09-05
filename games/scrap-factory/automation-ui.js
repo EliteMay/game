@@ -5,6 +5,7 @@ import {
   securedDroneResourcePoints,
 } from './drone-routes.js';
 import { analyzeFinalAutomation } from './final-automation.js';
+import { finalPhaseStatus } from './final-phase.js';
 import {
   assignProductionRecipe,
   configurableProductionBuildings,
@@ -12,7 +13,7 @@ import {
   productionRecipeOptions,
 } from './production-recipes.js';
 import { isBuildingUnlocked } from './progression.js';
-import { loadRootSave, saveRootSave } from './storage.js';
+import { getRuntimeGame, loadRootSave, saveRootSave } from './storage.js';
 
 const GAME_ID = 'scrap-factory';
 const WAREHOUSE_UPGRADE_COST = Math.max(0, BUILDINGS.logistics_warehouse.cost - BUILDINGS.industrial_storage.cost);
@@ -142,7 +143,7 @@ function renderRecipes(game) {
     return `
       <article class="automation-recipe-row" data-production-id="${building.id}">
         <div class="automation-recipe-head"><strong>${family?.name || 'MACHINE'} / ${current?.label || BUILDINGS[building.type]?.name}</strong><small>${building.x}, ${building.z}</small></div>
-        <div class="automation-recipe-controls">
+        <div class="automation-route-controls">
           <select data-recipe-select>${optionHtml}</select>
           <button class="secondary-action" type="button" data-recipe-apply>Recipe適用</button>
         </div>
@@ -204,6 +205,29 @@ function renderFinalAutomation(game) {
     <div class="final-line-list">${stageRows}</div>`;
 }
 
+function renderMegaFactoryStatus(game) {
+  if (Number(game?.progression?.progressionRank || 1) < 7) return '<p class="automation-empty">Rank 7でFinal Phaseが開始します。</p>';
+  const status = finalPhaseStatus(game);
+  const stable = Math.floor(status.stableSeconds);
+  const missing = status.analysis.missing.map((entry) => entry.label).join(' / ');
+  const state = status.cleared ? 'MAIN CLEAR' : status.analysis.stable ? 'STABLE RUN' : status.analysis.finalAutomation.qualifies ? 'INTERRUPTED' : 'STEP 8 REQUIRED';
+  const detail = status.cleared
+    ? 'Main Clear達成済み。同じSaveでFactory Optimizationを続行できます。'
+    : status.analysis.stable
+      ? `連続安定稼働 ${stable} / ${status.targetSeconds}秒`
+      : status.analysis.finalAutomation.qualifies
+        ? `未安定: ${missing || 'Factory状態を確認してください'}`
+        : 'Final Automation Contractを先に完成させてください。';
+  return `
+    <div class="final-line-summary">
+      <div><span>FINAL PHASE</span><strong>${state}</strong></div>
+      <div><span>STABLE RUN</span><strong>${stable} / ${status.targetSeconds}s</strong></div>
+      <div><span>BEST</span><strong>${Math.floor(status.bestSeconds)}s</strong></div>
+      <div><span>POWER</span><strong>${status.analysis.power.status.toUpperCase()}</strong></div>
+    </div>
+    <p class="automation-empty">${detail}</p>`;
+}
+
 function bindPanelActions(root, game) {
   panel.querySelectorAll('[data-route-apply]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -258,8 +282,9 @@ function renderPanel() {
   if (!panel) return;
   const root = loadRootSave();
   const game = gameFromRoot(root);
+  const liveGame = getRuntimeGame() || game;
   const content = panel.querySelector('[data-automation-content]');
-  if (!game || !content) return;
+  if (!game || !liveGame || !content) return;
   content.innerHTML = `
     <div class="automation-console-grid">
       <section class="automation-console-section">
@@ -280,7 +305,12 @@ function renderPanel() {
       <section class="automation-console-section automation-console-section--wide">
         <h3>Final Automation Contract</h3>
         <p>原料回収からAutonomous Industrial CoreのStorage到達までを、現在のDirectional Route / Power状態から導出します。</p>
-        ${renderFinalAutomation(game)}
+        ${renderFinalAutomation(liveGame)}
+      </section>
+      <section class="automation-console-section automation-console-section--wide">
+        <h3>Mega Factory Stability</h3>
+        <p>Step 8完成後の連続安定稼働とMain Clear状態をlive runtimeから表示します。</p>
+        ${renderMegaFactoryStatus(liveGame)}
       </section>
     </div>
     <p class="automation-note">Advanced Droneは新しいAreaやBlueprintを発見しません。既に攻略済みの地域Dataから通常資源の反復回収だけを自動化します。</p>`;

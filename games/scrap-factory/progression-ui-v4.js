@@ -1,5 +1,5 @@
 import { BUILDINGS, BUILD_MENU_ORDER, HAND_CRAFTS, SAVE_KEY } from './config.js';
-import { analyzeFinalAutomation } from './final-automation.js';
+import { finalPhaseStatus } from './final-phase.js';
 import {
   PLAYABLE_MAX_RANK,
   RESEARCH,
@@ -12,6 +12,7 @@ import {
   rankProgress,
   researchState,
 } from './progression.js';
+import { getRuntimeGame } from './storage.js';
 
 const STYLE_HREF = './progression.css';
 const state = { panel: null, authoritativeProgression: null };
@@ -167,22 +168,36 @@ function renderFinalChapterBlock(game) {
   const progression = game.progression;
   const researchFacilityComplete = Boolean(game?.exploration?.areas?.research?.objective?.completed);
   const experimentalTechnology = progression.completedResearch.includes('experimental_technology');
-  const finalAutomation = analyzeFinalAutomation(game);
-  const phaseLabel = finalAutomation.qualifies ? 'STEP 8 COMPLETE' : experimentalTechnology ? 'STEP 8 ACTIVE' : researchFacilityComplete ? 'RESEARCH REQUIRED' : 'CENTRAL CORE ACTIVE';
+  const liveGame = getRuntimeGame() || game;
+  const final = finalPhaseStatus(liveGame);
+  const finalAutomation = final.analysis.finalAutomation;
+  const phaseLabel = final.cleared
+    ? 'MAIN CLEAR'
+    : finalAutomation.qualifies
+      ? final.analysis.stable ? 'STEP 9 ACTIVE' : 'STEP 9 INTERRUPTED'
+      : experimentalTechnology ? 'STEP 8 ACTIVE' : researchFacilityComplete ? 'RESEARCH REQUIRED' : 'CENTRAL CORE ACTIVE';
+  const stableLabel = `${Math.floor(final.stableSeconds)} / ${final.targetSeconds} sec`;
+  const current = final.cleared
+    ? 'Main Clear達成 / Factory Optimization継続可能'
+    : finalAutomation.qualifies
+      ? final.analysis.stable ? `Mega Factory安定稼働 ${stableLabel}` : `安定条件 ${final.analysis.missing.length}項目未達`
+      : `Final Automation ${finalAutomation.missing.length}項目残り`;
 
   return `
     <section class="progression-section progression-section--cap">
       <div class="progression-section__head"><div><span>FINAL CHAPTER / RANK-UP CAP</span><h3>Rank ${progression.progressionRank}</h3></div><strong>${phaseLabel}</strong></div>
-      <p>Rank ${PLAYABLE_MAX_RANK}は昇格上限ですがMain Clearではありません。最終章は探索・Experimental Research・完全自動化・Mega Factory安定稼働の順で進みます。</p>
+      <p>Rank ${PLAYABLE_MAX_RANK}は昇格上限です。最終章は探索・Experimental Research・完全自動化・Mega Factory安定稼働・Main Clearの順で進みます。</p>
       <div class="progression-goals">
         ${finalStep('Three Labs / Central Coreを完了', researchFacilityComplete)}
         ${finalStep('Experimental Technologyを研究', experimentalTechnology)}
         ${finalStep('Advanced Droneで最終Lineの通常資源を自動供給', finalAutomation.stages.advancedScrap && finalAutomation.stages.advancedCopper && finalAutomation.stages.advancedPlastic && finalAutomation.stages.advancedElectronics && finalAutomation.stages.advancedAlloy)}
         ${finalStep('Assembler / Fabricatorを接続してAutonomous Industrial Coreを完全自動生産', finalAutomation.stages.autonomousCoreAutomation && finalAutomation.stages.finalStorageRoute && finalAutomation.stages.productProven)}
         ${finalStep('Experimental Power Systemで最終Lineを実稼働', finalAutomation.stages.experimentalPowerRouted && finalAutomation.stages.experimentalPowerActive && finalAutomation.stages.poweredLine)}
+        ${finalStep(`Mega Factoryを${final.targetSeconds}秒連続安定稼働 (${stableLabel})`, final.cleared || final.stableSeconds >= final.targetSeconds)}
+        ${finalStep('Main Clear', final.cleared)}
       </div>
-      <div class="progression-rewards"><span>CURRENT</span><strong>${finalAutomation.qualifies ? '最終製品完全自動Line完成 / 次: Mega Factory安定稼働' : `Final Automation ${finalAutomation.missing.length}項目残り`}</strong></div>
-      <p>Requirement Step 9のMega Factory一定時間安定稼働とStep 10 Main Clearは次Phaseです。</p>
+      <div class="progression-rewards"><span>CURRENT</span><strong>${current}</strong></div>
+      <p>${final.cleared ? 'Main Clear後も同じSaveでFactory Optimizationを続けられます。' : finalAutomation.qualifies ? 'Power Shortage・Final Storage満杯・Final Route停止のいずれかで連続時間は0から再計測されます。' : 'まずStep 8のAutonomous Industrial Core完全自動Lineを完成させてください。'}</p>
     </section>`;
 }
 
@@ -219,18 +234,18 @@ function renderPanel() {
     </section>`;
 
   content.querySelector('#claim-rank-up')?.addEventListener('click', () => {
-    const current = readGame();
-    if (!current.game) return;
-    const result = claimRankUp(current.game);
-    if (result.changed && writeProgression(current.root, current.game)) window.location.reload();
+    const currentGame = readGame();
+    if (!currentGame.game) return;
+    const result = claimRankUp(currentGame.game);
+    if (result.changed && writeProgression(currentGame.root, currentGame.game)) window.location.reload();
   });
 
   content.querySelectorAll('[data-research]').forEach((button) => {
     button.addEventListener('click', () => {
-      const current = readGame();
-      if (!current.game) return;
-      const result = completeResearch(current.game, button.dataset.research);
-      if (result.changed && writeProgression(current.root, current.game)) window.location.reload();
+      const currentGame = readGame();
+      if (!currentGame.game) return;
+      const result = completeResearch(currentGame.game, button.dataset.research);
+      if (result.changed && writeProgression(currentGame.root, currentGame.game)) window.location.reload();
     });
   });
 }

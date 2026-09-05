@@ -19,9 +19,9 @@
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Phase 6-C: Final Automation / Autonomous Industrial Core** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Final Phase: Mega Factory Stability / Main Clear** まで通常Gameplayへ接続しています。
 
-通常のRank Upは **Rank 1 → 7**。Rank 7はMain ClearではなくFinal Chapterの開始点です。
+通常のRank Upは **Rank 1 → 7**。Rank 7からFinal Chapterへ入り、Rank 8は追加しません。
 
 ```text
 Factory / Scrap Yard
@@ -48,16 +48,20 @@ Factory / Scrap Yard
 → Experimental部品 Fabricator
 → Autonomous Industrial Core Fabricator
 → 最終製品をStorageまで完全自動化
+→ Mega Factoryを180秒連続安定稼働
+→ MAIN CLEAR
+→ 同じSaveでFactory Optimization継続
 ```
 
-Phase 6-Cで `REQUIREMENTS.md` の **Rank 7 → Main Clear 手順8「最終製品の完全自動Line」** まで実装済みです。
+`REQUIREMENTS.md` の **Rank 7 → Main Clear 手順1〜10** をMain progressionとして接続済みです。
 
-**まだMain Clearではありません。** 残っている主要要件は:
+Main Clear後も同じSaveで工場を拡張・最適化できます。
 
-1. Mega Factoryを一定時間安定稼働
-2. Main Clear
-3. Clear後Optimization
-4. final Hybrid Asset / Lighting / VFX / LOD quality pass
+残っている主要作業:
+
+1. Clear後Optimization / Challengeの拡張
+2. final Hybrid Asset / Lighting / VFX / LOD quality pass
+3. Mega FactoryのBrowser / Performance / Visual / Balance検証
 
 ## Rank 7 Final Chapter
 
@@ -100,7 +104,7 @@ Unlock:
 - Automated Component Recipes
 - Autonomous Industrial Core Recipe
 
-Rankは7のまま維持し、Rank 8は追加していません。
+Rankは7のまま維持します。
 
 ## Advanced Drone Automation
 
@@ -193,7 +197,7 @@ Final Automation Contractでは:
 
 ## Final Automation Contract
 
-Phase 6-Cの最終Lineは専用達成Flagを保存せず、現在のFactory graphから導出します。
+最終Lineは専用達成Flagを保存せず、現在のFactory graphから導出します。
 
 ```text
 Advanced Drone / Scrap
@@ -231,6 +235,37 @@ Autonomous Industrial Core
 - Autonomous Industrial Coreを実際に1個以上生産
 
 Test fixtureもDirectional Logisticsを迂回せず、**Main Bus + Splitter + Merger** の実構成でEnd-to-End routeを証明します。
+
+## Mega Factory Stability / Main Clear
+
+Final Automation完成後はMega Factoryの連続安定稼働へ進みます。
+
+現在の実装値:
+
+```text
+180秒 continuous stable operation
+```
+
+安定条件:
+
+- Final Automation Contractが現在も成立
+- Factory全体でPower Shortageなし
+- Final Storageに空き容量あり
+- Final route throughputあり
+
+どれか1つでも崩れると現在の連続時間は0へ戻ります。
+
+Background / hidden Tabの時間や大きなFrame delayをまとめて加算しません。
+
+180秒達成時:
+
+```text
+MAIN CLEAR
+→ Clear時刻をSave
+→ 同じSaveでFactory Optimizationを続行
+```
+
+Main Clearは一度達成した歴史的Milestoneとして保持し、Clear後にFactoryを組み替えても取り消しません。
 
 ## Exploration
 
@@ -294,15 +329,24 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-CでもSchema番号は変更していません。
+Final PhaseでもSchema番号は変更していません。
 
 Additive inventory:
 
 - `autonomous_industrial_core`
 
-Advanced Drone route、Recipe mode、Generator fuel等は既存Building state / type contractへ追加的に接続します。
+Additive Final Chapter history:
 
-既存Factory Layout / Rank 1→7 / Three-Lab progress / Central Core state / Utility Drone routes / Power / Storage / Quick Build 1〜5を維持します。
+```text
+finalChapter.megaFactoryStableSeconds
+finalChapter.megaFactoryBestSeconds
+finalChapter.mainClearedAt
+finalChapter.clearAcknowledgedAt
+```
+
+Factory topology / Power / Final Automation completionそのものは保存せず現在stateから導出します。
+
+既存Factory Layout / Rank 1→7 / Three-Lab progress / Central Core state / Utility / Advanced Drone routes / Power / Storage / Quick Build 1〜5を維持します。
 
 ## 操作
 
@@ -318,7 +362,7 @@ Advanced Drone route、Recipe mode、Generator fuel等は既存Building state / 
 | O | Guide |
 | P | Factory Management |
 | T | Transport Terminal |
-| AUTOMATION | Drone Route / Recipe / Storage Upgrade / Final Automation status |
+| AUTOMATION | Drone Route / Recipe / Storage Upgrade / Final Automation / Mega Factory status |
 | 1〜5 | 基本設備Quick Build |
 | Esc | Pause / Panelを閉じる |
 
@@ -336,9 +380,10 @@ scripts/validate.mjs
 → scripts/phase6b.test.mjs
 → scripts/phase6c.test.mjs
   → scripts/phase6c-bus.test.mjs
+→ scripts/final-phase.test.mjs
 ```
 
-Phase 6-Cでは特に次を固定しています。
+Final progression regressionでは特に次を固定しています。
 
 - Rank 7 cap / Quick Build 1〜5維持
 - Experimental Technology gate
@@ -353,5 +398,10 @@ Phase 6-Cでは特に次を固定しています。
 - Experimental Power route / active state
 - final line power state
 - actual Autonomous Industrial Core production requirement
+- Mega Factory stable conditions
+- interruption時のcontinuous timer reset
+- 180秒Main Clear
+- Main Clear historical persistence
+- production HTMLからProgression / Automation / Final Phase UIが読み込まれること
 
-Static CIでは実ブラウザPointer Lock、Automation Console layout、Factory layout ergonomics、Build Preview、Advanced Drone / Experimental Powerの一人称Scale、Collider、WebGL FPS、最終LineのBalance /操作感までは保証しません。
+Static CIでは実ブラウザPointer Lock、Main Clear overlay layout、Factory layout ergonomics、Build Preview、Advanced Drone / Experimental Powerの一人称Scale、Collider、WebGL FPS、180秒の実プレイBalance / 操作感、Firefox / Chromium実操作までは保証しません。

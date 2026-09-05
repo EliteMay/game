@@ -7,6 +7,35 @@ const DEFAULT_BUILDINGS = [
   { id: 'starter-seller', type: 'seller', x: 7.5, z: 0, rotation: Math.PI, input: {}, output: {}, progress: 0, powerFuelSeconds: 0, powerStored: 0, logisticsCursor: 0, permanent: true },
 ];
 
+const DEFAULT_FINAL_CHAPTER = Object.freeze({
+  version: 1,
+  megaFactoryStableSeconds: 0,
+  megaFactoryBestSeconds: 0,
+  mainClearedAt: null,
+  clearAcknowledgedAt: null,
+});
+
+let runtimeRootRef = null;
+let runtimeGameRef = null;
+
+export function makeDefaultFinalChapter() {
+  return { ...DEFAULT_FINAL_CHAPTER };
+}
+
+export function normalizeFinalChapter(candidate) {
+  const base = makeDefaultFinalChapter();
+  if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return base;
+  const stable = Number(candidate.megaFactoryStableSeconds);
+  const best = Number(candidate.megaFactoryBestSeconds);
+  return {
+    version: 1,
+    megaFactoryStableSeconds: Number.isFinite(stable) ? Math.max(0, stable) : 0,
+    megaFactoryBestSeconds: Number.isFinite(best) ? Math.max(0, best) : 0,
+    mainClearedAt: typeof candidate.mainClearedAt === 'string' && candidate.mainClearedAt ? candidate.mainClearedAt : null,
+    clearAcknowledgedAt: typeof candidate.clearAcknowledgedAt === 'string' && candidate.clearAcknowledgedAt ? candidate.clearAcknowledgedAt : null,
+  };
+}
+
 export function makeDefaultRootSave() {
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
@@ -58,6 +87,7 @@ export function makeDefaultGameSave() {
     },
     progression: makeDefaultProgression(),
     exploration: makeDefaultExploration(),
+    finalChapter: makeDefaultFinalChapter(),
     player: { x: 0, y: 1.7, z: 8, yaw: 0 },
     settings: {
       mouseSensitivity: 0.0022,
@@ -112,6 +142,7 @@ function normalizeGame(candidate) {
       permanent: Boolean(b.permanent),
     })) : structuredClone(base.buildings),
     tutorialStats: { ...base.tutorialStats, ...(isObject(candidate.tutorialStats) ? candidate.tutorialStats : {}) },
+    finalChapter: normalizeFinalChapter(candidate.finalChapter),
     player: { ...base.player, ...(isObject(candidate.player) ? candidate.player : {}) },
     settings: { ...base.settings, ...(isObject(candidate.settings) ? candidate.settings : {}) },
     discoveredItems: Array.isArray(candidate.discoveredItems) ? [...new Set(candidate.discoveredItems.map(String))] : base.discoveredItems,
@@ -166,7 +197,13 @@ export function saveRootSave(root) {
 export function loadGameSave() {
   const root = loadRootSave();
   const game = normalizeGame(root.games?.['scrap-factory']);
+  runtimeRootRef = root;
+  runtimeGameRef = game;
   return { root, game };
+}
+
+export function getRuntimeGame() {
+  return runtimeGameRef;
 }
 
 export function saveGameSave(root, game) {
@@ -179,12 +216,23 @@ export function saveGameSave(root, game) {
       lastPlayedAt: new Date().toISOString(),
     },
   };
-  return saveRootSave(nextRoot);
+  const saved = saveRootSave(nextRoot);
+  runtimeRootRef = saved;
+  runtimeGameRef = game;
+  return saved;
+}
+
+export function persistRuntimeGame() {
+  if (!runtimeRootRef || !runtimeGameRef) return null;
+  runtimeRootRef = saveGameSave(runtimeRootRef, runtimeGameRef);
+  return runtimeRootRef;
 }
 
 export function resetGameSave() {
   const root = loadRootSave();
   root.games['scrap-factory'] = makeDefaultGameSave();
+  runtimeGameRef = null;
+  runtimeRootRef = null;
   return saveRootSave(root);
 }
 
@@ -199,5 +247,7 @@ export function importSaveText(text) {
   if (current) {
     try { localStorage.setItem(`${SAVE_KEY}-backup-${Date.now()}`, current); } catch { /* best effort */ }
   }
+  runtimeGameRef = null;
+  runtimeRootRef = null;
   return saveRootSave(normalized);
 }
