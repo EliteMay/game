@@ -4,165 +4,126 @@ Date: 2026-09-05
 
 ## Current Milestone
 
-`Scrap Factory` は **Phase 4-A: Abandoned Factory / Advanced Assembly** まで実装。
+`Scrap Factory` は **Phase 4-B: Smart Sorting / Factory Diagnostics** まで実装。
 
-通常GameplayのRank Upは現在 **Rank 1 → 6** まで接続済み。
+通常GameplayのRank Upは **Rank 1 → 6** まで接続済み。
 
-今回の作業開始前はPhase 3-B / Rank 5 capだった。`REQUIREMENTS.md` のPhase 4要件を確認し、破壊的変更を避けるため、Phase 4全体を一括実装せず次のVertical Sliceへ分割した。
+Phase 4-Aで廃工場・Advanced Assembly・Assemblerまで接続した後、Phase 4-Bでは既存Directional LogisticsとFactory Managementを壊さず、Rank 5の工場最適化機能を追加した。
 
 ```text
 Rank 5
-→ 廃工場探索
-→ Generator復旧
-→ Control Room復旧
-→ Assembly Blueprint回収
-→ Advanced Assembly研究
-→ Circuit / Motor製作
+→ 廃工場 / Advanced Assembly
 → Assembler自動ライン
+→ Smart Sorterによるカテゴリ分類
+→ Production Statistics / Bottleneck Detection
 → Rank 6
 ```
 
-Smart Sorter / Production Statistics拡張 / Bottleneck Detection拡張はPhase 4-B以降へ残す。
+Priority / OverflowとConveyor Mk.3はRank 6以降の要件なので今回のSliceには含めない。
 
 ---
 
 ## Implemented
 
-### 1. Save-compatible Advanced Items
+### 1. Smart Sorter
 
-追加:
+追加Building:
 
-- `circuit`
-- `motor`
-- `control_unit`
-
-Root Save / Progression / ExplorationのSchema番号は変更していない。
-
-旧SaveではNormalize時に新Itemを0、新Industrial Areaを未進行として補完する。
-
-### 2. Multi-area Exploration Core
-
-既存Import pathを壊さないため:
-
-- `exploration.js` → compatibility entrypoint
-- `exploration-core.js` → shared persistent/session logic
-- `exploration-ui.js` → compatibility entrypoint
-- `exploration-ui-v2.js` → multi-area Transport Terminal UI
-
-Residentialの既存Objective / reward / return / abandon contractは維持。
-
-### 3. Abandoned Factory
-
-追加Page:
-
-- `exploration/industrial.html`
-- `exploration/industrial.css`
-- `exploration/industrial.js`
-
-構成:
-
-- Arrival Bay
-- Generator Hall
-- Assembly Floor
-- Control Room
-- Service Shortcut
-- Electrical Arc Hazard
-- Industrial Loot
-- Transport return pad
-
-Main Objective:
-
-```text
-Generator Restore
-→ Control Room Online
-→ Blueprint Recovery
-```
-
-Service ShortcutはControl Room復旧後のOptional。
-
-Guaranteed completion reward:
-
-- `abandoned_factory_assembly_blueprint`
-- Research Data +2
-- `industrial-electronics-cache`
-
-Objective rewardは1回のみ。Abandonしても設備復旧 / 区画発見は保持し、今回拾った通常Lootだけ失う。
-
-### 4. Advanced Assembly
-
-追加Research:
-
-- `advanced_assembly`
+- `smart_sorter`
 - Rank 5
-- Research Data 2
-- Abandoned Factory Blueprint必須
+- Cost `$180`
+- Throughput `3 items/sec`
+- Rear 1 input
 
-Unlock:
-
-- Assembler
-- Circuit Hand Craft
-- Motor Hand Craft
-
-追加Recipe:
+固定分類:
 
 ```text
-Motor ×1 + Circuit ×2 + Plastic ×1
-→ Assembler / 8 sec
-→ Control Unit ×1
+advanced            → Forward
+processed / product → Left
+raw                 → Right
 ```
 
-Assembler:
+現在は任意Item Filterを設定するProgrammable Sorterではない。
 
-- Cost `$420`
-- Power 50
-- Generic Production Runtimeを再利用
+### 2. Item-aware Directional Routing
 
-### 5. Rank 5 → 6
+`logistics.js` の同じDirectional Route graphを拡張し、`findDirectionalRoutes()` が現在運ぶ `itemId` をSmart SorterのPort選択へ渡す。
 
-`PLAYABLE_MAX_RANK`を6へ拡張。
+既存Contract:
 
-Mandatory:
+- Conveyor Mk.1 / Mk.2 direction
+- Legacy Conveyor corner
+- Splitter Round-robin
+- Merger Port
+- Route throughput
 
-- Industrial Main Objective complete
-- Advanced Assembly researched
-- Assembler automated line complete
+は維持している。
 
-Assembler line判定は既存Directional Logistics graphから導出する。
+Smart Sorter用に別物流Graphは作っていない。
 
-Recipeの全InputについてSource → Assembler Routeを要求し、Assembler → final Storage/SellerのControl Unit Routeも要求する。
+### 3. Rank 5 Unlock Gate
 
-Optionalから2つ:
+`progression-phase4b.js` を追加。
 
-- Motor発見
-- Circuit発見
-- Industrial StorageをBuffer利用
-- Service Shortcut
-- Assembler throughput 3.0
+- Smart Sorter required Rank = 5
+- Research requirementなし
+- 既存 `progression.js` Import pathを維持
+- 既存Rank 1→6の定義は変更しない
 
-Progression専用Topology cacheは保存しない。
+Requirements上のSmart Sorter LineはRank 5 Optional候補だが、既にPlayableなRank 5 Optional setを今回勝手に置換しない。
 
-### 6. Visual Pass
+### 4. Production Statistics
 
-Domain research後、新しい廃工場をResidentialの単純な色替えにせず、大きなランドマークで進路を作る構成にした。
+`analyzeFactory()` にDerived production snapshotを追加。
 
-Visual state:
+- 理論生産能力 / 分
+- 有効Routeで処理できる生産量 / 分
+- Machine稼働率
+- Smart Sorter設置数
+- Bottleneck count
 
-- Generator offline / online
-- Control Room offline / online
-- Shortcut gate closed / opened
-- Blueprint present / recovered
-- Electrical Arc hazard
+これらは現在のRecipe / Building / Routeから毎回導出し、Saveへ保存しない。
 
-Assemblerには専用Procedural silhouetteを追加:
+### 5. Bottleneck Detection
 
-- industrial frame
-- assembly chamber
-- side module
-- yellow operational marking
-- status light
-- active spinner
+追加Detection:
 
-Save / Production logicからVisual Layerを分離したまま実装している。
+- Output 2個以上滞留 + 搬送先なし
+- Route transport rate < Machine theoretical rate
+- Storage full
+- Storage 85%以上の容量逼迫
+- Power shortage
+- Logistics output missing
+- Smart Sorter分類Lane不足
+
+Storage full / Output stall / Power shortageを明確なBottleneckとして扱う。
+
+現行Recipeは単体Machineの生産速度がConveyor Mk.1より遅いため、純粋なBelt帯域不足は将来の高速Recipe拡張で意味が大きくなる。
+
+### 6. Factory Management UI
+
+`phase4b-management-ui.js` を追加し、既存Factory Management consoleへ:
+
+- 理論生産能力
+- 搬送対応能力
+- Machine稼働率
+- Smart Sorter数
+- 生産統計・ボトルネック一覧
+
+を追加。
+
+既存 `feature-pack.js` の大規模書き換えを避け、Factory Managementの既存UIを保持したまま拡張している。
+
+### 7. Smart Sorter Visual
+
+`world-runtime.js` に専用Procedural visualを追加。
+
+- Center scanner body
+- 3-direction cross lane
+- category別Lane marker
+- Forward / Left / Right arrow
+
+Splitter / Mergerの見た目をそのまま流用しない。
 
 ---
 
@@ -175,57 +136,54 @@ Save / Production logicからVisual Layerを分離したまま実装している
 - Existing Factory Layout
 - 2.5m Build Grid
 - Factory coordinate system
-- Visual Conveyor direction = Runtime direction
-- Existing Rank 1 → 5 behavior
-- Residential Exploration behavior
+- Visual Logistics direction = Runtime direction
 - Quick Build 1〜5 order
+- Existing Rank 1 → 6 behavior
+- Splitter / Merger behavior
 - Storage Back Pressure / no item loss
 - Power shortage state preservation
 - GitHub Pages relative paths
+
+Smart Sorterには保存が必要なFilter stateを追加していないためSchema変更なし。
 
 ---
 
 ## Regression Coverage
 
-更新:
-
-- `scripts/progression.test.mjs`
-
 追加:
 
-- `scripts/industrial-exploration.test.mjs`
+- `scripts/phase4b.test.mjs`
 
-ValidatorへIndustrial page / runtime / testを追加。
+確認内容:
 
-Coverage:
+- Smart Sorter throughput = 3
+- Advanced → Forward
+- Processed / Product → Left
+- Raw → Right
+- 3方向Networkで実際に正しいSellerへRoute解決
+- Rank 4ではSmart Sorter locked
+- Rank 5でunlocked
+- Production statistics生成
+- Smart Sorter count
+- Full Storage bottleneck detection
 
-- Rank 1 → 6
-- Rank 5でAssemblerをResearchなしでBuild不可
-- Assembly Blueprint requirement
-- Advanced Assembly unlock
-- Assembler topology
-- Rank 6 cap
-- Industrial Rank gate
-- Generator → Control dependency
-- Blueprint reward exactly once
-- Industrial normal return
-- Industrial abandon
-- Persistent facility progress
-- Existing Residential regression
-- Existing Logistics / Power / Storage / Factory Management regression
+`npm run validate` にPhase 4-B regressionを組み込んだ。
 
 ---
 
 ## CI
 
-PR #11上でPhase 4-A実装Commit `f6806c502499990406c52c0bea07a4b8e65dec0b` に対する:
+実装Head:
 
 ```text
-Validate Web Game / run #70
+f588480dd94fe27bfd38417d4427231efa5cc446
+Validate Web Game / run #78
 result: success
 ```
 
-Documentation更新後の最終CommitについてもMerge前に再検証する。
+この結果には既存Regressionと新しいPhase 4-B testが含まれる。
+
+Documentation更新後の最終Headでも再度CIを確認する。
 
 ---
 
@@ -234,34 +192,31 @@ Documentation更新後の最終CommitについてもMerge前に再検証する�
 Static CIでは次を保証できない。
 
 - 実ブラウザPointer Lock
-- WASD / Interactionの操作感
-- Industrial Area内の全Objectiveへの実到達性
-- Electrical Arcの一人称可読性
-- Generator Hall / Assembly Floor / Control Roomのランドマーク可読性
-- Assemblerの実Build Preview / collider / first-person scale
+- Smart Sorter Build Previewの見え方
+- 3色Lane marker / arrowの一人称可読性
+- Smart Sorter collider / placement feel
+- Factory Management追加Cardsの実ブラウザ表示タイミング
 - WebGL FPS / draw cost
 
-これらはBrowser Validationが残る。
+これらはBrowser Validation対象。
 
 ---
 
-## Remaining Phase 4 / Next Work
+## Remaining Work
 
-`REQUIREMENTS.md` に残る主な未実装Phase 4要件:
+### Phase 4 Visual / Polish
 
-- Smart Sorter
-- Production Statistics拡張
-- Bottleneck Detection拡張
-- より高度なIndustrial Loot / Hazard / Visual density
-- Hybrid Asset Foundationの継続
+- Hybrid Asset Foundation継続
+- Industrial Area visual density / hazard polish
+- Browser visual / FPS review
 
-Rank 6以降:
+### Rank 6+
 
 - 軍事施設
 - Conveyor Mk.3
-- Priority / Overflow
+- Priority / Overflow Logistics
 - Advanced Power
 - Military Research
-- Drone Research entry
+- Drone Research / automated resource collection
 
-今回のPRを「Phase 4全部完了」とは扱わない。
+Phase 4-BでSmart Sorter / Production Statistics / Bottleneck Detectionは実装したが、Rank 6以降のAdvanced Logisticsまで完了した扱いにはしない。
