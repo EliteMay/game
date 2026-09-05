@@ -23,6 +23,14 @@ function otherOverlayOpen() {
     .some((panel) => panel !== state.panel && !panel.hidden);
 }
 
+function syncFactoryRuntime() {
+  try {
+    document.querySelector('#save-now')?.click();
+  } catch (error) {
+    console.warn('Factory runtime sync before expedition failed', error);
+  }
+}
+
 function acquireOverlayCarrier() {
   if (!gameplayReady() || otherOverlayOpen()) return false;
   const guideButton = document.querySelector('#open-guide-hud');
@@ -42,16 +50,7 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
-function syncFactoryRuntime() {
-  try {
-    window.__scrapFactoryPersist?.('Transport Terminal');
-  } catch (error) {
-    console.warn('Factory runtime sync before expedition failed', error);
-  }
-}
-
 function readCurrent() {
-  syncFactoryRuntime();
   return loadGameSave();
 }
 
@@ -90,7 +89,10 @@ function createUi() {
 
 function openPanel() {
   if (!state.panel) return;
-  if (state.panel.hidden && !acquireOverlayCarrier()) return;
+  if (state.panel.hidden) {
+    syncFactoryRuntime();
+    if (!acquireOverlayCarrier()) return;
+  }
   state.panel.hidden = false;
   renderPanel();
 }
@@ -157,7 +159,7 @@ function renderPanel() {
 
   content.querySelector('#start-residential-expedition')?.addEventListener('click', () => {
     const current = readCurrent();
-    let result = startExpedition(current.game, RESIDENTIAL_AREA_ID);
+    const result = startExpedition(current.game, RESIDENTIAL_AREA_ID);
     if (!result.changed && result.reason !== 'already-active') return;
     saveGameSave(current.root, current.game);
     window.location.href = './exploration/residential.html';
