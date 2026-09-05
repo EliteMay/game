@@ -19,9 +19,9 @@
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Phase 5-C: Configurable Drone Routes / Industrial Generator / Logistics Warehouse** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Phase 6-A: Ruined Research Facility / Three Labs** まで通常Gameplayへ接続しています。
 
-通常進行は **Rank 1 → 7** です。
+通常進行は **Rank 1 → 7**。Rank 7到達後はMain ClearではなくFinal Chapterへ進みます。
 
 ```text
 Factory / Scrap Yard
@@ -36,9 +36,20 @@ Factory / Scrap Yard
 → Conveyor Mk.3 / Priority / Overflow
 → 複数Drone Route / Industrial Generator / Logistics Warehouse
 → Rank 7
+→ 崩壊した研究施設
+→ Robotics / Materials / Energy Lab
+→ Special Cargoを正常帰還
 ```
 
-Rank 7が現在のPlayable Rank-Up上限です。崩壊した研究施設、Fabricator、Advanced Drone、Mega Factoryは後続Phaseです。
+現在のRank 7 Final Chapterは**3 Lab攻略まで**です。
+
+未実装:
+- Central Core攻略
+- Fabricator
+- AI Control Module / Experimental Frame / Experimental Power Module
+- Experimental Research / Experimental Power
+- Autonomous Industrial Core
+- Mega Factory / Main Clear
 
 ## Progression
 
@@ -50,6 +61,7 @@ Rank 7が現在のPlayable Rank-Up上限です。崩壊した研究施設、Fabr
 | 4 → 5 | Splitter / Mergerを使う2製品ライン + 自前発電 |
 | 5 → 6 | 廃工場復旧 + Advanced Assembly + Assembler自動ライン |
 | 6 → 7 | 軍事施設攻略 + Drone Control Research + Military Alloy Drone Port → Factory Storage自動回収Route |
+| Rank 7 Final Chapter | 崩壊した研究施設の3 Lab攻略 → 特殊部品回収 → 後続PhaseでCentral Core / Experimental Tier |
 
 主なResearch:
 
@@ -58,6 +70,89 @@ Rank 7が現在のPlayable Rank-Up上限です。崩壊した研究施設、Fabr
 - `Grid Storage` — Battery
 - `Recovered Assembly Control` — Assembler / Circuit / Motor
 - `Recovered Drone Control` — Rank 6 / 軍事施設Blueprint由来 / Drone Port
+
+## Exploration / Resource Point
+
+### 廃住宅街 — Rank 3
+
+`Fuse回収 → Substation復旧 → Survey Terminal → Blueprint → 正常帰還`
+
+Resource Point:
+- `residential-copper-network`
+
+### 廃工場 — Rank 5
+
+`Generator復旧 → Control Room復旧 → Assembly Blueprint → 正常帰還`
+
+Resource Point:
+- `industrial-electronics-cache`
+
+### 軍事施設 — Rank 6
+
+`Security Access Card → Security Grid停止 → Drone Control Bay再起動 → Drone Control Blueprint → 正常帰還`
+
+- Expedition HP: 100
+- Security Grid稼働中はTurret警戒区画でDamage
+- Access Card取得後にTurret電源を停止できる非戦闘Routeあり
+- HP 0 / AbandonではCurrent Session Lootのみ失う
+
+Guaranteed reward:
+- `military_drone_control_blueprint`
+- Research Data +3
+- `military-alloy-cache`
+
+### 崩壊した研究施設 — Rank 7 / Phase 6-A
+
+```text
+Central Atrium
+→ Access Relay復旧
+→ Robotics Lab
+→ Materials Lab
+→ Energy Lab
+→ Special Cargo 3種を回収
+→ Factoryへ正常帰還
+```
+
+3 LabはAccess Relay復旧後、任意順で攻略できます。
+
+Special Cargo:
+- Robotics Lab → `AI制御コア試作機`
+- Materials Lab → `実験合金サンプル`
+- Energy Lab → `高密度Energy Cell試作機`
+
+重要Contract:
+- Lab復旧状態は永続
+- Special Cargoは正常帰還するまで未確定
+- Abandon / HP 0では今回運搬分を失う
+- ただし復旧済みLabから次回必ず再回収可能
+- 正常帰還したCargoだけFactory側の`securedComponents`へ確定
+- Central CoreはPhase 6-Aでは未解放
+- Research Facility全体の`completed`はまだ`false`
+
+Transport Terminalでは3 Cargo確保後に `LABS SECURED / Central Coreは次Phase` と表示します。
+
+## Drone Automation / Automation Console
+
+`drone_control_systems` Research完了後、**Drone Port**を建築できます。
+
+攻略済みResource PointだけをAutomation ConsoleからPortごとに選択できます。
+
+| Resource Point | Output | Cycle | 目安能力 | Danger |
+| --- | --- | ---: | ---: | ---: |
+| 住宅街 銅配線網 | Copper Wire ×1 | 8s | 7.5/min | 1 |
+| 廃工場 電子部品庫 | E-Waste ×1 | 10s | 6/min | 2 |
+| 軍事施設 合金備蓄庫 | Rare Alloy ×1 | 12s | 5/min | 3 |
+
+Drone Port:
+- 65 Power
+- Directional Logistics / Back Pressureを既存Runtimeから再利用
+- Route変更では既存Output Bufferを消さない
+- 途中Cycleのみリセット
+- 旧SaveのRoute未指定Portは従来どおりMilitary Alloy RouteへFallback
+
+現在のAutomation Consoleは保存競合を避けるため、Route変更またはStorage Upgradeを適用するとFactoryを再読込します。
+
+Rank 6 → 7の必須条件は従来どおり **Military Alloy Resource Pointを使うDrone Route** が必要です。Copper / E-Waste Routeだけでは代替できません。
 
 ## Directional Logistics
 
@@ -92,59 +187,6 @@ Production
 ```
 
 Storageに空きがある間はSellerへ流れず、Storageが受け取れなくなった時だけ余剰をSellerへ送ります。
-
-## Exploration / Resource Point
-
-### 廃住宅街 — Rank 3
-
-`Fuse回収 → Substation復旧 → Survey Terminal → Blueprint → 正常帰還`
-
-Resource Point:
-- `residential-copper-network`
-
-### 廃工場 — Rank 5
-
-`Generator復旧 → Control Room復旧 → Assembly Blueprint → 正常帰還`
-
-Resource Point:
-- `industrial-electronics-cache`
-
-### 軍事施設 — Rank 6
-
-`Security Access Card → Security Grid停止 → Drone Control Bay再起動 → Drone Control Blueprint → 正常帰還`
-
-- Expedition HP: 100
-- Security Grid稼働中はTurret警戒区画でDamage
-- Access Card取得後にTurret電源を停止できる非戦闘Routeあり
-- HP 0 / AbandonではCurrent Session Lootのみ失う
-
-Guaranteed reward:
-- `military_drone_control_blueprint`
-- Research Data +3
-- `military-alloy-cache`
-
-## Drone Automation / Automation Console
-
-`drone_control_systems` Research完了後、**Drone Port**を建築できます。
-
-攻略済みResource PointだけをAutomation ConsoleからPortごとに選択できます。
-
-| Resource Point | Output | Cycle | 目安能力 | Danger |
-| --- | --- | ---: | ---: | ---: |
-| 住宅街 銅配線網 | Copper Wire ×1 | 8s | 7.5/min | 1 |
-| 廃工場 電子部品庫 | E-Waste ×1 | 10s | 6/min | 2 |
-| 軍事施設 合金備蓄庫 | Rare Alloy ×1 | 12s | 5/min | 3 |
-
-Drone Port:
-- 65 Power
-- Directional Logistics / Back Pressureを既存Runtimeから再利用
-- Route変更では既存Output Bufferを消さない
-- 途中Cycleのみリセット
-- 旧SaveのRoute未指定Portは従来どおりMilitary Alloy RouteへFallback
-
-現在のAutomation Consoleは保存競合を避けるため、Route変更またはStorage Upgradeを適用するとFactoryを再読込します。
-
-Rank 6 → 7の必須条件は従来どおり **Military Alloy Resource Pointを使うDrone Route** が必要です。Copper / E-Waste Routeだけでは代替できません。
 
 ## Power / Storage
 
@@ -205,10 +247,18 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 5-CでもSchema番号は変更していません。
+Phase 6-AでもSchema番号は変更していません。
 
-Additive field:
+Phase 5-C additive field:
 - Drone Port `resourcePointId`
+
+Phase 6-A additive exploration state:
+- `areas.research`
+- `areas.research.objective.*`
+- `areas.research.securedComponents[]`
+- `activeSession.researchCargo[]`
+
+旧SaveではResearch AreaとResearch Cargoを空状態でNormalizeします。
 
 維持するContract:
 - 既存Factory Layoutを削除しない
@@ -218,6 +268,7 @@ Additive field:
 - Route graph / Throughput / Priority / DiagnosticsをSaveへ重複保存しない
 - Resource Point性能はCode definitionを正本としSaveへ複製しない
 - Storage Back PressureでItemを消失させない
+- 旧Residential / Industrial / Military探索進行を維持
 - GitHub Pages Relative Pathを維持
 
 ## 操作
@@ -245,16 +296,20 @@ Additive field:
 npm run validate
 ```
 
-ValidatorはRank 1→7と既存Regressionに加え、Phase 5-Cで次を確認します。
+ValidatorはRank 1→7と既存Regressionに加え、Phase 6-Aで次を確認します。
 
-- 3 Resource PointのDrone Route解決
-- 旧Drone Port → Military Route fallback
-- Copper / Electronics / Military Recipe切替
-- Route変更時のOutput Buffer保持
-- non-Military RouteだけではRank 6→7 mandatoryを満たさない
-- Industrial Generator Rank 6 Gate / 180 Power
-- Logistics Warehouse Rank 6 Gate / 1800 capacity
-- Quick Build 1〜5維持
-- Phase 5-B Visual Runtime互換Base + Phase 5-C Visual Wrapper
+- Research Facility Rank 7 Gate
+- Exploration Schema v1で旧SaveからResearch Areaを補完
+- Access Relay → 3 Labの依存関係
+- 3 Lab完了後もMain Clear / Research Facility全体を完了扱いにしない
+- Central CoreはPhase Lock
+- Special CargoはAbandonで失う
+- Lab復旧状態はAbandon後も保持
+- Lost Cargoは復旧済みLabから再回収可能
+- 正常帰還でSpecial Cargoを`securedComponents`へ確定
+- 確定済みCargoの重複取得防止
+- 通常Lootは既存Transport Depot Contractを維持
+- Research HTML / CSS / JS Runtime marker
+- 既存Residential / Industrial / Military / Phase 1〜5 Regression
 
-Static CIだけでは、Automation Consoleの配置、Pointer Lock復帰、Route変更時のReload体験、Phase 5-C設備の一人称サイズ・Collider、WebGL FPSまでは保証しません。
+Static CIだけでは、Research FacilityのPointer Lock、Lab導線、Hazard強度、3D空間の一人称可読性、Collider、WebGL FPSまでは保証しません。
