@@ -84,7 +84,7 @@ assert.equal(BUILDINGS.advanced_drone_port.powerUse, 95);
   const game = gameAt(7);
   completeExperimentalTechnology(game);
   const advancedPoints = securedDroneResourcePoints(game, DRONE_TIER_ADVANCED);
-  assert.deepEqual(advancedPoints.map((point) => point.itemId).sort(), ['copper_wire', 'e_waste', 'metal_scrap', 'plastic', 'rare_alloy'].sort(), 'cleared areas must expose the five normal-resource Advanced Drone feeds required by the final line');
+  assert.deepEqual(advancedPoints.map((point) => point.itemId).sort(), ['copper_wire', 'e_waste', 'metal_scrap', 'plastic', 'rare_alloy'].sort(), 'cleared areas must expose five Advanced Drone feeds required by the final line');
 
   const utility = { id: 'utility', type: 'drone_port', resourcePointId: 'military-alloy-cache', progress: 4, output: { rare_alloy: 2 } };
   const blocked = assignDroneResourcePoint(game, utility, 'residential-polymer-stockpile');
@@ -137,6 +137,7 @@ function buildFullAutomationFixture() {
   game.progression.completedResearch.push('advanced_assembly', 'experimental_fabrication', 'experimental_technology');
   game.progression.unlocks.push('tier:experimental', 'production:autonomous_core', 'production:automated_components', 'building:advanced_drone_port', 'building:experimental_power_system');
   const occupied = new Map();
+  const targetNetworks = new Map();
   let conveyorId = 0;
 
   function key(gx, gz) { return `${gx},${gz}`; }
@@ -154,7 +155,6 @@ function buildFullAutomationFixture() {
   const plastic = add('src-plastic', 'advanced_drone_port_plastic', -6, 0, { resourcePointId: 'residential-polymer-stockpile' });
   const electronics = add('src-electronics', 'advanced_drone_port_electronics', -6, 2, { resourcePointId: 'industrial-electronics-cache' });
   const alloy = add('src-alloy', 'advanced_drone_port', -6, 4, { resourcePointId: 'military-alloy-cache' });
-  const plasticControl = add('src-plastic-control', 'advanced_drone_port_plastic', -6, 6, { resourcePointId: 'residential-polymer-stockpile' });
 
   const crusher = add('crusher-final', 'crusher', -3, -4);
   const smelter = add('smelter-final', 'smelter', 0, -4);
@@ -175,10 +175,8 @@ function buildFullAutomationFixture() {
     { dx: 0, dz: 1, rotation: Math.PI * 1.5 },
   ];
   function gridOf(building) { return { gx: Math.round(building.x / GRID), gz: Math.round(building.z / GRID) }; }
-  function adjacentCells(building) {
-    const { gx, gz } = gridOf(building);
-    return dirs.map((dir) => ({ gx: gx + dir.dx, gz: gz + dir.dz, dir }));
-  }
+  function adjacentCellsAt(cell) { return dirs.map((dir) => ({ gx: cell.gx + dir.dx, gz: cell.gz + dir.dz, dir })); }
+  function adjacentCells(building) { return adjacentCellsAt(gridOf(building)); }
   function stepRotation(a, b) {
     const dx = b.gx - a.gx;
     const dz = b.gz - a.gz;
@@ -190,10 +188,28 @@ function buildFullAutomationFixture() {
   function connect(source, target, label) {
     const sourceGrid = gridOf(source);
     const targetGrid = gridOf(target);
-    const goals = new Set(adjacentCells(target).filter((cell) => !occupied.has(key(cell.gx, cell.gz))).map((cell) => key(cell.gx, cell.gz)));
-    assert.ok(goals.size, `no free target port for ${label}`);
-    let solved = null;
+    const existing = targetNetworks.get(target.id) || new Set();
+    const joins = new Map();
 
+    if (existing.size) {
+      for (const joinKey of existing) {
+        const [jx, jz] = joinKey.split(',').map(Number);
+        for (const cell of adjacentCellsAt({ gx: jx, gz: jz })) {
+          const cellKey = key(cell.gx, cell.gz);
+          if (occupied.has(cellKey) || cellKey === key(sourceGrid.gx, sourceGrid.gz) || cellKey === key(targetGrid.gx, targetGrid.gz)) continue;
+          if (!joins.has(cellKey)) joins.set(cellKey, { gx: jx, gz: jz });
+        }
+      }
+    } else {
+      for (const cell of adjacentCells(target)) {
+        const cellKey = key(cell.gx, cell.gz);
+        if (!occupied.has(cellKey)) joins.set(cellKey, targetGrid);
+      }
+    }
+    assert.ok(joins.size, `no free target/join port for ${label}`);
+
+    let solved = null;
+    let solvedJoin = null;
     for (const dir of dirs) {
       const first = { gx: sourceGrid.gx + dir.dx, gz: sourceGrid.gz + dir.dz };
       const second = { gx: sourceGrid.gx + dir.dx * 2, gz: sourceGrid.gz + dir.dz * 2 };
@@ -204,13 +220,15 @@ function buildFullAutomationFixture() {
       while (queue.length && !solved) {
         const path = queue.shift();
         const current = path[path.length - 1];
-        if (goals.has(key(current.gx, current.gz))) {
+        const currentKey = key(current.gx, current.gz);
+        if (joins.has(currentKey)) {
           solved = [first, ...path];
+          solvedJoin = joins.get(currentKey);
           break;
         }
         for (const nextDir of dirs) {
           const next = { gx: current.gx + nextDir.dx, gz: current.gz + nextDir.dz };
-          if (Math.abs(next.gx) > 18 || Math.abs(next.gz) > 18) continue;
+          if (Math.abs(next.gx) > 20 || Math.abs(next.gz) > 20) continue;
           const nextKey = key(next.gx, next.gz);
           if (seen.has(nextKey) || occupied.has(nextKey) || nextKey === key(targetGrid.gx, targetGrid.gz)) continue;
           seen.add(nextKey);
@@ -219,11 +237,15 @@ function buildFullAutomationFixture() {
       }
       if (solved) break;
     }
-    assert.ok(solved, `could not route ${label}`);
+    assert.ok(solved && solvedJoin, `could not route ${label}`);
     solved.forEach((cell, index) => {
-      const next = solved[index + 1] || targetGrid;
+      const next = solved[index + 1] || solvedJoin;
       add(`belt-${++conveyorId}-${label}`, 'conveyor_mk3', cell.gx, cell.gz, { rotation: stepRotation(cell, next) });
     });
+    const network = targetNetworks.get(target.id) || new Set();
+    solved.forEach((cell) => network.add(key(cell.gx, cell.gz)));
+    if (existing.size) for (const existingKey of existing) network.add(existingKey);
+    targetNetworks.set(target.id, network);
   }
 
   connect(scrap, crusher, 'scrap-crusher');
@@ -236,7 +258,7 @@ function buildFullAutomationFixture() {
   connect(plastic, circuit, 'plastic-circuit');
   connect(motor, control, 'motor-control');
   connect(circuit, control, 'circuit-control');
-  connect(plasticControl, control, 'plastic-control');
+  connect(plastic, control, 'plastic-control');
   connect(control, experimental, 'control-experimental');
   connect(alloy, experimental, 'alloy-experimental');
   connect(circuit, experimental, 'circuit-experimental');
@@ -247,14 +269,13 @@ function buildFullAutomationFixture() {
   connect(alloy, powerA, 'alloy-power');
 
   function addCoveragePole(id, preferred, consumers) {
-    for (let radius = 0; radius <= 3; radius += 1) {
+    for (let radius = 0; radius <= 4; radius += 1) {
       for (let dx = -radius; dx <= radius; dx += 1) {
         for (let dz = -radius; dz <= radius; dz += 1) {
           const gx = preferred.gx + dx;
           const gz = preferred.gz + dz;
           if (occupied.has(key(gx, gz))) continue;
-          const worldDistanceFromOrigin = Math.hypot(gx * GRID, gz * GRID);
-          if (worldDistanceFromOrigin > 17.5) continue;
+          if (Math.hypot(gx * GRID, gz * GRID) > 17.5) continue;
           const covers = consumers.every((building) => {
             const b = gridOf(building);
             return Math.hypot((b.gx - gx) * GRID, (b.gz - gz) * GRID) <= 10;
@@ -266,7 +287,7 @@ function buildFullAutomationFixture() {
     assert.fail(`no free coverage pole for ${id}`);
   }
   addCoveragePole('pole-scrap', { gx: -5, gz: -3 }, [scrap]);
-  addCoveragePole('pole-alloy', { gx: -5, gz: 3 }, [alloy, plasticControl]);
+  addCoveragePole('pole-alloy', { gx: -5, gz: 3 }, [alloy]);
   return { game, core };
 }
 
