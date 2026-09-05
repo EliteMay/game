@@ -1,0 +1,112 @@
+name: Reset Save Browser Smoke
+
+on:
+  push:
+    branches:
+      - fix/reset-save-resurrection
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate branch
+        run: npm run validate
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.55.0 three@0.185.0
+          npx playwright install --with-deps chromium
+      - name: Localize Three.js for test checkout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('games/scrap-factory/index.html')
+          s = p.read_text()
+          s = s.replace('https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js', '/node_modules/three/build/three.module.js')
+          p.write_text(s)
+          PY
+      - name: Run reset browser smoke
+        run: |
+          python3 -m http.server 4173 > /tmp/game-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+          const pageErrors = [];
+          const consoleErrors = [];
+          const requestFailures = [];
+          page.on('pageerror', (error) => pageErrors.push(String(error)));
+          page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+          page.on('requestfailed', (request) => requestFailures.push(request.url() + ' :: ' + request.failure()?.errorText));
+
+          await page.goto('http://127.0.0.1:4173/games/scrap-factory/index.html', { waitUntil: 'networkidle' });
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
+
+          await page.evaluate(() => {
+            const runtime = window.__scrapFactoryRuntime;
+            const game = runtime.getGame();
+            game.money = 9999;
+            game.lifetimeRevenue = 12345;
+            game.inventory.metal_scrap = 77;
+            game.finalChapter.mainClearedAt = '2026-09-06T00:00:00.000Z';
+            runtime.persist('reset-browser-fixture');
+            localStorage.setItem('scrap-factory-management-v1', JSON.stringify({ unlockedChallenges: ['legacy'] }));
+          });
+
+          const before = await page.evaluate(() => ({
+            money: window.__scrapFactoryRuntime.getGame().money,
+            stored: JSON.parse(localStorage.getItem('elitemay-game-hub-v1')).games['scrap-factory'].money,
+            management: localStorage.getItem('scrap-factory-management-v1'),
+          }));
+          assert.equal(before.money, 9999);
+          assert.equal(before.stored, 9999);
+          assert.ok(before.management);
+
+          page.on('dialog', async (dialog) => { await dialog.accept(); });
+          await Promise.all([
+            page.waitForNavigation({ waitUntil: 'networkidle', timeout: 20000 }),
+            page.dispatchEvent('#reset-save', 'click'),
+          ]);
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
+
+          const after = await page.evaluate(() => {
+            const game = window.__scrapFactoryRuntime.getGame();
+            const stored = JSON.parse(localStorage.getItem('elitemay-game-hub-v1')).games['scrap-factory'];
+            return {
+              runtimeMoney: game.money,
+              storedMoney: stored.money,
+              revenue: stored.lifetimeRevenue,
+              scrap: stored.inventory.metal_scrap,
+              clearedAt: stored.finalChapter.mainClearedAt,
+              management: localStorage.getItem('scrap-factory-management-v1'),
+            };
+          });
+
+          assert.equal(after.runtimeMoney, 40, 'runtime must restart from default cash');
+          assert.equal(after.storedMoney, 40, 'stored cash must remain reset after automatic reload');
+          assert.equal(after.revenue, 0, 'revenue must reset');
+          assert.equal(after.scrap, 0, 'inventory must reset');
+          assert.equal(after.clearedAt, null, 'Main Clear history must reset');
+          assert.equal(after.management, null, 'Factory Management auxiliary state must reset');
+
+          await page.reload({ waitUntil: 'networkidle' });
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
+          const secondReloadMoney = await page.evaluate(() => window.__scrapFactoryRuntime.getGame().money);
+          assert.equal(secondReloadMoney, 40, 'reset must survive another reload');
+
+          const meaningfulConsoleErrors = consoleErrors.filter((message) => !message.toLowerCase().includes('favicon'));
+          const meaningfulRequestFailures = requestFailures.filter((message) => !message.toLowerCase().includes('favicon'));
+          assert.deepEqual(pageErrors, [], 'page errors: ' + pageErrors.join('\n'));
+          assert.deepEqual(meaningfulConsoleErrors, [], 'console errors: ' + meaningfulConsoleErrors.join('\n'));
+          assert.deepEqual(meaningfulRequestFailures, [], 'request failures: ' + meaningfulRequestFailures.join('\n'));
+
+          console.log('Reset-save browser smoke passed');
+          await browser.close();
+          NODE
