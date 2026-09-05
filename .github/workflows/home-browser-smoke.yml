@@ -26,7 +26,7 @@ jobs:
       - name: Chromium smoke test
         shell: bash
         run: |
-          cat > /tmp/home-browser-smoke.mjs <<'EOF'
+          cat > .tmp-home-browser-smoke.mjs <<'EOF'
           import assert from 'node:assert/strict';
           import { chromium } from 'playwright';
 
@@ -88,7 +88,6 @@ jobs:
           assert.equal(overflow, false, 'Home panel should not cause page-level horizontal overflow at 1440px');
           await page.click('#close-home-system');
 
-          // Legacy save migration: remove Home state and preserve the player's old position.
           await page.evaluate(() => {
             const root = JSON.parse(localStorage.getItem('elitemay-game-hub-v1'));
             const game = root.games['scrap-factory'];
@@ -111,7 +110,8 @@ jobs:
           await browser.close();
           console.log('Home Chromium smoke passed: boot, Home scene, door collider, Bed save, PC UI, legacy migration, overflow.');
           EOF
-          node /tmp/home-browser-smoke.mjs
+          node ./.tmp-home-browser-smoke.mjs
+          rm -f .tmp-home-browser-smoke.mjs
       - name: Upload browser screenshot
         if: always()
         uses: actions/upload-artifact@v4
