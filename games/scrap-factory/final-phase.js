@@ -18,6 +18,10 @@ function ensureFinalChapter(game) {
   return game.finalChapter;
 }
 
+function clearTimestamp(now) {
+  return now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+}
+
 export function analyzeMegaFactory(game) {
   const finalAutomation = analyzeFinalAutomation(game);
   const power = computePowerSnapshot(game);
@@ -48,9 +52,8 @@ export function analyzeMegaFactory(game) {
   };
 }
 
-export function advanceMegaFactoryStability(game, delta, now = new Date()) {
-  const state = ensureFinalChapter(game);
-  const analysis = analyzeMegaFactory(game);
+export function advanceStableOperationState(candidate, stable, delta, now = new Date()) {
+  const state = normalizeFinalChapter(candidate);
   const elapsed = Math.min(1, Math.max(0, Number(delta || 0)));
   const previous = Number(state.megaFactoryStableSeconds || 0);
   const previousBest = Number(state.megaFactoryBestSeconds || 0);
@@ -59,25 +62,14 @@ export function advanceMegaFactoryStability(game, delta, now = new Date()) {
   if (state.mainClearedAt) {
     state.megaFactoryStableSeconds = Math.max(previous, MEGA_FACTORY_STABLE_SECONDS);
     state.megaFactoryBestSeconds = Math.max(previousBest, state.megaFactoryStableSeconds);
-    return {
-      changed: state.megaFactoryStableSeconds !== previous || state.megaFactoryBestSeconds !== previousBest,
-      justCleared: false,
-      cleared: true,
-      state,
-      analysis,
-      progress: 1,
-      remainingSeconds: 0,
-    };
-  }
-
-  if (analysis.stable && elapsed > 0) {
+  } else if (stable && elapsed > 0) {
     state.megaFactoryStableSeconds = Math.min(MEGA_FACTORY_STABLE_SECONDS, previous + elapsed);
     state.megaFactoryBestSeconds = Math.max(previousBest, state.megaFactoryStableSeconds);
     if (state.megaFactoryStableSeconds >= MEGA_FACTORY_STABLE_SECONDS) {
-      state.mainClearedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+      state.mainClearedAt = clearTimestamp(now);
       justCleared = true;
     }
-  } else if (!analysis.stable && previous > 0) {
+  } else if (!stable && previous > 0) {
     state.megaFactoryBestSeconds = Math.max(previousBest, previous);
     state.megaFactoryStableSeconds = 0;
   }
@@ -88,16 +80,22 @@ export function advanceMegaFactoryStability(game, delta, now = new Date()) {
     justCleared,
     cleared: Boolean(state.mainClearedAt),
     state,
-    analysis,
-    progress: Math.min(1, stableSeconds / MEGA_FACTORY_STABLE_SECONDS),
-    remainingSeconds: Math.max(0, MEGA_FACTORY_STABLE_SECONDS - stableSeconds),
+    progress: state.mainClearedAt ? 1 : Math.min(1, stableSeconds / MEGA_FACTORY_STABLE_SECONDS),
+    remainingSeconds: state.mainClearedAt ? 0 : Math.max(0, MEGA_FACTORY_STABLE_SECONDS - stableSeconds),
   };
+}
+
+export function advanceMegaFactoryStability(game, delta, now = new Date()) {
+  const analysis = analyzeMegaFactory(game);
+  const result = advanceStableOperationState(ensureFinalChapter(game), analysis.stable, delta, now);
+  if (game && typeof game === 'object') game.finalChapter = result.state;
+  return { ...result, analysis };
 }
 
 export function acknowledgeMainClear(game, now = new Date()) {
   const state = ensureFinalChapter(game);
   if (!state.mainClearedAt || state.clearAcknowledgedAt) return false;
-  state.clearAcknowledgedAt = now instanceof Date ? now.toISOString() : new Date(now).toISOString();
+  state.clearAcknowledgedAt = clearTimestamp(now);
   return true;
 }
 
@@ -113,7 +111,7 @@ export function finalPhaseStatus(game) {
     stableSeconds,
     bestSeconds: Math.max(0, Number(state.megaFactoryBestSeconds || 0)),
     targetSeconds: MEGA_FACTORY_STABLE_SECONDS,
-    progress: Math.min(1, stableSeconds / MEGA_FACTORY_STABLE_SECONDS),
-    remainingSeconds: Math.max(0, MEGA_FACTORY_STABLE_SECONDS - stableSeconds),
+    progress: state.mainClearedAt ? 1 : Math.min(1, stableSeconds / MEGA_FACTORY_STABLE_SECONDS),
+    remainingSeconds: state.mainClearedAt ? 0 : Math.max(0, MEGA_FACTORY_STABLE_SECONDS - stableSeconds),
   };
 }
