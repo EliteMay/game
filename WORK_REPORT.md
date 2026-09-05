@@ -552,3 +552,11 @@ Reset button
 - Factory Management補助state削除を確認
 - さらに2回目Reload後も `$40` のままで旧Saveが復活しないことを確認
 - temporary Browser Smoke workflowは検証後に削除
+
+## 2026-09-06 — Fresh Spawn Movement Fix
+
+- Symptom: Save初期化後のFresh StartでWASDが反応しないように見えた。
+- Root Cause: `HOME_RESPAWN_POSITION` がHome Bed colliderへ重なっており、入力は取得できていたが移動結果がcollisionで毎Frame拒否されていた。IME / 日本語入力は原因ではない。
+- Fix: Fresh/Home respawnをBed collider外の `(-10.25, 36.1)` へ移動。既存Saveの現在位置は変更しない。
+- Regression: `scripts/home-system.test.mjs` でrespawnとBed colliderの重なりを禁止。
+- Browser verification: Fresh Spawn Movement Smoke Run `33999840395` success。Pointer Lock中にWを押し、`z=36.10 -> 36.62` の実移動を確認。

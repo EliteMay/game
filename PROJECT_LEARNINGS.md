@@ -582,3 +582,7 @@ confirm destructive reset
 - Reset本体の書込が失敗した場合に先にauxiliary stateだけ消さない。Canonical Save成功後にbarrierとcleanupを有効化する。
 - Regression TestではReset結果だけでなく、**Reset後に意図的にstale saveを1回実行しても旧Dataが復活しないこと**を確認する。
 - Browser Smokeでは実際のReset button → reload → 再読込を通し、lifecycle eventを含めて検証する。
+
+## Spawn points must be validated against runtime colliders
+
+Player spawn / respawn座標は見た目上の空き位置だけで決めず、Player radiusを含む実Runtime colliderとの重なりを検証する。Collider内から開始するとKey input自体は正常でも全Movementがcollisionで拒否され、Input Bugに見える。Fresh Start / Reset後 / Respawnは実ブラウザでPointer LockとWASD移動まで確認する。
