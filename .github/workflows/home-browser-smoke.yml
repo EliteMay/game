@@ -17,7 +17,10 @@ jobs:
         with:
           node-version: '22'
       - name: Install browser test dependencies
-        run: npm install --no-save --package-lock=false playwright@1.55.0 three@0.185.0
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq fonts-noto-cjk
+          npm install --no-save --package-lock=false playwright@1.55.0 three@0.185.0
       - name: Use local Three.js for smoke
         run: sed -i 's#https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js#/node_modules/three/build/three.module.js#' games/scrap-factory/index.html
       - name: Start local server
@@ -32,12 +35,16 @@ jobs:
           import assert from 'node:assert/strict';
           import { chromium } from 'playwright';
 
-          const browser = await chromium.launch({
+          const origin = 'http://127.0.0.1:4173';
+          const url = `${origin}/games/scrap-factory/index.html`;
+          const launch = {
             headless: true,
             channel: 'chrome',
             args: ['--enable-webgl', '--ignore-gpu-blocklist', '--use-angle=swiftshader'],
-          });
-          const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+          };
+          const viewport = { width: 1440, height: 900 };
+          const browser = await chromium.launch(launch);
+          const context = await browser.newContext({ viewport });
           const page = await context.newPage();
           const errors = [];
           page.on('pageerror', (error) => errors.push(`pageerror: ${error.message}`));
@@ -46,12 +53,11 @@ jobs:
           });
           page.on('requestfailed', (request) => errors.push(`requestfailed: ${request.url()} ${request.failure()?.errorText || ''}`));
 
-          const url = 'http://127.0.0.1:4173/games/scrap-factory/index.html';
           await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
           try {
             await page.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
           } catch (error) {
-            await page.screenshot({ path: '/tmp/home-browser.png', fullPage: true });
+            await page.screenshot({ path: '/tmp/home-boot-failure.png', fullPage: true });
             console.error('Boot diagnostics:', JSON.stringify({ errors, body: (await page.locator('body').innerText()).slice(0, 1200) }, null, 2));
             throw error;
           }
@@ -60,7 +66,6 @@ jobs:
 
           const initial = await page.evaluate(() => ({
             player: window.__scrapFactoryRuntime.getGame().player,
-            worldPlayer: window.__scrapFactoryRuntime.world.getPlayerState(),
             homeScene: Boolean(window.__scrapFactoryRuntime.world.scene.getObjectByName('player-home')),
             homePanel: Boolean(document.querySelector('#home-system-panel')),
             homeMarker: Boolean(document.querySelector('#home-marker-chip')),
@@ -73,6 +78,8 @@ jobs:
           await page.click('#start-game');
           await page.waitForFunction(() => !document.querySelector('#hud').hidden);
           assert.match(await page.locator('#inventory-slots').innerText(), /\/ 12$/);
+          await page.waitForTimeout(500);
+          await page.screenshot({ path: '/tmp/home-world.png', fullPage: true });
 
           await page.evaluate(() => window.__scrapFactoryRuntime.world.callbacks.onInteract({ kind: 'home', action: 'door', label: 'Home Door' }));
           assert.equal(await page.evaluate(() => window.__scrapFactoryRuntime.world.homeController.doorOpen), true, 'Door should open');
@@ -99,36 +106,54 @@ jobs:
           assert.equal(await page.locator('[data-home-tab="tutorial"]').count(), 1);
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
           assert.equal(overflow, false, 'Home panel should not cause page-level horizontal overflow at 1440px');
-          await page.screenshot({ path: '/tmp/home-browser.png', fullPage: true });
-          await page.click('#close-home-system');
+          await page.screenshot({ path: '/tmp/home-pc.png', fullPage: true });
 
-          await page.evaluate(() => {
+          const legacyRoot = await page.evaluate(() => {
             const root = JSON.parse(localStorage.getItem('elitemay-game-hub-v1'));
             const game = root.games['scrap-factory'];
             delete game.home;
             game.player = { x: 5, y: 1.7, z: 5, yaw: 0.4 };
-            localStorage.setItem('elitemay-game-hub-v1', JSON.stringify(root));
+            return root;
           });
-          await page.reload({ waitUntil: 'domcontentloaded', timeout: 30000 });
-          await page.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
-          await page.waitForSelector('#home-system-panel', { state: 'attached', timeout: 10000 });
-          const legacy = await page.evaluate(() => ({
+          const legacyContext = await browser.newContext({
+            viewport,
+            storageState: {
+              cookies: [],
+              origins: [{
+                origin,
+                localStorage: [{ name: 'elitemay-game-hub-v1', value: JSON.stringify(legacyRoot) }],
+              }],
+            },
+          });
+          const legacyPage = await legacyContext.newPage();
+          const legacyErrors = [];
+          legacyPage.on('pageerror', (error) => legacyErrors.push(`pageerror: ${error.message}`));
+          legacyPage.on('console', (message) => { if (message.type() === 'error') legacyErrors.push(`console: ${message.text()}`); });
+          await legacyPage.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+          await legacyPage.waitForFunction(() => window.__scrapFactoryBooted === true && Boolean(window.__scrapFactoryRuntime), null, { timeout: 15000 });
+          await legacyPage.waitForSelector('#home-system-panel', { state: 'attached', timeout: 10000 });
+          const legacy = await legacyPage.evaluate(() => ({
             player: window.__scrapFactoryRuntime.getGame().player,
+            worldPlayer: window.__scrapFactoryRuntime.world.getPlayerState(),
             home: window.__scrapFactoryRuntime.getGame().home,
           }));
-          assert.ok(Math.abs(legacy.player.x - 5) < 0.01 && Math.abs(legacy.player.z - 5) < 0.01, 'Legacy migration must preserve old player position');
+          assert.ok(Math.abs(legacy.player.x - 5) < 0.01 && Math.abs(legacy.player.z - 5) < 0.01, 'Legacy migration must preserve old saved player position');
+          assert.ok(Math.abs(legacy.worldPlayer.x - 5) < 0.01 && Math.abs(legacy.worldPlayer.z - 5) < 0.01, 'Legacy world spawn must preserve old position');
           assert.equal(legacy.home.introducedFromLegacy, true, 'Legacy save should be marked as introduced to Home');
+          if (legacyErrors.length) throw new Error(`Legacy browser console errors:\n${legacyErrors.join('\n')}`);
+          await legacyContext.close();
 
           if (errors.length) throw new Error(`Browser console errors:\n${errors.join('\n')}`);
+          await context.close();
           await browser.close();
-          console.log('Home Chromium smoke passed: boot, Home scene, door collider, Bed save, PC UI, legacy migration, overflow.');
+          console.log('Home Chromium smoke passed: boot, Home scene, fresh spawn, door collider, Bed save, PC UI, legacy migration, overflow.');
           EOF
           node ./.tmp-home-browser-smoke.mjs
           rm -f .tmp-home-browser-smoke.mjs
-      - name: Upload browser screenshot
+      - name: Upload browser screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: home-browser-smoke
-          path: /tmp/home-browser.png
+          path: /tmp/home-*.png
           if-no-files-found: ignore
