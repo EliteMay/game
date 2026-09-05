@@ -15,6 +15,9 @@ export const ITEMS = {
   iron_plate: { id: 'iron_plate', name: '鉄板', short: '鉄板', value: 38, stack: 20, color: 0x9fa8ac, category: 'product' },
   cable_bundle: { id: 'cable_bundle', name: 'ケーブル束', short: 'ケーブル', value: 48, stack: 16, color: 0x8f684d, category: 'product' },
   tool_kit: { id: 'tool_kit', name: '工具セット', short: '工具', value: 115, stack: 10, color: 0x9a7f44, category: 'product' },
+  circuit: { id: 'circuit', name: '制御回路', short: '回路', value: 145, stack: 12, color: 0x4f846d, category: 'advanced' },
+  motor: { id: 'motor', name: '産業モーター', short: 'モーター', value: 185, stack: 10, color: 0x7b6b5c, category: 'advanced' },
+  control_unit: { id: 'control_unit', name: '制御ユニット', short: '制御', value: 520, stack: 8, color: 0x6f837f, category: 'advanced' },
 };
 
 export const RECIPES = {
@@ -32,18 +35,25 @@ export const RECIPES = {
     output: { iron_ingot: 1 },
     seconds: 3.0,
   },
+  assembler_control_unit: {
+    id: 'assembler_control_unit',
+    machine: 'assembler',
+    input: { motor: 1, circuit: 2, plastic: 1 },
+    output: { control_unit: 1 },
+    seconds: 8.0,
+  },
 };
 
 export const BUILDINGS = {
   hopper: {
     id: 'hopper', name: '投入ホッパー', cost: 0, category: 'logistics', buildable: false,
     description: '探索で集めた素材をまとめて投入する、工場ラインのスタート地点。Eでバッグの中身を移せる。',
-    color: 0x6f7a63, accepts: ['raw', 'processed', 'product'],
+    color: 0x6f7a63, accepts: ['raw', 'processed', 'product', 'advanced'],
   },
   seller: {
     id: 'seller', name: '販売ターミナル', cost: 90, category: 'sales', buildable: true,
     description: '届いたアイテムを自動で現金化する。Eでバッグの中身を直接売ることもできる。',
-    color: 0xb98a3d, accepts: ['raw', 'processed', 'product'],
+    color: 0xb98a3d, accepts: ['raw', 'processed', 'product', 'advanced'],
   },
   crusher: {
     id: 'crusher', name: '粉砕機', cost: 80, category: 'production', buildable: true,
@@ -54,6 +64,11 @@ export const BUILDINGS = {
     id: 'smelter', name: '簡易精錬炉', cost: 140, category: 'production', buildable: true,
     description: '破砕金属1個を3.0秒で鉄インゴット1個へ精錬する。Rank 4以降は稼働時に30 Powerを使用する。',
     color: 0x7c4f3d, accepts: ['crushed_metal'], recipe: 'smelter_iron', powerUse: 30,
+  },
+  assembler: {
+    id: 'assembler', name: 'アセンブラー', cost: 420, category: 'production', buildable: true,
+    description: '廃工場の制御Blueprintを解析して解放する高度組立機。モーター・制御回路・プラスチックから制御ユニットを自動組立する。',
+    color: 0x526a66, accepts: ['motor', 'circuit', 'plastic'], recipe: 'assembler_control_unit', powerUse: 50,
   },
   conveyor: {
     id: 'conveyor', name: 'コンベア Mk.1', cost: 12, category: 'logistics', buildable: true,
@@ -78,12 +93,12 @@ export const BUILDINGS = {
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
     description: '自動ラインの途中で最大120個を保管する中間バッファ。満杯になると上流を止め、Itemを消失させない。',
-    color: 0x52616c, accepts: ['raw', 'processed', 'product'], storageCapacity: 120,
+    color: 0x52616c, accepts: ['raw', 'processed', 'product', 'advanced'], storageCapacity: 120,
   },
   industrial_storage: {
     id: 'industrial_storage', name: '産業倉庫', cost: 240, category: 'logistics', buildable: true,
     description: 'Rank 5向け大容量Storage。最大600個を保管し、大規模ラインのBufferとして使う。',
-    color: 0x435660, accepts: ['raw', 'processed', 'product'], storageCapacity: 600,
+    color: 0x435660, accepts: ['raw', 'processed', 'product', 'advanced'], storageCapacity: 600,
   },
   generator: {
     id: 'generator', name: 'スクラップ発電機', cost: 260, category: 'power', buildable: true,
@@ -106,6 +121,8 @@ export const HAND_CRAFTS = {
   iron_plate: { id: 'iron_plate', name: '鉄板', input: { iron_ingot: 2 }, output: { iron_plate: 1 } },
   cable_bundle: { id: 'cable_bundle', name: 'ケーブル束', input: { copper_wire: 2, plastic: 1 }, output: { cable_bundle: 1 } },
   tool_kit: { id: 'tool_kit', name: '工具セット', input: { iron_plate: 2, copper_wire: 1 }, output: { tool_kit: 1 } },
+  circuit: { id: 'circuit', name: '制御回路', input: { copper_wire: 2, e_waste: 1, plastic: 1 }, output: { circuit: 1 } },
+  motor: { id: 'motor', name: '産業モーター', input: { iron_ingot: 2, copper_wire: 2 }, output: { motor: 1 } },
 };
 
 // Keep the first five entries stable: Factory Management quick-build 1-5 is a public control contract.
@@ -122,6 +139,7 @@ export const BUILD_MENU_ORDER = [
   'power_pole',
   'battery',
   'industrial_storage',
+  'assembler',
 ];
 
 export const SCRAP_SPAWNS = [

@@ -366,3 +366,57 @@ Regressionでは:
 - Route bundleにSplitter / Mergerが含まれることを検出するが、現PhaseではSplitter分岐数やMerger実入力数をProgression専用に別計測しない。
 - Rank4→5のFactory構築操作、HUDのREADY変化、Rank Up後のIndustrial Storage BuildはBrowserで実操作確認が必要。
 - Generator / Pole visual、Assembler、Advanced Recipes、Smart Sorter / Priority / Overflow、廃工場探索は後続Slice。
+
+## 2026-09-05 / Phase 4-A Abandoned Factory & Advanced Assembly
+
+### Problem
+
+- Phase 4を一括実装すると探索Area追加、Save拡張、Research、Production、Visual、Rank条件が同時に広がり、既存Rank 1〜5やResidentialを壊したとき原因を切り分けにくい。
+- 複数探索Areaを増やすためにResidential固有ObjectiveまでGeneric化すると、AreaごとのGameplay差が薄くなる。
+- 新Area / Item追加だけを理由にSchema Versionを上げると、実際にはAdditiveで扱える旧Saveへ不要なMigration負担を作る。
+- Rank 5→6用に`factoryRestored`や`assemblerLineComplete`のようなCached flagを保存すると、実探索State / Factory graphと二重Source of Truthになる。
+- Rank5だけでAssemblerを解放すると、要件の「探索で技術を持ち帰り工場へ反映する」ループを飛ばせる。
+- 新しい廃工場をResidentialの色替えやGeneric Boxだけで作ると、新Areaの意味とNavigation readabilityが弱い。
+
+### Keep
+
+- 大きなPhaseは「通常Gameplayで次Rankへ到達できるVertical Slice」を先に接続し、Smart Sorter等の横拡張は別Sliceへ分ける。
+- `EXPLORATION_AREAS` / Session / Depotなど共有可能な部分だけGeneric化し、Residential / Industrial Objectiveは別関数として残す。
+- 既存Import pathを維持したい拡張では、薄いCompatibility Entry (`exploration.js`, `progression.js`) からCore implementationへ委譲する方法が安全。
+- 新Area / Itemが旧Dataを破壊せずDefault補完できる場合は、Schemaをむやみに上げずAdditive Normalizeで扱う。
+- 廃工場のMandatory rewardはRandom DropにせずBlueprint + Research Dataを保証し、`rewardClaimed`でidempotentにする。
+- Rank5→6 Mandatoryは `Industrial Objective state + Research state + Directional Factory graph` から毎回導出し、専用達成flagをSaveしない。
+- AssemblerはRank5だけでは解放せず、`abandoned_factory_assembly_blueprint` → `advanced_assembly` Researchの二段Gateにする。
+- Assembler productionは既存Generic Recipe Runtimeを再利用し、新Machine専用処理を`game.js`へ増やさない。
+- VisualはSave / Productionと分離し、Assembler dedicated silhouetteを`world-runtime.js`で追加する。
+- 新探索Areaは色替えで済ませず、Generator Hall / Assembly Floor / Control Roomの大きなLandmarkで進行方向を示す。
+- Objective stateとVisual stateを同じPersistent stateから反映し、offline→online、gate closed→openedを別のVisual-only flagにしない。
+- Environment Hazardは最初からCombat Systemへ広げず、Area gameplayに必要な最小Riskとして独立実装できる。
+- 新Area追加時は既存Residential regressionを残したまま専用Regressionを追加し、複数Area化で旧挙動が壊れていないことを確認する。
+
+### Evidence
+
+Phase 4-A implementation head `f6806c502499990406c52c0bea07a4b8e65dec0b` に対する `Validate Web Game` run #70が成功。
+
+Regressionで確認した主なContract:
+
+- Rank 1→5の既存Progression
+- Rank5でAssemblerがResearchなしではLock
+- Industrial Rank gate
+- Generator → Control Room dependency
+- Blueprint reward exactly once
+- Abandon時のLoot loss / facility progress persistence
+- Advanced Assembly Research unlock
+- Assembler directional topology
+- Rank5→6 success
+- Rank6 phase cap
+- Existing Residential / Logistics / Power / Storage / Management regressions
+
+### Watch
+
+- Phase 4-AはPhase 4全体完了ではない。Smart Sorter / Production Statistics拡張 / Bottleneck Detection拡張は残る。
+- `progression-core.js` / `exploration-core.js`への分離は互換性確保に有効だが、V2/V3 entryが増え続けると構造が散らばるため、安定後に役割を整理する。
+- AssemblerのMotor/Circuit optionalは現在`discoveredItems`を使うため、Hand Craft時のDiscovery更新がUI上十分かBrowserで確認する。
+- Industrial Electrical Arcは最小Environmental Hazardで、Damage/HP/敵との統合はしていない。
+- Procedural廃工場はV4 minimum visual gateを意識した実装だが、Hybrid Asset Foundationの最終品質ではない。
+- Static CIではPointer Lock、Objectiveへの実到達、Collider、Landmark readability、Hazard visibility、FPSを保証できない。Browser Validationを別Gateとして残す。

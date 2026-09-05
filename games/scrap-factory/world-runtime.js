@@ -5,6 +5,7 @@ const FENCE_ALPHA_TEST = 0.12;
 const GROUND_CLEARANCE = 0.025;
 const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger']);
 const INFRASTRUCTURE_VISUALS = new Set(['battery', 'industrial_storage']);
+const ADVANCED_PRODUCTION_VISUALS = new Set(['assembler']);
 
 function isFencePanel(node) {
   if (!node?.isMesh || node.geometry?.type !== 'PlaneGeometry') return false;
@@ -22,7 +23,6 @@ function repairFencePanels(scene) {
   scene.traverse((node) => {
     if (!isFencePanel(node)) return;
     node.rotation.y -= Math.PI / 2;
-
     const { width, height } = node.geometry.parameters;
     const map = node.material?.map;
     if (map) {
@@ -31,7 +31,6 @@ function repairFencePanels(scene) {
       map.repeat.set(Math.max(1, width / 2.4), Math.max(1, height / 1.7));
       map.needsUpdate = true;
     }
-
     node.castShadow = false;
     node.receiveShadow = false;
   });
@@ -93,13 +92,23 @@ function addArrow(group, position, rotationZ, mat, scale = 1) {
   return arrow;
 }
 
+function finalizeVisual(group, preview) {
+  group.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = !preview;
+    node.receiveShadow = !preview;
+  });
+}
+
+function hideBaseVisual(root, preview) {
+  if (preview) return;
+  for (const child of root.children) child.visible = false;
+}
+
 function addAdvancedLogisticsVisual(root, type, preview = false) {
   if (!root || !ADVANCED_LOGISTICS.has(type) || root.userData.advancedLogisticsVisual) return;
   root.userData.advancedLogisticsVisual = true;
-
-  if (!preview) {
-    for (const child of root.children) child.visible = false;
-  }
+  hideBaseVisual(root, preview);
 
   const group = new THREE.Group();
   group.userData.advancedLogisticsArt = true;
@@ -121,7 +130,6 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
     addBox(group, [0.7, 0.17, 2.25], frame, [0, 0.32, 0]);
     addBox(group, [2.05, 0.08, 0.46], belt, [0, 0.49, 0]);
     addBox(group, [0.46, 0.08, 2.05], belt, [0, 0.49, 0]);
-
     if (type === 'splitter') {
       addArrow(group, [0.7, 0.62, 0], -Math.PI / 2, accent);
       addArrow(group, [0, 0.62, -0.7], Math.PI, accent);
@@ -135,22 +143,14 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
       addBox(group, [0.43, 0.2, 0.43], rail, [0, 0.67, 0]);
     }
   }
-
-  group.traverse((node) => {
-    if (!node.isMesh) return;
-    node.castShadow = !preview;
-    node.receiveShadow = !preview;
-  });
+  finalizeVisual(group, preview);
   root.add(group);
 }
 
 function addInfrastructureVisual(root, type, preview = false) {
   if (!root || !INFRASTRUCTURE_VISUALS.has(type) || root.userData.infrastructureVisual) return;
   root.userData.infrastructureVisual = true;
-
-  if (!preview) {
-    for (const child of root.children) child.visible = false;
-  }
+  hideBaseVisual(root, preview);
 
   const group = new THREE.Group();
   group.userData.infrastructureArt = true;
@@ -166,13 +166,11 @@ function addInfrastructureVisual(root, type, preview = false) {
     addBox(group, [1.58, 0.14, 1.28], frame, [0, 1.58, 0]);
     addCylinder(group, 0.12, 0.12, 0.28, 10, accent, [-0.42, 1.78, -0.28]);
     addCylinder(group, 0.12, 0.12, 0.28, 10, accent, [0.42, 1.78, -0.28]);
-    const gaugeBack = addBox(group, [1.02, 0.14, 0.08], dark, [0, 1.28, -0.64]);
-    gaugeBack.rotation.x = 0;
+    addBox(group, [1.02, 0.14, 0.08], dark, [0, 1.28, -0.64]);
     const gauge = addBox(group, [0.92, 0.08, 0.04], accent, [0, 1.28, -0.69]);
     gauge.scale.x = 0.02;
     root.userData.gauge = gauge;
-    const light = addBox(group, [0.18, 0.18, 0.05], statusMaterial(preview), [0.58, 1.52, -0.65]);
-    root.userData.statusLight = light;
+    root.userData.statusLight = addBox(group, [0.18, 0.18, 0.05], statusMaterial(preview), [0.58, 1.52, -0.65]);
   } else {
     addBox(group, [2.18, 0.18, 1.95], frame, [0, 0.12, 0]);
     addBox(group, [1.96, 1.92, 1.72], body, [0, 1.12, 0]);
@@ -183,12 +181,39 @@ function addInfrastructureVisual(root, type, preview = false) {
     addBox(group, [0.1, 1.42, 0.05], accent, [0.78, 1.05, -0.95]);
     addBox(group, [0.64, 0.16, 0.05], accent, [0, 1.82, -0.96]);
   }
+  finalizeVisual(group, preview);
+  root.add(group);
+}
 
-  group.traverse((node) => {
-    if (!node.isMesh) return;
-    node.castShadow = !preview;
-    node.receiveShadow = !preview;
-  });
+function addAdvancedProductionVisual(root, type, preview = false) {
+  if (!root || !ADVANCED_PRODUCTION_VISUALS.has(type) || root.userData.advancedProductionVisual) return;
+  root.userData.advancedProductionVisual = true;
+  hideBaseVisual(root, preview);
+
+  const group = new THREE.Group();
+  group.userData.advancedProductionArt = true;
+  const frame = material(0x263132, { preview, metalness: 0.74, roughness: 0.54 });
+  const body = material(0x526a66, { preview, metalness: 0.5, roughness: 0.62 });
+  const dark = material(0x182021, { preview, metalness: 0.58, roughness: 0.64 });
+  const accent = material(0xd0aa43, { preview, metalness: 0.36, roughness: 0.46 });
+  const chamber = material(0x3c5d5a, { preview, metalness: 0.32, roughness: 0.38 });
+
+  addBox(group, [2.22, 0.18, 2.0], frame, [0, 0.11, 0]);
+  addBox(group, [1.85, 1.48, 1.55], body, [0, 0.91, 0]);
+  addBox(group, [1.25, 0.78, 1.67], chamber, [0, 1.04, -0.02]);
+  addBox(group, [1.45, 0.2, 1.76], frame, [0, 1.54, 0]);
+  for (const z of [-0.62, 0.62]) {
+    addBox(group, [0.36, 0.7, 0.48], dark, [-0.94, 0.7, z], [0, 0, 0]);
+  }
+  addBox(group, [0.38, 1.14, 1.64], frame, [0.92, 0.86, 0]);
+  addBox(group, [0.15, 0.82, 1.3], accent, [1.13, 0.92, 0]);
+  const spinner = addCylinder(group, 0.38, 0.38, 0.22, 18, accent, [0, 1.08, -0.88], [Math.PI / 2, 0, 0]);
+  spinner.userData.active = false;
+  root.userData.spinner = spinner;
+  root.userData.statusLight = addBox(group, [0.34, 0.18, 0.07], statusMaterial(preview), [0.62, 1.66, -0.84]);
+  addBox(group, [0.7, 0.1, 0.06], dark, [-0.25, 1.66, -0.85]);
+
+  finalizeVisual(group, preview);
   root.add(group);
 }
 
@@ -202,18 +227,13 @@ export class ScrapWorld extends BaseScrapWorld {
   spawnScrap(...args) {
     const before = new Set(this.scrapMeshes?.keys?.() || []);
     const result = super.spawnScrap(...args);
-
     const explicitId = args[3];
     let spawned = explicitId ? this.scrapMeshes.get(explicitId) : null;
     if (!spawned) {
       for (const [id, mesh] of this.scrapMeshes) {
-        if (!before.has(id)) {
-          spawned = mesh;
-          break;
-        }
+        if (!before.has(id)) { spawned = mesh; break; }
       }
     }
-
     groundMesh(spawned);
     return result;
   }
@@ -226,6 +246,7 @@ export class ScrapWorld extends BaseScrapWorld {
       this.buildingColliders?.delete(building.id);
     }
     if (INFRASTRUCTURE_VISUALS.has(building?.type)) addInfrastructureVisual(mesh, building.type, false);
+    if (ADVANCED_PRODUCTION_VISUALS.has(building?.type)) addAdvancedProductionVisual(mesh, building.type, false);
     return mesh;
   }
 
@@ -233,6 +254,7 @@ export class ScrapWorld extends BaseScrapWorld {
     super.startBuild(type);
     if (ADVANCED_LOGISTICS.has(type)) addAdvancedLogisticsVisual(this.buildPreview, type, true);
     if (INFRASTRUCTURE_VISUALS.has(type)) addInfrastructureVisual(this.buildPreview, type, true);
+    if (ADVANCED_PRODUCTION_VISUALS.has(type)) addAdvancedProductionVisual(this.buildPreview, type, true);
   }
 
   animateTransfer(path, itemId, speed = 5.8) {
