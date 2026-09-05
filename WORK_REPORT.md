@@ -4,173 +4,178 @@ Date: 2026-09-05
 
 ## Current Milestone
 
-`Scrap Factory` は **Phase 5-A: Military Facility / Drone Automation** まで実装。
+`Scrap Factory` は **Phase 5-B: Conveyor Mk.3 / Priority / Overflow Logistics** まで実装。
 
-通常GameplayのRank Upは **Rank 1 → 7** まで接続した。
+通常GameplayのRank Upは **Rank 1 → 7** まで接続済み。
 
-今回のVertical Slice:
+Phase 5-Aで軍事施設・Drone Control・Drone Port自動回収を接続した後、Phase 5-BではRank 6の正式解放要件である高速物流と優先分岐を既存Directional Logisticsへ追加した。
 
 ```text
 Rank 6
-→ 軍事施設
-→ Access Card
-→ Security Grid OFFLINE
-→ Drone Control Bay ONLINE
-→ Drone Control Blueprint
-→ Drone Control Research
-→ Drone Port
-→ Rare AlloyをFactory Storageへ自動搬送
+→ Conveyor Mk.3
+→ Priority Splitter
+→ Overflow Splitter
+→ Storage優先 / 余剰販売Line
+→ Drone / Advanced Productionの高帯域物流へ利用
 → Rank 7
 ```
 
-Conveyor Mk.3 / Priority / Overflow / multiple Drone route managementはPhase 5-B以降へ残す。
+複数Drone Route / Advanced Power / Logistics Warehouseは今回のSliceには含めない。
 
 ---
 
 ## Implemented
 
-### 1. Military Facility Exploration
-
-追加:
-
-- `exploration/military.html`
-- `exploration/military.css`
-- `exploration/military.js`
-- `exploration-core-v3.js`
-
-Persistent zones:
-
-- Checkpoint
-- Security Yard
-- Drone Control Bay
-- Command Bunker
-
-Main Objective:
-
-```text
-Security Access Card回収
-→ Security Grid停止
-→ Drone Control Bay復旧
-→ Drone Control Blueprint回収
-```
-
-Optional:
-
-- Service Gate shortcut
-
-Guaranteed reward:
-
-- `military_drone_control_blueprint`
-- Research Data +3
-- `military-alloy-cache` Resource Point
-
-Rewardはidempotent。
-
-### 2. HP / Security Threat
-
-Exploration SessionへAdditiveに `hp` を追加。
-
-- Default 100
-- Normalize 0–100
-- Security Grid稼働中のTurret範囲で22 Damage
-- HP 0でExpedition failure
-- Failure / AbandonはCurrent Session Lootのみ失う
-- Discovered Zones / Security shutdown / Shortcut / Blueprint progressは保持
-
-Weapon systemを先に導入せず、Access Card → Security Grid停止という非戦闘Routeを成立させた。
-
-### 3. Drone Control Research
-
-追加Research:
-
-```text
-id: drone_control_systems
-Rank: 6
-Research Data: 3
-Blueprint: military_drone_control_blueprint
-Unlock: building:drone_port
-```
-
-### 4. Rare Alloy / Drone Port
-
-追加Item:
-
-- `rare_alloy` / 軍用レア合金
+### 1. Conveyor Mk.3
 
 追加Building:
 
-- `drone_port`
-- Cost `$760`
-- Rank 6 + Drone Control Research
-- 65 Power
+- `conveyor_mk3`
+- Rank 6
+- Cost `$55`
+- Throughput `6 items/sec`
+- 通常Conveyorと同じDirectional Forward搬送
+- 電力不要
 
-Drone Port Production:
+Mk.1 / Mk.2と同じ既存Directional Contractを使い、Route throughputは経路上の最小値で決まる。
+
+### 2. Priority Splitter
+
+追加Building:
+
+- `priority_splitter`
+- Rank 6
+- Cost `$260`
+- Throughput `6 items/sec`
+- Rear 1 input
+- Forward = Priority
+- Left / Right = Backup
+
+挙動:
 
 ```text
-military-alloy-cache secured
-→ Drone Port / 12 sec
-→ Rare Alloy ×1
+Forward Routeが受入可能
+→ Forwardだけ使用
+
+Forward Routeが詰まる / Targetが受入不可
+→ Left / Right Backupへ切替
+→ Backup同士は従来どおりRound-robin
 ```
 
-Production implementationは既存Generic Recipe Runtimeを再利用。
+### 3. Overflow Splitter
 
-Outputは既存Directional Logistics / Storage Back Pressureをそのまま使用する。
+追加Building:
 
-### 5. Rank 6 → 7
+- `overflow_splitter`
+- Rank 6
+- Cost `$240`
+- Throughput `6 items/sec`
+- Rear 1 input
+- Forward = Main
+- Right = Overflow
+- Left outputなし
 
-`PLAYABLE_MAX_RANK = 7`。
+代表的な用途:
 
-Mandatory:
+```text
+Production
+→ Overflow Splitter
+├─ Forward → Industrial Storage
+└─ Right   → Seller
+```
 
-1. Military Main Objective complete
-2. Drone Control Research complete
-3. `military-alloy-cache` Resource Point secured
-4. Drone Port → Small / Industrial Storage のRare Alloy Route成立
+Storageに空きがある間はSellerへ流さず、Storageが満杯等で受入不可になった場合のみRight Overflowへ送る。
 
-Optional 2つ:
+### 4. Priority-aware Directional Routing
 
-- Military 3/4 zones discovery
-- Service Gate
-- Rare Alloy discovery
-- Drone Port 2台
-- Drone route throughput 3.0/s
+`logistics.js` の既存Route graphを拡張した。
 
-Rank topology cacheは保存しない。
+各RouteにDerived `priority` costを追加:
 
-### 6. Drone Port Visual
+- 通常Logistics: `0`
+- Priority Forward: `0`
+- Priority Left / Right: `+1`
+- Overflow Forward: `0`
+- Overflow Right: `+2`
 
-Generic Box fallbackのまま完成扱いせず、`world-runtime.js`へ専用Procedural silhouetteを追加。
+複数Routerを通るRouteではcostを加算する。
 
-- Launch deck
-- Control mast
-- antenna / radar ring
-- Docked Utility Drone
-- status light
-- active spinner
+`selectDirectionalRoute()` は最小Priorityの現在利用可能Routeだけを選び、その同Priority集合の中で既存`logisticsCursor`を使ってRound-robinする。
 
-Save / Production logicとは分離。
+このため通常Splitterの3方向Round-robinは変更していない。
+
+### 5. Back Pressure / No Item Loss
+
+Priority / Overflowも既存`canReceiveItem()` / Storage capacity判定を利用する。
+
+Targetが受入不可ならRoute候補から外れ、別Priority Routeへfallbackする。
+
+既存Contractどおり:
+
+- Target受入確認前にSource Outputを減らさない
+- Storage Full時にItemを消失させない
+- Legacy over-capacity Storageの既存Itemを削除しない
+
+### 6. Rank 6 Unlock Gate
+
+`progression-phase5b.js` を追加。
+
+```text
+conveyor_mk3      → Rank 6
+priority_splitter → Rank 6
+overflow_splitter → Rank 6
+```
+
+追加Researchは要求しない。
+
+既存Phase 5-A Progressionを包む形にし、Drone PortのResearch GateやRank 1→7定義を保持した。
+
+### 7. Dedicated Visuals
+
+`world-runtime.js` にPhase 5-B専用Visualを追加。
+
+Conveyor Mk.3:
+
+- Mk.2より強い二重Rail表現
+- 4つのForward arrow
+- 高帯域Tierを識別しやすいaccent
+
+Priority Splitter:
+
+- Forward Priority laneを強調
+- Left / Right Backupを副表示
+
+Overflow Splitter:
+
+- Forward Main
+- Right Overflow
+- Left laneを描かない
+
+Visual port方向とRuntime `logisticsOutputKeys()` を一致させている。
 
 ---
 
 ## Compatibility / Contracts Preserved
 
+- `elitemay-game-hub-v1`
 - Root Save Schema 1
 - Progression Schema 1
 - Exploration Schema 1
-- `elitemay-game-hub-v1`
 - Existing Factory Layout
 - 2.5m Build Grid
 - Factory coordinate system
-- Directional Logistics visual = runtime direction
-- Quick Build 1〜5
-- Rank 1 → 6 existing progression behavior
-- Residential / Industrial Exploration behavior
-- Smart Sorter behavior
+- Quick Build 1〜5 order
+- Existing Rank 1 → 7 behavior
+- Conveyor Mk.1 / Mk.2 behavior
+- Existing Splitter Round-robin
+- Merger behavior
+- Smart Sorter category routing
+- Drone Port Research Gate
 - Storage Back Pressure / no item loss
 - Power shortage state preservation
-- GitHub Pages Relative Paths
+- GitHub Pages relative paths
 
-旧SaveへMilitary Area / HP / Rare AlloyをAdditive補完する。
+Phase 5-BのRoute Priorityは現在Topologyから毎回導出し、Saveへ新しい設定値を追加していないためSchema変更なし。
 
 ---
 
@@ -178,82 +183,77 @@ Save / Production logicとは分離。
 
 追加:
 
-- `scripts/military-exploration.test.mjs`
-- `scripts/phase5a.test.mjs`
+- `scripts/phase5b.test.mjs`
 
-既存 `scripts/progression.test.mjs` は旧Rank6 cap assertionのみ新仕様へ更新し、Rank 1〜6の既存判定は維持。
+確認内容:
 
-Coverage:
+- Conveyor Mk.3 throughput = 6
+- Priority Splitter throughput = 6
+- Overflow Splitter throughput = 6
+- Rank 5では3設備Lock
+- Rank 6で3設備Unlock
+- Mk.3のみのRoute = 6 items/sec
+- Priority Forward routeが常に優先
+- Forward unavailable時にBackupへfallback
+- Backup同Priority RouteはRound-robin
+- OverflowはForward + Rightだけ
+- Main Storage受入可能中はOverflow Sellerへ送らない
+- Main Storage受入不可時だけOverflow Sellerへ切替
 
-- Military Rank gate
-- Exploration Schema v1 additive normalization
-- Session HP normalization
-- Access → Security → Drone Bay dependency
-- Shortcut
-- Blueprint guaranteed + reward exactly once
-- Resource Point acquisition
-- Return / Abandon
-- Drone Research Blueprint Gate
-- Drone Port Rank / Research Gate
-- Drone Port → Storage route
-- Route throughput
-- Rank 6 → 7 eligibility
-- Rank 7 phase cap
-- Existing logistics / management / progression / power / storage / residential / industrial / Phase 4-B regressions
+既存Regressionも同じValidatorで継続実行する。
 
 ---
 
 ## CI
 
-Initial PR run #83 failed because the previous Regression intentionally fixed `PLAYABLE_MAX_RANK = 6`.
-
-Phase 5-A requirements extend the cap to Rank 7, so the obsolete cap assertion was updated without weakening prior Rank behavior tests.
-
-Implementation + dedicated Drone Port visual Head:
+実装・Visual・Regression Head:
 
 ```text
-fa7a691e4610df2ac9cb9960e36c96d6c9a1ac8c
-Validate Web Game / run #85
+f818e8fbab7420f06abb18ecb8f31549a940af8b
+Validate Web Game / run #91
 result: success
 ```
 
-Documentation更新後の最終HeadはMerge前に再検証する。
+この結果には既存Directional Logistics / Factory Management / Rank 1→7 / Power / Storage / Residential / Industrial / Military / Phase 4-B / Phase 5-Aと、新しいPhase 5-B testが含まれる。
+
+Documentation同期後の最終Headでも再度CIを確認する。
 
 ---
 
 ## Not Yet Verified
 
-Static CIでは保証できない:
+Static CIでは次を保証できない。
 
-- Pointer Lock実操作
-- Military Facilityの各Objectiveへの実到達性
-- Facility propsとplayer colliderの一致
-- Turret threat radiusの一人称可読性
-- HP failure時の体感
-- Drone Port Build Preview / first-person scale
-- WebGL FPS / draw cost
+- 実ブラウザPointer Lock
+- Conveyor Mk.3 Build Previewの見え方
+- Priority / Overflow arrowの一人称可読性
+- Priority / Overflow設備のplacement / collider feel
+- 高帯域Packet増加時のWebGL FPS
+- Machine Panelの新Router説明はConfig / Visualより簡略表示になっているため、実利用時の説明量
 
-これらはBrowser Validation対象。
+これらはBrowser / User Validation対象。
 
 ---
 
 ## Remaining Work
 
-### Phase 5-B
+### Phase 5-C候補
 
-- Conveyor Mk.3
-- Priority Logistics
-- Overflow Logistics
-- multiple Resource Point / Drone route assignment
-- Advanced Power
+- 複数Resource PointのDrone Route設定
+- Drone assignment / route management UI
+- Advanced / Industrial Generator
+- Power Tier拡張
+- Logistics Warehouse
+- Storage in-place upgrade
 
-### Later
+### Rank 7 / Final Chapter
 
-- 武器 / patrol AIを含む軽戦闘の本実装
 - 崩壊した研究施設
+- Robotics / Materials / Energy Lab
 - Fabricator
 - Advanced Drone
+- Experimental Power
+- Autonomous Industrial Core
 - Mega Factory / Main Clear
-- Final Hybrid Asset quality pass
 
-Phase 5-AはRank 6→7の主要Loopを接続したが、Rank 6 Advanced Logistics全体を完了した扱いにはしない。
+Phase 5-BでRank 6 Logisticsの主要3機能は実装したが、Phase 5全体やRank 7 Final Chapterまで完了した扱いにはしない。
