@@ -106,6 +106,17 @@ function depotText(depot) {
   return entries.map(([id, amount]) => `${ITEMS[id]?.name || id} ×${amount}`).join(' / ');
 }
 
+function researchLabels(summary) {
+  if (summary?.completed) return { status: 'CLEARED', objective: 'CENTRAL CORE COMPLETE / EXPERIMENTAL RESEARCH READY' };
+  if (summary?.archiveRecovered) return { status: 'ARCHIVE RECOVERED', objective: 'FACTORY RESEARCH REQUIRED' };
+  if (summary?.stabilizerOnline) return { status: 'CORE STABLE', objective: 'EXPERIMENTAL ARCHIVE ACTIVE' };
+  if (summary?.centralCoreUnlocked) return { status: 'CORE OPEN', objective: 'CORE STABILIZER ACTIVE' };
+  if (summary?.finalComponentsReady) return { status: 'CORE ACCESS READY', objective: 'CENTRAL CORE COMPONENT INSTALL READY' };
+  if (Number(summary?.securedComponents || 0) >= 3) return { status: 'FABRICATION REQUIRED', objective: 'FACTORY FABRICATOR PARTS REQUIRED' };
+  if (summary?.labsCompleted) return { status: 'CARGO RETURN REQUIRED', objective: 'SPECIAL CARGO MUST BE FACTORY SECURED' };
+  return { status: null, objective: 'MAIN OBJECTIVE ACTIVE' };
+}
+
 function areaCard(game, definition) {
   const areaState = explorationAreaState(game, definition.id);
   const summary = explorationProgressSummary(game, definition.id);
@@ -113,12 +124,8 @@ function areaCard(game, definition) {
   const activeHere = activeSession?.areaId === definition.id;
   const activeOther = Boolean(activeSession && !activeHere);
   const progressPercent = Math.round((summary?.discoveryRatio || 0) * 100);
-  const researchPhaseDone = definition.id === 'research' && summary?.labsCompleted && Number(summary?.securedComponents || 0) >= 3;
-  const objectiveLabel = summary?.completed
-    ? 'MAIN OBJECTIVE COMPLETE'
-    : researchPhaseDone
-      ? 'LAB PHASE COMPLETE / CENTRAL CORE LOCKED'
-      : 'MAIN OBJECTIVE ACTIVE';
+  const research = definition.id === 'research' ? researchLabels(summary) : null;
+  const objectiveLabel = summary?.completed ? 'MAIN OBJECTIVE COMPLETE' : research?.objective || 'MAIN OBJECTIVE ACTIVE';
   const available = areaState.unlocked && !activeOther;
   const buttonLabel = activeHere
     ? `${definition.name}の探索を再開`
@@ -129,8 +136,8 @@ function areaCard(game, definition) {
     ? 'CLEARED'
     : activeHere
       ? 'SESSION ACTIVE'
-      : researchPhaseDone
-        ? 'LABS SECURED'
+      : research?.status
+        ? research.status
         : areaState.unlocked
           ? 'AVAILABLE'
           : 'LOCKED';
@@ -138,7 +145,7 @@ function areaCard(game, definition) {
   const detailNote = definition.id === 'industrial'
     ? `<small>${summary?.shortcutOpened ? 'Service Shortcut 開通済み' : 'Control Room復旧後にService Shortcutを開通可能'}</small>`
     : definition.id === 'research'
-      ? `<small>Special Cargo ${summary?.securedComponents || 0} / 3${researchPhaseDone ? ' / Central Coreは次Phase' : ''}</small>`
+      ? `<small>Special Cargo ${summary?.securedComponents || 0} / 3 / Experimental部品 ${summary?.finalComponentsReady || summary?.fabricationSetInstalled ? 'READY' : 'NOT READY'}</small>`
       : '<small>進行必須報酬はObjective完了時に保証</small>';
 
   return `
