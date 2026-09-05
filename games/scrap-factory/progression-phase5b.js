@@ -1,3 +1,4 @@
+import * as core from './progression-core.js';
 import * as phase5a from './progression-phase5a.js';
 
 export * from './progression-phase5a.js';
@@ -16,7 +17,7 @@ export function buildingUnlockState(game, type) {
   if (!Object.prototype.hasOwnProperty.call(PHASE5B_BUILDING_RANKS, type)) {
     return phase5a.buildingUnlockState(game, type);
   }
-  const progression = phase5a.ensureProgressionState(game);
+  const progression = core.ensureProgressionState(game);
   const requiredRank = requiredBuildingRank(type);
   const unlocked = progression.progressionRank >= requiredRank;
   return {
