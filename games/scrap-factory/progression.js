@@ -1,10 +1,18 @@
 import { BUILDINGS, ITEMS } from './config.js';
-import { findDirectionalRoute } from './logistics.js';
+import { findDirectionalRoute, findDirectionalRoutes } from './logistics.js';
+import {
+  GENERATOR_FUEL_SECONDS,
+  buildingPowerGeneration,
+  computePowerSnapshot,
+  generatorActive,
+} from './power.js';
 
 export const PROGRESSION_VERSION = 1;
-export const PLAYABLE_MAX_RANK = 4;
-// Compatibility export retained for existing callers/tests while Phase 3 extends the playable cap.
+export const PLAYABLE_MAX_RANK = 5;
+// Compatibility export retained for existing callers/tests while later phases extend the playable cap.
 export const PHASE_ONE_MAX_RANK = PLAYABLE_MAX_RANK;
+export const RANK4_STABLE_FUEL_SECONDS = 30;
+export const RANK4_EXTENDED_FUEL_SECONDS = 120;
 
 export const RESEARCH = {
   basic_fabrication: {
@@ -60,6 +68,7 @@ const RANK_REWARDS = {
   2: { researchData: 1 },
   3: { researchData: 2 },
   4: { researchData: 1 },
+  5: { researchData: 0 },
 };
 
 function isObject(value) {
@@ -117,6 +126,150 @@ function acceptsItem(building, itemId) {
 
 function hasPath(game, source, target, itemId) {
   return Boolean(findDirectionalRoute(game?.buildings || [], source, itemId, acceptsItem, target?.id));
+}
+
+function routesTo(game, source, target, itemId) {
+  return findDirectionalRoutes(game?.buildings || [], source, itemId, acceptsItem, target?.id);
+}
+
+function routeBundle(productId, routes) {
+  const valid = routes.filter(Boolean);
+  if (!valid.length) return null;
+  const nodeTypes = valid.flatMap((route) => route.nodeTypes || []);
+  const throughputs = valid.map((route) => Number(route.throughput || 0)).filter((value) => value > 0);
+  return {
+    productId,
+    routes: valid,
+    nodeTypes,
+    throughput: throughputs.length ? Math.min(...throughputs) : 0,
+  };
+}
+
+function candidateScore(candidate) {
+  return (candidate.qualifies ? 1000 : 0)
+    + (candidate.usesMk2 ? 100 : 0)
+    + Math.round(candidate.throughput * 10)
+    - candidate.nodeTypes.length * 0.001;
+}
+
+export function analyzeRank4AdvancedLine(game) {
+  const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
+  const hoppers = buildings.filter((building) => building.type === 'hopper');
+  const crushers = buildings.filter((building) => building.type === 'crusher');
+  const smelters = buildings.filter((building) => building.type === 'smelter');
+  const finals = buildings.filter((building) => ['seller', 'storage', 'industrial_storage'].includes(building.type));
+  let best = null;
+
+  for (const hopper of hoppers) {
+    const crushedCandidates = [];
+    const ironCandidates = [];
+
+    for (const crusher of crushers) {
+      const inputRoutes = routesTo(game, hopper, crusher, 'metal_scrap');
+      if (!inputRoutes.length) continue;
+
+      for (const inputRoute of inputRoutes) {
+        for (const target of finals) {
+          for (const finalRoute of routesTo(game, crusher, target, 'crushed_metal')) {
+            const bundle = routeBundle('crushed_metal', [inputRoute, finalRoute]);
+            if (bundle) crushedCandidates.push(bundle);
+          }
+        }
+
+        for (const smelter of smelters) {
+          const processRoutes = routesTo(game, crusher, smelter, 'crushed_metal');
+          if (!processRoutes.length) continue;
+          for (const processRoute of processRoutes) {
+            for (const target of finals) {
+              for (const finalRoute of routesTo(game, smelter, target, 'iron_ingot')) {
+                const bundle = routeBundle('iron_ingot', [inputRoute, processRoute, finalRoute]);
+                if (bundle) ironCandidates.push(bundle);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (const crushed of crushedCandidates) {
+      for (const iron of ironCandidates) {
+        const nodeTypes = [...crushed.nodeTypes, ...iron.nodeTypes];
+        const usesSplitter = nodeTypes.includes('splitter');
+        const usesMerger = nodeTypes.includes('merger');
+        const throughput = Math.min(crushed.throughput, iron.throughput);
+        const candidate = {
+          qualifies: usesSplitter && usesMerger,
+          productTypes: ['crushed_metal', 'iron_ingot'],
+          usesSplitter,
+          usesMerger,
+          usesMk2: nodeTypes.includes('conveyor_mk2'),
+          throughput,
+          nodeTypes,
+        };
+        if (!best || candidateScore(candidate) > candidateScore(best)) best = candidate;
+      }
+    }
+  }
+
+  return best || {
+    qualifies: false,
+    productTypes: [],
+    usesSplitter: false,
+    usesMerger: false,
+    usesMk2: false,
+    throughput: 0,
+    nodeTypes: [],
+  };
+}
+
+function generatorFuelRunway(building) {
+  const current = Math.max(0, Number(building?.powerFuelSeconds || 0));
+  const queued = Math.max(0, Math.floor(Number(building?.input?.metal_scrap || 0)));
+  return current + queued * GENERATOR_FUEL_SECONDS;
+}
+
+export function analyzeRank4Power(game) {
+  const snapshot = computePowerSnapshot(game);
+  const demand = Math.max(0, Number(snapshot.coveredDemand || 0));
+  const active = (game?.buildings || [])
+    .filter((building) => buildingPowerGeneration(building) > 0 && generatorActive(building))
+    .map((building) => ({
+      id: building.id,
+      generation: buildingPowerGeneration(building),
+      fuelRunwaySeconds: generatorFuelRunway(building),
+    }))
+    .sort((a, b) => (
+      b.fuelRunwaySeconds - a.fuelRunwaySeconds
+      || b.generation - a.generation
+      || String(a.id).localeCompare(String(b.id))
+    ));
+
+  const ownGeneration = active.reduce((sum, entry) => sum + entry.generation, 0);
+  const selected = [];
+  let selectedGeneration = 0;
+  for (const entry of active) {
+    selected.push(entry);
+    selectedGeneration += entry.generation;
+    if (selectedGeneration + 1e-9 >= demand) break;
+  }
+  const fuelRunwaySeconds = selectedGeneration + 1e-9 >= demand && selected.length
+    ? Math.min(...selected.map((entry) => entry.fuelRunwaySeconds))
+    : 0;
+  const selfPowered = snapshot.enabled
+    && demand > 0
+    && snapshot.status === 'ok'
+    && snapshot.uncoveredIds.size === 0
+    && ownGeneration + 1e-9 >= demand;
+
+  return {
+    selfPowered,
+    stable: selfPowered && fuelRunwaySeconds >= RANK4_STABLE_FUEL_SECONDS,
+    ownGeneration,
+    demand,
+    reserve: Math.max(0, ownGeneration - demand),
+    fuelRunwaySeconds,
+    activeGenerators: active.length,
+  };
 }
 
 export function hasAutomatedCrushedMetalLine(game) {
@@ -245,6 +398,8 @@ function metrics(game) {
   const discovered = new Set(game?.discoveredItems || []);
   const residential = game?.exploration?.areas?.residential || {};
   const discoveredZones = Array.isArray(residential.discoveredZones) ? residential.discoveredZones.length : 0;
+  const advancedLine = analyzeRank4AdvancedLine(game);
+  const rank4Power = analyzeRank4Power(game);
   return {
     collected: Number(game?.tutorialStats?.collected || 0),
     processed: Number(game?.tutorialStats?.processed || 0),
@@ -260,6 +415,13 @@ function metrics(game) {
     residentialObjective: Boolean(residential?.objective?.completed),
     residentialZones: discoveredZones,
     residentialReturnedLoot: Number(residential?.returnedLootTotal || 0),
+    rank4AdvancedLine: advancedLine.qualifies,
+    rank4UsesMk2: advancedLine.usesMk2,
+    rank4Throughput: advancedLine.throughput,
+    rank4StableSelfPower: rank4Power.stable,
+    rank4FuelRunway: rank4Power.fuelRunwaySeconds,
+    rank4PowerReserve: rank4Power.reserve,
+    gridStorageResearched: game?.progression?.completedResearch?.includes('grid_storage') || false,
   };
 }
 
@@ -313,6 +475,27 @@ export function getRankDefinition(rank) {
         { id: 'discover_6', label: '6種類のアイテムを発見', test: (m) => m.discoveredCount >= 6 },
       ],
       rewards: ['Splitter', 'Merger', 'Conveyor Mk.2', 'Generator', 'Power Pole', 'Research Data +1'],
+    };
+  }
+  if (rank === 4) {
+    return {
+      rank: 4,
+      nextRank: 5,
+      title: '物流と電力',
+      mandatory: {
+        id: 'advanced_self_powered_line',
+        label: `Splitter / Mergerを使う2種類の加工品ラインを、自前電力${RANK4_STABLE_FUEL_SECONDS}秒分以上で安定化`,
+        test: (m) => m.rank4AdvancedLine && m.rank4StableSelfPower,
+      },
+      optionalRequired: 2,
+      optionals: [
+        { id: 'mk2_line', label: '複数製品ラインにConveyor Mk.2を使用', test: (m) => m.rank4UsesMk2 },
+        { id: 'throughput_3', label: '複数製品ラインの実効帯域を3.0個/秒にする', test: (m) => m.rank4Throughput >= 3 },
+        { id: 'grid_storage', label: 'Grid Storage研究を完了', test: (m) => m.gridStorageResearched },
+        { id: 'fuel_120', label: `自前発電の燃料余裕を${RANK4_EXTENDED_FUEL_SECONDS}秒分以上確保`, test: (m) => m.rank4FuelRunway >= RANK4_EXTENDED_FUEL_SECONDS },
+        { id: 'power_reserve_10', label: '自前発電の余力を10 Power以上確保', test: (m) => m.rank4PowerReserve >= 10 },
+      ],
+      rewards: ['Industrial Storage', 'Rank 5 Progression'],
     };
   }
   return null;
