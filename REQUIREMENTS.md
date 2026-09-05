@@ -2,17 +2,18 @@
 
 ## 要件定義ステータス
 
-- Status: **要件定義完了（詳細化済み）**
+- Status: **要件定義完了（Visual強化要件統合済み）**
 - Completed: 2026-09-05
+- Visual Requirements Updated: 2026-09-05
 - 対象: Game Hub / Game 01 `Scrap Factory`
-- このファイルを Scrap Factory のゲーム内容・進行・探索・自動化・制作Phaseに関する要件の正本とする。
+- このファイルを Scrap Factory のゲーム内容・進行・探索・自動化・Visual Direction・制作Phaseに関する要件の正本とする。
 - 実装詳細は現行 `SPEC.md`、現行挙動はRepository上の実装を照合する。
-- Balance値や個別数値は下部の「制作段階で調整してよい項目」の範囲で調整可能。
-- 既存Save / Directional Conveyor / GitHub Pages対応等の確定済みContractを、詳細化や実装の都合だけで無断変更しない。
+- Balance値、Visual Budget、個別数値は下部の「制作段階で調整してよい項目」の範囲で調整可能。
+- 既存Save / Directional Conveyor / 2.5m Grid / Factory座標系 / GitHub Pages対応等の確定済みContractを、Visual強化や実装都合だけで無断変更しない。
 
 ## 目的
 
-完成度の高いブラウザゲームを1本ずつ追加できるGame Hubを作る。大量の未完成ミニゲームを並べず、各ゲームは主要ループ・保存・設定・UIまで通してからPlayable扱いにする。
+完成度の高いブラウザゲームを1本ずつ追加できるGame Hubを作る。大量の未完成ミニゲームを並べず、各ゲームは主要Loop・保存・設定・UI・Visual Qualityまで通してからPlayable扱いにする。
 
 Scrap Factoryは、探索と工場自動化の両方が最後まで必要になる一人称3D工場ゲームとする。
 
@@ -78,10 +79,11 @@ Scrap Factoryは、探索と工場自動化の両方が最後まで必要にな�
 - Drone / 自動素材回収
 - Factory Expansion / 立体物流
 - Mega Factory / Main Clear / クリア後最適化
+- Hybrid Asset / PBR / Lighting / VFX / LODを含むVisual Quality強化
 
 # 現行MVPとの互換性
 
-長期進行を実装する際、現在PlayableなMVPを「新要件に合わない」という理由だけで破壊しない。
+長期進行やVisual強化を実装する際、現在PlayableなMVPを「新要件に合わない」という理由だけで破壊しない。
 
 ## Legacy Unlock
 
@@ -91,13 +93,13 @@ Scrap Factoryは、探索と工場自動化の両方が最後まで必要にな�
 - 既存Saveが既に利用していた機能を突然使用不能にしない。
 - Migration時に既存進行から必要な最低Rank / Unlockを付与する。
 - Legacy SaveをRank 1へ強制巻き戻ししない。
-- 正確なLegacy Rank推定規則はPhase 1実装時に `SPEC.md` へ定義しTestする。
+- Legacy Rank推定規則は `SPEC.md` に定義しTestする。
 
 ## 既存Scrap Yard素材
 
 現行Scrap Yardでは鉄くず以外に銅線 / 廃プラスチック / 電子ジャンクも少量出現する。この既存挙動を無理に消す必要はない。
 
-Rank 3の「銅 / プラスチック解放」は、**初めて存在する瞬間**ではなく次を意味する。
+Rank 3の「銅 / プラスチック解放」は初出ではなく次を意味する。
 
 - 安定した供給源
 - 専用Loot Location / Resource Point
@@ -108,14 +110,21 @@ Rank 3の「銅 / プラスチック解放」は、**初めて存在する瞬間
 
 ## Legacy Factory Rank表示
 
-現行Factory Managementの `FACTORY RANK` はAchievement解除数から作る称号表示であり、本要件の数値Rank 1〜7とは別物。
-
-Phase 1で本当のProgression Rankを導入する際は:
+Achievement解除数から作る既存称号表示と、本要件のProgression Rank 1〜7を分離する。
 
 - Achievement自体は保持する。
 - Achievement数からProgression Rankを直接決定しない。
-- 既存の称号表示は「Factory Title」等へRenameするか、新Rank UIへ明確に分離する。
+- 既存称号はFactory Title等として扱う。
 - `progressionRank` とAchievement / Titleを別Dataとして扱う。
+
+## Visual Compatibility
+
+Visual強化では次を維持する。
+
+- Machine / Buildingの永続IDをVisual Asset名へ依存させない。
+- Visual Mesh差し替えだけでSave Layoutを変更しない。
+- Collider簡略化は許可するが、Gameplay上の占有範囲・Build可否・主要通路と矛盾させない。
+- Visual LOD / Culling / Particle削減でProduction / Throughput / Power / Drone等のSimulation結果を変えない。
 
 # 進行
 
@@ -164,7 +173,7 @@ Rank Up
 
 必須:
 
-- Crusher → Smelterを含む鉄インゴット完全自動ラインを成立させる。
+- Crusher → Smelterを含む鉄インゴット完全自動Lineを成立させる。
 
 選択目標候補:
 
@@ -209,7 +218,7 @@ Rank Up
 
 必須:
 
-- Splitter / Mergerを使った複数製品自動ラインを、自前電力で安定稼働させる。
+- Splitter / Mergerを使った複数製品自動Lineを、自前電力で安定稼働させる。
 
 選択目標候補:
 
@@ -233,7 +242,7 @@ Rank Up
 
 必須:
 
-- 廃工場の主要設備を復旧し、持ち帰った技術を利用したAssembler自動ラインを完成させる。
+- 廃工場の主要設備を復旧し、持ち帰った技術を利用したAssembler自動Lineを完成させる。
 
 選択目標候補:
 
@@ -295,7 +304,7 @@ Rank 7到達をクリアとはしない。Rank 7は最終章開始とする。
 
 ## 進行テンポ
 
-普通に遊んだ場合、Main Clearまで概ね20〜30時間台を目安とする。プレイ時間そのものをRank条件にはしない。
+Main Clearまで概ね20〜30時間台を目安とする。プレイ時間そのものをRank条件にはしない。
 
 - Rank 1: 約1時間
 - Rank 2: 約2〜3時間
@@ -305,11 +314,9 @@ Rank 7到達をクリアとはしない。Rank 7は最終章開始とする。
 - Rank 6: 約5〜6時間
 - Rank 7〜Clear: 約5〜7時間
 
-待ち時間や単純な大量生産数で水増しせず、探索・新システム・Factory改善によって自然に時間が増える構成とする。
+待ち時間や単純な大量生産数で水増しせず、探索・新System・Factory改善によって自然に時間が増える構成とする。
 
 # Research
-
-## 基本構造
 
 ```text
 Rank       = 大きなゲーム進行
@@ -456,7 +463,7 @@ Transport Terminalでは最低限次を確認できる。
 - 指定帰還地点へ到達して初めて正常帰還。
 - Shortcut / Service Gate / Elevator等の復旧で後から出入口を増やせる。
 - 時間制限中心のExtraction Gameにはしない。
-- `Abandon Expedition` は許可するが探索失敗と同じ扱い。
+- `Abandon Expedition` は探索失敗と同じ扱い。
 - Hubへ戻ってもExploration Sessionを保持し、FactoryへLootを確定しない。
 
 ## Exploration Progress
@@ -481,7 +488,7 @@ Transport Terminalでは最低限次を確認できる。
 
 # Loot / Resource Point
 
-レア度は概ね4段階。
+レア度:
 
 - Common
 - Uncommon
@@ -489,8 +496,6 @@ Transport Terminalでは最低限次を確認できる。
 - Special / Progression
 
 Lootは場所の意味と一致させる。
-
-例:
 
 - Scrap pile → 鉄くず
 - Garage → 工具 / Battery関連
@@ -592,7 +597,7 @@ Factory全体を巻き戻す罰にはしない。
 
 - 軽い戦闘を導入する。
 - 敵撃破そのものを主要目標にはしない。
-- 敵は一部探索エリアのみ。
+- 敵は一部探索Areaのみ。
 - Factory内で常時戦わない。
 - 武器は護身 / 危険排除中心。
 - 敵を避けるRouteを残す。
@@ -616,7 +621,7 @@ Factory全体を巻き戻す罰にはしない。
 
 AIは巡回 → 発見 → 警戒 / 追跡 → 見失い → 復帰程度を基本とし、高度FPS AIを主目的にしない。
 
-後半は敵HPを単純に極端増加させるより、敵配置 / Security / 環境危険 / 複数Routeを組み合わせて難しくする。
+後半は敵HPを極端増加させるより、敵配置 / Security / 環境危険 / 複数Routeを組み合わせて難しくする。
 
 # Production / Recipe
 
@@ -649,8 +654,6 @@ Raw
 主要量産Recipeは最終的にMachineで自動化可能にする。Hand Craftが終盤まで最高効率にはならない。
 
 ## Production Tier
-
-基本:
 
 ```text
 鉄くず
@@ -714,9 +717,7 @@ Recipe変更時にBuffer Itemを無断消失させない。
 - Mk.2: Rank 4
 - Mk.3: Rank 6
 
-Tierごとに実Throughput差を持たせる。具体値はBalance段階で決める。
-
-通常Conveyorは電力不要。
+Tierごとに実Throughput差を持たせる。通常Conveyorは電力不要。
 
 ## Directional Contract
 
@@ -725,8 +726,6 @@ Tierごとに実Throughput差を持たせる。具体値はBalance段階で決�
 - 物流詰まり時にItemを消失させない。
 - Back Pressureにより上流を停止可能。
 - 既存Directional Conveyor Contractを維持する。
-
-## Rank別物流
 
 Rank 4:
 
@@ -758,13 +757,9 @@ Priority / Overflowにより必要Lineを優先し、余剰だけSellerへ流せ
 
 # Power
 
-## 導入
-
 Rank 4から本格導入。
 
 Rank 4到達時に既存小規模Factoryが突然全停止しないよう、Starter Gridまたは同等の移行手段を持たせる。
-
-## 接続
 
 Machine 1台ずつへの細かいCable接続を必須にせず、Power Poleの給電範囲方式を基本とする。
 
@@ -794,7 +789,7 @@ Batteryを中盤以降で解放。
 
 # Drone / 自動回収
 
-Droneは探索を削除するシステムではなく、**一度Playerが攻略・発見した場所の反復作業を自動化するシステム**とする。
+Droneは探索を削除するSystemではなく、**一度Playerが攻略・発見した場所の反復作業を自動化するSystem**とする。
 
 ```text
 新しいものを発見する
@@ -845,16 +840,12 @@ Upgrade候補:
 - Research
 - Upgrade
 
-基本価値:
-
 ```text
 Raw Material
 < Processed Material
 < Component
 < Finished Product
 ```
-
-ただし設備費 / 電力 / 生産速度まで含めてBalanceする。
 
 Cash用途:
 
@@ -866,7 +857,7 @@ Cash用途:
 
 Cashだけで主要進行を完結させない。
 
-売却価格は固定を基本とし、大きなリアルタイム市場変動を主システムにしない。
+売却価格は固定を基本とし、大きなリアルタイム市場変動を主Systemにしない。
 
 ## Optional Order
 
@@ -912,7 +903,7 @@ Expansionで増やす候補:
 
 Rank 5以降ではElevated Conveyor / Conveyor Lift / Catwalk等の限定的立体物流を許容する。
 
-自由な多層建築システムを主要要件にはしない。
+自由な多層建築Systemを主要要件にはしない。
 
 # Build System
 
@@ -1143,6 +1134,416 @@ BrowserではPointer Lockによる相対Mouse Inputを基本とし、OS Level Ra
 
 Performance Modeは描画負荷を落とすがFactory Simulation結果を変えない。
 
+# Visual Direction / Graphics Quality
+
+## Visual Ambition
+
+長期Visual Goalは **Stylized Industrial Realism** とする。
+
+完全なAAA Photo-realismではなく、現実感のある工業設備・素材・摩耗・Lightingを持ちながら、Machine・物流方向・Interactable・危険・探索導線を一人称視点で読みやすくする。
+
+目標:
+
+- WebGL Prototype感を残さない。
+- Steamの3D Indie Factory Gameとして見ても未完成Asset集に見えない品質を目指す。
+- Geometry / Material / Lighting / Environment / Animation / VFXを組み合わせて品質を作る。
+- 派手なEffectよりGameplay Readabilityを優先する。
+
+直接的なVisual ReferenceやAssetをコピーせず、同種Factory / Salvage / Exploration GameからSilhouette・Material差・環境密度・Feedback等の構造原理を参考にする。
+
+## Hybrid Asset Policy
+
+従来の「Three.js Geometry中心・外部3D Assetなし」は初期MVP検証用の制約として扱い、長期Visualでは **Procedural + Local Asset Hybrid方式**へ変更する。
+
+### Proceduralを優先するもの
+
+- Conveyor
+- Pipe
+- Fence
+- Floor / Wall
+- Grid structure
+- Road
+- Repeating infrastructure
+- 大量配置される単純構造
+
+### Local Assetを使ってよいもの
+
+- Motor / Pump / Valve
+- 複雑なMachine detail
+- Scrap / Tool / Vehicle wreck
+- Control panel
+- Props
+- Hero Machine
+- Detail表現にGeometry生成だけでは限界があるObject
+
+### Asset Contract
+
+- Assetは原則Repository管理または管理可能なProject-owned deliveryとし、重要Assetを第三者URLへHotlinkしない。
+- 自作 / AI生成 / 配布Assetを問わず、公開・再配布・商用条件・Attributionを確認する。
+- Attributionが必要なら `CREDITS.md` 等へ残す。
+- License不明Assetを使用しない。
+- 3D AssetはglTF / GLBを第一候補とする。
+- Texture / Mesh CompressionはPipeline整備後に利用可能。
+- Visual Assetを差し替えてもBuilding ID / Save Data / Gameplay Contractを変更しない。
+
+Audio AssetはVisual Asset方針と別にLicense・容量・導入方式を決める。Hybrid Visual Asset採用だけで音源利用を自動承認しない。
+
+## Lighting / Sky / Shadow / Fog
+
+基本方針:
+
+- 「綺麗な光」よりMaterial・Machine・距離・危険・導線が読みやすいIndustrial Lightingを優先。
+- Environment Light / Main Directional Light / Local Lightを役割分離。
+- 全ObjectへRealtime Light / Shadowを付けない。
+
+Time of Day:
+
+- 常時高速Day / Night CycleをMain Requirementにはしない。
+- SceneごとのAuthored Time-of-Dayを基本とする。
+- Factory / Scrap YardはLate Afternoon〜夕方前の暖かい光を基準候補。
+- 廃住宅街は曇天〜夕方。
+- 廃工場は曇天 + Interiorの壊れた照明 / Emergency Light。
+- 軍事施設は冷たい曇天 / 薄暮。
+- 研究施設は人工照明主体。
+
+Shadow:
+
+- Near: 高品質。
+- Mid: 簡略化。
+- Far: 原則Shadowなしまたは最小。
+- Player近傍Machine / 大型構造 / Character / Droneを優先。
+- 小型Scrap / 細かなConveyor部品 / 遠景は低Priority。
+
+Atmosphere:
+
+- Procedural Skyを基本とし、Horizon / Sun direction / Cloud / Distance hazeを統合。
+- HDR / Environment MapはHigh設定等で必要性と容量を検証して採用可能。
+- Fogを単なる描画隠しではなくAtmospheric Perspectiveとして使う。
+- AreaごとにFog density / distance / particle / lightingを変える。
+- Volumetric / God Ray相当は廃工場の屋根光、Military spotlight、Central Core等のHero Momentへ限定。
+
+AO / Contact:
+
+- Machine / Scrapが浮いて見えないことを必須とする。
+- AO / baked AO / material detail /正しいGeometry接地等を組み合わせる。
+- 高負荷Screen-space AOはGraphics Qualityで切替可能にする。
+
+Post Processing:
+
+- BloomはFurnace / Welding / Research Equipment等の高輝度部へ限定。
+- Gameplay中の強いMotion BlurはDefault OFF。
+- Depth of Field / Chromatic Aberrationは通常Gameplayで常用しない。
+- Tone Mapping / Color Space / Exposureの基準を全Sceneで統一する。
+
+## Material / Texture / PBR
+
+基本はStylized PBR。
+
+共通Material Library候補:
+
+- Painted Metal
+- Bare Steel
+- Rusted Steel
+- Dark Steel
+- Aluminum
+- Rubber
+- Plastic
+- Concrete
+- Glass
+- Emissive Screen
+- Oil / Grease
+- Dirt / Dust
+
+原則:
+
+- Base Colorだけで素材差を作らず、Roughness / Metalness / Normalを活用する。
+- 必要AssetだけAO / Emissive / Alpha / Detail Mask等を追加。
+- Machineごとに大量の独自Materialを増やさずShared Materialを優先。
+- Ground / Wall / Road等はTileable Textureを優先。
+- Industrial Atlas / Decal Atlas等を検討。
+- 近距離Detailは巨大Base TextureだけでなくDetail Normal / Roughness等で補う。
+
+Soft Texture Target:
+
+- Hero / 重要Machine: 原則1K〜2K程度まで。
+- 一般Prop: 512〜1K程度。
+- 小物 / 大量配置: 256〜512 / Atlas / Shared Textureを優先。
+- 4K Textureの大量使用は原則避ける。
+
+Wear / Dirt:
+
+- 錆はScrap Factoryの主要Visual要素だが、全Objectを一様に茶色へしない。
+- Edge / Bolt / 下部 / 水分 / 使用箇所等、意味のある位置へWearを配置。
+- Player-built / Abandoned / Repaired / Advanced Machineで摩耗量を変える。
+- Scrap Yard = Dust / Rust powder。
+- Factory = Oil / Grease / Metal dust。
+- Residential = Dust / Dirt / Mold等。
+- Military = Dust / Soot / Chipped paint。
+- Research = 比較的Clean + 故障箇所のBurn / Residue。
+
+Decal候補:
+
+- Oil stain
+- Tire mark
+- Crack
+- Rust streak
+- Warning marking
+- Number / Machine ID
+- Old company marking
+- Arrow
+- Burn / Damage
+- Repair patch
+
+Decalは重要地点 / 近距離へ集中し、画面全体をNoiseで埋めない。
+
+## Machine Visual Contract
+
+Machineは色ではなくSilhouetteで判別可能にする。
+
+距離別:
+
+- Far: 種類をSilhouetteで判別。
+- Mid: 主要Mechanism / Input / Outputが読める。
+- Near: Material / Pipe / Bolt / Wear / Panel等のDetailが見える。
+
+共通構造候補:
+
+- Main Frame
+- Functional Core
+- Input
+- Output
+- Motor / Power section
+- Maintenance section
+- Status
+- Safety part
+
+Machine別方向:
+
+- Crusher: Twin Roller / Feed Chute / Output Chute / Motor / Guard。
+- Smelter: Furnace / Chimney / Heat section / Pipe / Heavy Door。
+- Assembler: Modular Frame / Multiple Input / Assembly Chamber / Tool mechanism / Control Screen。
+- Fabricator: Enclosed precision chamber / Multiple manipulator / Advanced Power / Experimental visual language。
+- Scrap Generator: Improvised engine / exposed exhaust / fuel hopper / vibration。
+- Industrial / Advanced Generator: より標準化・統合された構造。
+- Battery: Cell module / terminal / cooling / charge gauge。
+- Power Pole: Base / Mast / distribution hardware / maintenance element。
+- Drone Port: Landing Pad / Charge Dock / Storage interface / Antenna / Service Arm。
+- Drone: Cargo body / propulsion / sensor / battery / attachment。
+
+Logistics:
+
+- Conveyor Mk.1 / Mk.2 / Mk.3は速度Tierを色だけで区別しない。
+- Splitterは1 Input → 3 Output、Mergerは3 Input → 1 Outputが形から読める。
+- Smart SorterはSensor / Scan / Filter表示を持ち、通常Splitterと区別する。
+- Input / Output Portは全Machineで共通Design Languageを使い、形 + Arrow + Label等を組み合わせる。
+
+Animation:
+
+- Running / Idle / Blocked / Power Shortage等をVisual stateへ反映。
+- Roller / Motor / Fan / Arm / Belt等はGameplay Stateの結果として動作。
+- Visual-only animationがProduction状態と矛盾しない。
+
+Hero Asset候補:
+
+- First Crusher
+- Generator
+- Assembler
+- Drone Port
+- Fabricator
+- Experimental Power
+- Autonomous Industrial Core
+
+Hero Machineは通常設備よりDetail / Animation / VFX Budgetを多く使ってよい。
+
+## Environment / Area Visual Identity
+
+全SceneでNear / Mid / Farの3層を持つ。
+
+```text
+Near = Playerが触れるDetail
+Mid  = 空間用途を説明するStructure / Prop
+Far  = 世界の規模・方向を示すSilhouette / Landmark
+```
+
+地形:
+
+- Factory Build Areaは2.5m Gridを優先し、基本平坦。
+- Environment Areaは段差 / 傾斜 / broken foundation等を許容。
+- Groundを単一Plane / 単一Textureだけで完成扱いしない。
+- Concrete / Dirt / Asphalt / Metal plate / Oil-stained surface等を用途で分ける。
+
+### Scrap Yard
+
+Visual language:
+
+- Main Crane
+- Scrap mountain
+- Container stack
+- Broken vehicle
+- Loader
+- Fence / Workshop / Weigh station
+- Barrel / Tire / Cable spool / Pipe / Pallet / Engine block等
+
+Collectible ScrapとDecorative Scrapを見分けられること。
+
+### Factory
+
+Rank進行で景観も成長させる。
+
+Early:
+
+- worn concrete
+- temporary fence / lighting
+- exposed infrastructure
+- repaired Scrap outpost
+
+Mid:
+
+- organized logistics
+- reinforced floor
+- power infrastructure
+- Storage / Service zone
+- Signage / Catwalk
+
+Late / Mega:
+
+- Advanced Manufacturing
+- Drone infrastructure
+- Experimental Sector
+- 大規模でも用途が読めるZone構成
+
+Rank / UpgradeをHUDだけでなくWorldからも感じられるようにする。
+
+### 廃住宅街
+
+- House / Apartment / Garage / Shop / Utility building。
+- Furniture / Appliance / Bicycle / Trash bin / Sign / Streetlight / Vehicle等。
+- Cracked road / broken window / hanging cable / limited vegetation。
+- 人が生活していた痕跡を出す。
+
+### 廃工場
+
+- Press / Tank / Boiler / Overhead Crane / Pipe Network / Catwalk / Control Room。
+- Valve / Motor / Pump / Electrical Cabinet / Workbench等。
+- 空間から過去の生産用途が想像できること。
+- Steam / Oil / Machinery密度を高める。
+
+### 軍事施設
+
+- Reinforced wall / Checkpoint / Barrier / Watch tower / Security Gate / Bunker / Vehicle bay / Antenna。
+- Scrap Yardより規律的・整然とした配置。
+- Security / Defenseの用途をArchitectureで示す。
+
+### 崩壊した研究施設
+
+- Precision panel / laboratory / glass partition / robotics / energy conduit / test chamber / server / central machinery。
+- 旧Scrap系設備より高い文明レベルを造形で示す。
+- Cleanな設計とDamage / malfunctionを対比させる。
+
+Interior:
+
+- 全BuildingをEnterableにしない。
+- 入れるBuildingはDetail高め、入れないBuildingはFacade / Silhouette中心。
+- Modular Kitを基本とし、Damage / Material / Decal / Prop / Lighting variantでRepetitionを崩す。
+
+Navigation:
+
+- Landmark / Road / Lighting / Signage / Architecture / Objective framingで誘導。
+- Visual強化でInteractableが背景に埋もれないこと。
+- Gameplay ObjectとDecorationの見た目を区別する。
+
+Collision:
+
+- Wall / Large Machine / Container / Major Pipe等はCollider対象。
+- Cable / Bolt / Small debris / stain /遠景等は原則Collider不要。
+- Decorationのために移動が細かく引っかかる状態を避ける。
+
+## VFX / Particle
+
+VFXは派手さではなく、Machine State / Hazard / Environment / Progressを伝えるために使う。
+
+Machine例:
+
+- Crusher: Metal dust / short spark / vibration。
+- Smelter: Heat glow / Smoke / Steam / optional heat distortion。
+- Generator: Exhaust / vibration / fuel stop feedback。
+- Assembler: Tool movement / short welding spark / work light。
+- Fabricator: Hero-scale enclosed glow / precision effect / startup sequence。
+- Drone Port: Takeoff / Landing dust / guide light / charging feedback。
+
+Environment:
+
+- Scrap Yard: Dust / small drifting debris。
+- Residential: Dust / leaf / paper。
+- Factory: Steam / Dust / Metal particle。
+- Military: Light dust / electrical effect。
+- Research: Subtle vapor / electrical instability。
+
+Hazard:
+
+- Electric arc
+- Fire / smoke
+- Toxic gas
+- Security light / laser等
+
+危険はEffectだけでなく形・Warning・配置でも理解できるようにする。
+
+Performance:
+
+- NearはFull effect、MidでSpawn Rate削減、Farで停止 / simplified。
+- Offscreen /別Sceneの細かなVFXを常時Simulationしない。
+- Burst系ParticleはPoolingを検討。
+- Conveyor等の大量設備へ常時Particleを付けない。
+- Smoke / SteamでGameplay targetや導線を隠さない。
+
+Progress:
+
+- Repairは短いSpark → Light ON → Mechanism start等で復旧感を出す。
+- Rank Up / Researchは世界観に合う短いTechnical Feedback。
+- Mega Factory StartupはExperimental Power → Main Bus → Drone Network → Production Line → Fabricator → Final Productの大きなVisual Reward候補。
+
+## Camera / Movement Feel / Screen Effects
+
+一人称操作はResponsiveさを維持しつつ、ごく軽い重量感を持たせる。
+
+Movement:
+
+- 入力直後の反応を保ち、短いAcceleration / Decelerationのみ許容。
+- 強い慣性 / 滑りを中心にしない。
+- Sprintは探索移動手段。
+- 小さな段差はStep-up等で毎回Jumpを要求しない方向。
+- Crouchは探索 / Combatが必要になった段階で追加可能。
+
+Camera:
+
+- Head Bob Defaultは弱め、0〜100 / OFF。
+- Camera Swayは極小。
+- Landing / heavy impactは短いCamera responseのみ。
+- Build中はHead Bob / FOV / Shakeを弱め、Placement精度を優先。
+- Machine PanelでCameraを強制的に大きく移動させない。
+
+First-person Animation:
+
+- Full Body FPSを必須にしない。
+- Hands / Tool / Weapon / Interaction animationから導入可能。
+- Pickup / Press / Repair / Insert / Use等の短い共通Animationを使う。
+- Pickup演出で連続回収を遅くしない。
+
+Screen Effects:
+
+- Screen ShakeはExplosion / Heavy Machine / Mega Factory startup等へ限定。
+- Damage Feedbackは短いDirectional Indicator / subtle vignette / impulse程度。
+- Low HP演出で視界を強く潰さない。
+- Motion Blur Default OFF。
+- DoF / Chromatic Aberrationは通常Gameplayで常時使わない。
+- Reduce MotionでCamera / Transition / Effectを削減可能にする。
+
+Mouse:
+
+- Pointer Lockを基本。
+- 人工的な強いMouse smoothing / latencyを入れない。
+- Interaction Raycastは小型Scrap等でわずかなToleranceを許容可能。
+
 # Audio / Feedback
 
 Audio Systemは将来要件。
@@ -1156,7 +1557,7 @@ Audio Systemは将来要件。
 - Machine Volumeを独立設定可能にする方向
 - 重要情報は必ずVisualでも表示
 
-現行の外部Asset制約とAudio Asset追加は衝突する可能性があるため、音源導入時にLicenseとAsset方針を明示的に決定する。勝手に外部音源依存を追加しない。
+Audio Asset導入時はVisual Assetとは別にLicense / 容量 / Attributionを確認する。
 
 # Story / World
 
@@ -1186,7 +1587,7 @@ Mega Factory完成を、失われた産業技術をPlayer自身が理解・再�
 
 長期要件によるSave肥大化を計測し、容量Riskが高いと実測確認された場合のみMigration付きでIndexedDB等を検討する。
 
-永続IDは表示名 / 配列Indexと分離する。
+永続IDは表示名 / 配列Index / Visual Asset Pathと分離する。
 
 ## Auto Save
 
@@ -1250,7 +1651,7 @@ Save破損時に即初期化せず、Backup復元 / Export / 新規開始等の�
 
 # Performance / Scale
 
-Mega Factoryは実現するが、何千台ものMachineや全Itemを個別Physicsで処理するゲームにはしない。
+Mega Factoryは実現するが、何千台ものMachineや全Itemを個別Physicsで処理するGameにはしない。
 
 Target:
 
@@ -1274,16 +1675,65 @@ Soft Scale Target:
 - Conveyor上の全Itemを個別Physics Objectにしない。
 - 近距離PacketだけVisual化し、遠距離は簡略化可能。
 - 遠景はLow-detail / Colliderなし / Shadow最小。
-- 大量ObjectはGeometry / Material共有、Instancing等を検討。
+- 大量ObjectはGeometry / Material共有、Instancing等を使用または検討。
 - Statisticsを毎Frame再計算しない。
+- Machine Animation / VFXの更新頻度は距離に応じて下げてよい。
+- Renderer最適化でSimulation結果を変えない。
 
 Factory / Exploration Sceneを同時にフルSimulationしない。
 
 探索中Factory Productionは毎Frame裏で動かさず、探索経過時間に対する結果計算方式を基本とする。
 
-ただしInput不足 / Output満杯 / Power不足 / Storage容量を無視した無限生産にはしない。
+Input不足 / Output満杯 / Power不足 / Storage容量を無視した無限生産にはしない。
 
 ゲームを閉じていた現実時間を使ったOffline Progressを主要Systemにはしない。
+
+## Visual Performance Budget
+
+Asset / RenderingのSoft Targetを設ける。最終値は実測で調整可能。
+
+Initial Load:
+
+- Game HubからScrap Factoryへ入るためのCore Assetは概ね15〜25MB程度を初期目安。
+- Factory / Scrap Yardに不要な将来Area Assetを初回から一括読込しない。
+
+Exploration Area:
+
+- 各独立Areaは必要時にLazy Load。
+- Area単位のAssetは概ね20〜40MB程度をSoft Targetとし、実測Loading / Memoryで調整。
+- 一度LoadしたAssetはSession内で再利用可能。
+
+Rendering:
+
+- Asset系Machine / 大型PropはLOD0 / LOD1 / LOD2等を原則検討。
+- LODでMachineの主要Silhouette / Input / Output方向を壊さない。
+- Conveyor Support / Fence / Barrel / Pallet / Pipe / Scrap Decoration等、大量反復ObjectはInstancing優先候補。
+- 遠距離Machineは細部Animation / Roller / Particle / Shadowを削減可能。
+- Realtime Point LightをMachine数に比例させず、Status LampはEmissive中心。
+- Realtime Reflectionを大量設備へ使わずEnvironment Map / PBR responseを優先。
+
+Texture / GPU Memory:
+
+- 同一MachineはTexture Setを共有。
+- Download容量だけでなくGPU展開後Memoryを確認。
+- Material / Texture / Shader Variantを無制限に増やさない。
+
+Mega Factory:
+
+- Distance-based LOD / Culling / Shadow / Animation / Particle削減を通常機構として利用。
+- Graphics Qualityを勝手にLowへ変更しない。
+- 大規模化でVisualを簡略化しても、物流・生産・電力・Drone結果を変えない。
+
+Performance Mode:
+
+- Shadow削減
+- AO OFF / 簡略化
+- Bloom OFF
+- Particle削減
+- Draw Distance / Environment detail削減
+- Animation更新削減
+
+Gameplay Simulationには影響させない。
 
 # Game Hub
 
@@ -1554,9 +2004,7 @@ Rank 7到達だけでは完成扱いしない。
 
 ## Phase 7: Endgame / Polish
 
-Main Clear成立後に追加する。
-
-候補:
+Main Clear成立後に追加する候補:
 
 - Advanced Orders
 - Endgame Challenges
@@ -1567,10 +2015,68 @@ Main Clear成立後に追加する。
 - Conveyor一括Upgrade
 - Audio / BGM
 - Environmental Storytelling / Log追加
-- Visual Polish
+- Final Visual Polish
 - Performance Optimization
 
 Polishを理由にMain Progressionの完成を後回しにしない。
+
+## Visual Development Track
+
+VisualはPhase 7まで何も触らない方式にはしない。新しいArea / Machineを追加するたびに最低Visual Qualityを同時に満たし、基盤強化はGameplay Phaseと並行するCross-cutting Trackとして扱う。
+
+### V0: Current Baseline / Research
+
+- 現行Factory / Scrap Yard / ResidentialのScreenshot / Browser確認。
+- KEEP / FIX / REMOVE整理。
+- Domain / Genre Research。
+- Visual Performance baseline計測。
+
+### V1: Hybrid Asset Foundation
+
+- Local Asset folder / naming / license管理。
+- glTF / GLB loading方針。
+- Shared PBR Material Library。
+- Texture / Decal / Atlas方針。
+- Color Management / Tone Mapping。
+- LOD / Instancing基盤。
+
+### V2: Factory / Scrap Yard Quality Pass
+
+- Generator / Power Pole等の未完成Silhouette改善。
+- Machine Material / Animation / status feedback。
+- Ground / Decal / Scrap density。
+- Lighting / Fog / Sky。
+- Near / Mid / Far composition。
+
+### V3: Residential Quality Pass
+
+- Building / Interior / Props / Landmark。
+- Residential固有Material / Lighting。
+- Gameplay route readability。
+- Loot / InteractableとDecorationの区別。
+
+### V4: New Area Visual Gate
+
+廃工場 / 軍事施設 / 研究施設は、Gameplayだけ実装してGeneric Box Environmentのまま次Areaへ進まない。
+
+各Areaで最低限:
+
+- 固有Architecture
+- 固有Prop language
+- 固有Material / Lighting / Atmosphere
+- 1〜3 Landmark
+- Interactable readability
+- Performance check
+
+を満たす。
+
+### V5: Mega Factory / Final Polish
+
+- Mega FactoryでLOD / Culling / Shadow / Light / VFX Budgetを実測。
+- Final Hero Machine / Autonomous Industrial Core visual。
+- Rank 1 / Mid / Late / MegaのFactory成長差を確認。
+- 各探索AreaのScreenshot Review。
+- High / Flagship Visual Review Gate。
 
 ## 全Phase共通Gate
 
@@ -1583,7 +2089,9 @@ Polishを理由にMain Progressionの完成を後回しにしない。
 5. 必要なTests / Validation成功。
 6. Desktop Browserで実動作確認。
 7. Requirements / SPEC / README / 実装の必要範囲が一致。
-8. 未確認事項を確認済みと偽らず記録。
+8. User-facing Visual変更を行った場合、主ViewportをBrowser / Screenshotで確認。
+9. Visual強化でInteraction / Build / Directional Logisticsの読みやすさを悪化させていない。
+10. 未確認事項を確認済みと偽らず記録。
 
 # 崩してはいけない仕様
 
@@ -1600,11 +2108,14 @@ Polishを理由にMain Progressionの完成を後回しにしない。
 - Existing Achievementを新Rank導入のために削除しない。
 - Legacy Saveが既に使用している設備を理由なく再Lockしない。
 - Directional ConveyorのVisual Arrowと実搬送方向を一致させる。
+- Machine Input / OutputのVisualとRuntime方向を矛盾させない。
 - Existing 2.5m Grid / Factory座標系を理由なく変更しない。
 - 現行Scrap Yardを理由なくFactoryから分離した別Sceneへ変更しない。
 - GitHub PagesのRepository subpathで動く相対Pathを維持する。
 - 公開Fileへ秘密情報を置かない。
-- 現行外部Asset制約を変更する場合は明示的な仕様変更として扱う。
+- Visual品質のためにGameplay Readability / 操作性 / Save互換性を犠牲にしない。
+- License不明Asset / 永続依存するHotlink Assetを導入しない。
+- Graphics Quality / LOD / VFX削減でSimulation結果を変更しない。
 
 # 完成条件
 
@@ -1636,6 +2147,33 @@ Polishを理由にMain Progressionの完成を後回しにしない。
 - Repository文書と現行実装が一致。
 - 実測Performance / Browser Review / Visual Reviewの未確認事項を完成済みと偽らない。
 
+## Visual Quality Completion
+
+長期Visual完成では最低限次を満たす。
+
+- BoxGeometry色違いだけの主要Machineを完成Assetとして残さない。
+- MachineはSilhouette / Mechanism / Portで役割を判別可能。
+- Materialが色だけでなくRoughness / Metalness / Wear等で区別される。
+- Ground / Environmentが巨大な単一Plane / 単一Textureだけに見えない。
+- Factory / Scrap Yard / Residential / 廃工場 / 軍事施設 / 研究施設でArchitecture / Material / Lightingの差がある。
+- Factory Rank進行でWorld上の成長を感じられる。
+- Interactable / Hazard / Directional LogisticsがDecorationに埋もれない。
+- Shadow / Fog / VFX / Post Effectで視認性を大きく損なわない。
+- Low / Medium / High / Performance ModeでVisual設定を調整可能。
+- 通常 / 大Factory / Mega FactoryでPerformance目標を実測。
+- Asset License / Attribution / Repository管理を確認。
+- Browser / Screenshotで最低限次をReviewする。
+  - Rank 1 Factory
+  - 中盤Factory
+  - Mega Factory
+  - Scrap Yard
+  - 廃住宅街
+  - 廃工場
+  - 軍事施設
+  - 崩壊した研究施設
+  - 主要Machine近景
+- High / Flagship Visual ReviewでBlocking Findingが残る場合、Visual完成扱いにしない。
+
 # 制作段階で調整してよい項目
 
 中心方針を変更しない範囲で実装 / Balance / Testing段階に調整可能:
@@ -1657,6 +2195,16 @@ Polishを理由にMain Progressionの完成を後回しにしない。
 - 各Rank最終プレイ時間
 - Benchmark PC / 最終Performance Hard Limit
 - Audio Asset導入方法 / License方針
+- Texture Resolutionの個別値
+- Core / Area Asset容量Budget
+- LOD切替距離
+- Shadow distance / Shadow quality
+- Realtime Light上限
+- AO / Bloom / Fog具体方式
+- Particle数 / VFX density
+- Areaごとの正確なTime-of-Day / Exposure
+- Material / Decal数
+- Hero Asset detail量
 - Visual Detail / Effect量
 
-これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性を変更しない。
+これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性、Gameplay Readabilityを変更しない。
