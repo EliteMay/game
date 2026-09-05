@@ -6,7 +6,7 @@ Updated: 2026-09-05
 
 ## 1. Current Playable Scope
 
-通常Gameplayは **Rank 1 → 7** まで接続済み。Rank 7はMain ClearではなくFinal Chapter開始点。
+通常Gameplayは **Rank 1 → 7 → Main Clear** まで接続済み。Rank 7はFinal Chapter開始点であり、Rank 8は追加しない。
 
 ```text
 Factory / Scrap Yard
@@ -32,17 +32,19 @@ Factory / Scrap Yard
 → Experimental Component Fabricator
 → Autonomous Industrial Core Fabricator
 → Autonomous Industrial Core → Storage directional route
+→ Mega Factory 180秒連続安定稼働
+→ MAIN CLEAR
+→ same SaveでFactory Optimization継続
 ```
 
-現在は **Phase 6-C: Final Automation / Autonomous Industrial Core**。
+現在は **Final Phase: Mega Factory Stability / Main Clear** まで実装済み。
 
-`REQUIREMENTS.md` の Rank 7 → Main Clear 手順8まで実装済み。
+`REQUIREMENTS.md` の Rank 7 → Main Clear 手順8「最終製品の完全自動Line」、手順9「Mega Factoryを一定時間安定稼働」、手順10「Main Clear」を通常Gameplayへ接続している。
 
-未実装:
-- Mega Factory stable-operation objective
-- Main Clear
-- clear-after optimization objectives
+未実装 / 後続:
+- clear-after optimization objectivesの拡張
 - final Hybrid Asset / Lighting / VFX / LOD quality pass
+- Mega Factory実測Performance / Browser / Visual Review
 
 ---
 
@@ -53,6 +55,8 @@ Scrap Factory
 ├─ config.js
 ├─ final-chapter.js
 ├─ final-automation.js
+├─ final-phase.js
+├─ final-phase-ui.js
 ├─ production-recipes.js
 ├─ logistics.js
 ├─ power.js
@@ -73,7 +77,8 @@ Scrap Factory
 │  └─ progression-phase6c.js
 ├─ progression-ui.js
 │  ├─ progression-ui-v4.js
-│  └─ automation-ui.js
+│  ├─ automation-ui.js
+│  └─ final-phase-ui.js
 ├─ exploration.js
 │  ├─ exploration-core-v4.js
 │  └─ exploration-core-v5.js
@@ -86,7 +91,9 @@ Scrap Factory
 
 Compatibility entrypoints `progression.js` / `exploration.js` / `progression-ui.js` を維持する。
 
-Phase 6-Cでも `game.js` にAdvanced Drone / Fabricator / Experimental Power専用Simulationを増やさず、既存Generic Production / Drone / Generator / Directional Logistics Runtimeへ接続する。
+`index.html` は `game.js` / `feature-pack.js` / `progression-ui.js` をproduction runtimeとして読み込む。`progression-ui.js` は既存Automation ConsoleとFinal Phase UIをside-effect layerとして読み込み、Rank / Research UIは `progression-ui-v4.js` を維持する。
+
+Final Phaseでも `game.js` に専用物流 / 専用Power / 専用Production Simulationを追加しない。既存Generic Production / Drone / Generator / Directional Logistics Runtimeと、Phase 6-Cのderived analyzerへ接続する。
 
 ---
 
@@ -101,7 +108,7 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 6-CでもSchema Version変更なし。
+Final PhaseでもSchema Version変更なし。
 
 ### Additive Research Area state
 
@@ -121,9 +128,27 @@ areas.research.centralCore = {
 - `experimental_power_module`
 - `autonomous_industrial_core`
 
-既存Saveは不足keyを0で補完する。
+既存Saveは不足keyをDefaultで補完する。
+
+### Additive Final Chapter telemetry
+
+```text
+finalChapter = {
+  version: 1,
+  megaFactoryStableSeconds: number,
+  megaFactoryBestSeconds: number,
+  mainClearedAt: string | null,
+  clearAcknowledgedAt: string | null
+}
+```
 
 Final Automation completion専用のpersistent flagは保存しない。Topology / Power / product evidenceは現在のFactory stateから導出する。
+
+一方、Mega Factoryの「一定時間連続稼働」は過去時間を持たないと再現できないため、**履歴として必要な連続秒数 / best / Main Clear時刻だけ**を保存する。Factory graphやPower snapshotを二重保存しない。
+
+Main Clearは一度達成した歴史的Milestoneとして保持し、Clear後にFactoryを組み替えても取り消さない。
+
+Final Phase UIは `game.js` が保持するlive runtime game objectを参照し、15秒bucket / interruption reset / clear時に追加保存する。Back/hidden中の時間は進行へ加算しない。
 
 ---
 
@@ -131,7 +156,7 @@ Final Automation completion専用のpersistent flagは保存しない。Topology
 
 `PLAYABLE_MAX_RANK = 7` 維持。
 
-Rank 7以降はRank 8へ上げず、Final Chapter Objective / Researchで進む。
+Rank 7以降はRank 8へ上げず、Final Chapter Objective / Research / Mega Factory Stabilityで進む。
 
 ### `experimental_fabrication`
 
@@ -156,7 +181,7 @@ Unlocks:
 - building:experimental_power_system
 ```
 
-Phase 6-Bの既存 `completedResearch` 互換を維持する。旧Saveで `experimental_technology` 完了済みなら、新しいPhase 6-C building gateにもResearch完了として扱う。
+Phase 6-Bの既存 `completedResearch` 互換を維持する。旧Saveで `experimental_technology` 完了済みなら、Phase 6-C以降のbuilding gateにもResearch完了として扱う。
 
 ---
 
@@ -400,7 +425,69 @@ Completion flagはSaveしない。
 
 ---
 
-## 9. Research Facility / Central Core
+## 9. Mega Factory Stability / Main Clear
+
+Source:
+- `final-phase.js`
+- `final-phase-ui.js`
+
+### Stability duration
+
+Implementation target:
+
+```text
+MEGA_FACTORY_STABLE_SECONDS = 180
+```
+
+`REQUIREMENTS.md` は「一定時間」を要件としており、180秒は現在のGameplay実装値。Balance調整時はこの定数とRegressionを同時更新する。
+
+### Stable-operation conditions
+
+`analyzeMegaFactory(game)` は現在状態から次を毎回導出する。
+
+- Phase 6-C `analyzeFinalAutomation(game).qualifies === true`
+- Factory全体の `computePowerSnapshot(game).status === 'ok'`
+- Final Storageが存在し、空き容量 > 0
+- Final route throughput > 0
+
+専用の `megaFactoryReady` / `powerStable` 等のcached flagは保存しない。
+
+### Continuous timer
+
+`advanceMegaFactoryStability()`:
+
+- stable中だけ連続秒数を進める
+- 1 tickで加算できるdeltaは最大1秒
+- Background / hidden / boot中はUI runtime側で加算しない
+- stable条件が1つでも崩れたらCurrent streakを0へ戻す
+- `megaFactoryBestSeconds` はbest historyとして保持
+- 180秒到達時に `mainClearedAt` を1回だけ記録
+
+大きなFrame delay / Tab復帰 / offline時間を一括加算してClearしない。
+
+### Main Clear
+
+Main Clearは歴史的Milestone。
+
+- Clear後にFactoryを組み替えても `mainClearedAt` を取り消さない
+- Clear overlayを表示
+- acknowledgement後も同じSaveで工場開発を継続
+- Rankは7のまま
+- Save Reset以外でMain Clear状態を失わない
+
+### Final Phase UI
+
+- Rank 7 HUDへMega Factory stable-run statusを表示
+- Progression Final Chapter sectionへStep 9 → 10 progressを追加
+- Automation ConsoleへMega Factory stability statusを追加
+- Main Clear時にoverlayを表示
+- Clear後はOptimization継続可能と表示
+
+Final Phase UIは1秒pollingで更新し、self-triggering `MutationObserver` を使わない。
+
+---
+
+## 10. Research Facility / Central Core
 
 Phase 6-B contract維持。
 
@@ -422,17 +509,22 @@ Research Facility completionはMain Clearではない。
 
 ---
 
-## 10. Automation Console / Progression UI
+## 11. Automation Console / Progression UI
 
 Current UI entry:
+- `progression-ui.js`
 - `automation-ui.js`
 - `progression-ui-v4.js`
+- `final-phase-ui.js`
+
+Production HTMLは `progression-ui.js` を読み込む。
 
 Automation Console:
 - Utility / Advanced Drone route assignment
 - Assembler / Fabricator recipe selection
 - Logistics Warehouse in-place upgrade
 - Final Automation Contract status
+- Mega Factory stability status
 
 Route / Recipe changeはsave後reloadする。
 
@@ -444,13 +536,13 @@ Reason:
 
 Rank 7 UIは:
 - Rank-Up capを維持
-- Main Clear未達を明示
 - Final Automation progressを表示
-- Mega Factory / Main Clearを後続Objectiveとして扱う
+- Step 9安定稼働の連続時間を表示
+- Step 10 Main Clear後はOptimization継続を表示
 
 ---
 
-## 11. Existing Systems Preserved
+## 12. Existing Systems Preserved
 
 ### Logistics
 
@@ -485,23 +577,25 @@ Rank 7 UIは:
 
 ---
 
-## 12. Visual Layer
+## 13. Visual Layer
 
 Visual direction: `Stylized Industrial Realism`。
 
-Phase 6-C dedicated procedural visuals:
+Existing dedicated procedural visuals:
 - Advanced Drone variants
 - Experimental Power System
 - Assembler recipe variants
 - Autonomous Core Fabricator variant
 
-Visual variant is not simulation source of truth.
+Final Phase UIは既存Industrial UI languageへ合わせたHUD / progress / clear overlayの最小追加。
 
-Existing Phase 5-B / 5-C / 6-B visual runtime remains compatibility base where applicable.
+Final Hero Machine / Mega Factory startup visual、Hybrid Asset / Lighting / VFX / LODのfinal quality passは後続。
+
+Visual variant is not simulation source of truth.
 
 ---
 
-## 13. Validation
+## 14. Validation
 
 Canonical command:
 
@@ -517,6 +611,7 @@ scripts/validate.mjs
 → scripts/phase6b.test.mjs
 → scripts/phase6c.test.mjs
   → scripts/phase6c-bus.test.mjs
+→ scripts/final-phase.test.mjs
 ```
 
 Phase 6-C regression covers:
@@ -542,6 +637,25 @@ Phase 6-C regression covers:
 - actual Autonomous Industrial Core production evidence
 - current progression / UI / world runtime markers
 
+Final Phase regression additionally covers:
+
+- `MEGA_FACTORY_STABLE_SECONDS = 180`
+- delayed frame deltaは最大1秒だけ加算
+- representative Phase 6-C Main BusがMega Factory stable判定へ接続
+- full Factory Power OK
+- Final Storage空き容量条件
+- Final route throughput条件
+- 連続稼働30秒後のStorage満杯でCurrent streakを0へreset
+- best streak保持
+- 180秒連続安定稼働でMain Clear
+- Main Clear timestamp exactly once
+- Clear後のFactory変更でMain Clearを取り消さない
+- acknowledgement idempotence
+- Additive `finalChapter` default / Schema v1維持
+- production HTMLが `progression-ui.js` を読み込む
+- `progression-ui.js` が `final-phase-ui.js` を読み込む
+- Final Phase UIにself-triggering MutationObserverを使わない
+
 ### Main-bus regression
 
 Final E2E fixture uses actual logistics nodes rather than bypassing route logic:
@@ -557,29 +671,33 @@ Advanced sources
 → final Storage
 ```
 
-This fixture was chosen after free-form auto-routing test setup became order-sensitive. The production rule was not weakened; the regression fixture was changed to an explicit, buildable topology.
+Production ruleを迂回せず、Final Phase testも同じbuildable topologyでMega Factory判定まで通す。
 
 ### CI evidence
 
-Final implementation head before documentation:
+Final Phase implementation before documentation:
 
 ```text
-1e3a2bae14c1f9861b25e7d14c88190f486faa3a
-Validate Web Game #135
-result: success
+PR #19 head: 2f63912fc0c84b57c94b167ad4e99f262efb265b
+Validate Web Game #141
+project-contract: success
+baseline: success
 ```
 
-Documentation-inclusive final head must be revalidated before merge.
+Documentation-inclusive final head / merge commit must be revalidated before完成扱いにする。
 
 ### Unverified by static CI
 
 - real browser Pointer Lock / Pause flow
-- Automation Console actual layout / overflow
+- Main Clear overlayのpointer-lock復帰
+- Progression / Automation / Final HUD actual layout / overflow
 - Route / Recipe reload interaction feel
 - Advanced Drone / Experimental Power first-person scale
 - Build Preview readability
-- final factory layout ergonomics
+- Mega Factory layout ergonomics
 - collider / placement feel
-- WebGL FPS
-- final automated line gameplay balance
+- WebGL FPS / 150〜250 machine scale performance
+- 180秒の実プレイBalance / pacing
+- final automated line gameplay feel
 - Firefox / Chromium real operation
+- final Visual Review / Screenshot Review

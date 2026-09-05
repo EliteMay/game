@@ -1,4 +1,5 @@
-// Compatibility entrypoint. Phase 6-C Final Chapter progression UI lives in progression-ui-v4.js.
-// Keep the legacy Automation Console import path stable for existing validators and integrations.
+// Compatibility entrypoint. Phase 6-C progression remains in progression-ui-v4.js.
+// Automation Console and Final Phase UI are loaded as side-effect runtime layers from this stable entrypoint.
 import './phase5c-automation-ui.js';
+import './final-phase-ui.js';
 export * from './progression-ui-v4.js';
