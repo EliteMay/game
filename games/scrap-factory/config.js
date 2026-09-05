@@ -77,8 +77,13 @@ export const BUILDINGS = {
   },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
-    description: '自動ラインの途中でアイテムを一時保管する中間バッファ。Eで手動投入・回収もできる。',
-    color: 0x52616c, accepts: ['raw', 'processed', 'product'],
+    description: '自動ラインの途中で最大120個を保管する中間バッファ。満杯になると上流を止め、Itemを消失させない。',
+    color: 0x52616c, accepts: ['raw', 'processed', 'product'], storageCapacity: 120,
+  },
+  industrial_storage: {
+    id: 'industrial_storage', name: '産業倉庫', cost: 240, category: 'logistics', buildable: true,
+    description: 'Rank 5向け大容量Storage。最大600個を保管し、大規模ラインのBufferとして使う。',
+    color: 0x435660, accepts: ['raw', 'processed', 'product'], storageCapacity: 600,
   },
   generator: {
     id: 'generator', name: 'スクラップ発電機', cost: 260, category: 'power', buildable: true,
@@ -89,6 +94,11 @@ export const BUILDINGS = {
     id: 'power_pole', name: '電力ポール', cost: 45, category: 'power', buildable: true,
     description: 'Starter Gridや発電機から電力網を延長し、周囲10mの設備へ給電する。ポール同士は12.5m以内で接続する。',
     color: 0x59605f, accepts: [],
+  },
+  battery: {
+    id: 'battery', name: 'グリッドバッテリー', cost: 220, category: 'power', buildable: true,
+    description: 'Grid Storage研究で解放。余剰電力を自動充電し、発電不足時に最大80 Powerを自動放電する。',
+    color: 0x52636f, accepts: [], powerStorageCapacity: 960, powerChargeRate: 60, powerDischargeRate: 80,
   },
 };
 
@@ -110,6 +120,8 @@ export const BUILD_MENU_ORDER = [
   'merger',
   'generator',
   'power_pole',
+  'battery',
+  'industrial_storage',
 ];
 
 export const SCRAP_SPAWNS = [
