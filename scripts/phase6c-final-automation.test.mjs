@@ -185,7 +185,7 @@ function buildFullAutomationFixture() {
   const crusher = add('crusher-final', 'crusher', -3, -4);
   const smelter = add('smelter-final', 'smelter', 0, -4);
   const plate = add('assembler-plate-final', 'assembler_plate', 3, -5);
-  const motor = add('assembler-motor-final', 'assembler_motor', 3, -3);
+  const motor = add('assembler-motor-final', 'assembler_motor', 5, -3);
   const circuit = add('assembler-circuit-final', 'assembler_circuit', 0, 0);
   const control = add('assembler-control-final', 'assembler', 3, 0);
   const experimental = add('fabricator-set-final', 'fabricator', 6, 0);
