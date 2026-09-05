@@ -13,6 +13,8 @@ import {
   materialCounts,
   markScannerPulse,
   markTutorialRead,
+  moveBackpackToHome,
+  moveHomeToBackpack,
   purchasePlayerUpgrade,
   quickDepositToHome,
   quotePlayerUpgrade,
@@ -71,6 +73,10 @@ function itemName(id) { return ITEMS[id]?.name || id; }
 function inventoryText(inventory) {
   const rows = Object.entries(inventory || {}).filter(([, n]) => Number(n) > 0);
   if (!rows.length) return '空';
+  const current = game();
+  if (current && hasPlayerUpgrade(current, 'auto_sort')) {
+    rows.sort(([a], [b]) => String(ITEMS[a]?.category || '').localeCompare(String(ITEMS[b]?.category || '')) || itemName(a).localeCompare(itemName(b), 'ja'));
+  }
   return rows.map(([id, n]) => `${itemName(id)} ×${n}`).join(' / ');
 }
 
@@ -314,12 +320,16 @@ function renderWorkbench(g) {
       <article><span>SECURE CASE</span><strong>${usedSlots(h.secureCase)} / ${secureCaseSlotCapacity(g)}</strong><small>${inventoryText(h.secureCase)}</small></article>
     </section>
     <section class="home-section">
-      <div class="home-section__head"><div><span>TRANSFER</span><h3>探索準備</h3></div></div>
+      <div class="home-section__head"><div><span>MANUAL TRANSFER</span><h3>Backpack ↔ Home Storage</h3></div><strong>最初から利用可能</strong></div>
+      <div class="home-transfer-grid">
+        <div><h4>Backpack</h4>${Object.entries(g.inventory || {}).filter(([, n]) => Number(n) > 0).map(([id, n]) => `<article><span>${itemName(id)} ×${n}</span><button type="button" data-home-deposit="${id}">1個預ける</button></article>`).join('') || '<p>空</p>'}</div>
+        <div><h4>Home Storage</h4>${Object.entries(h.storage || {}).filter(([, n]) => Number(n) > 0).map(([id, n]) => `<article><span>${itemName(id)} ×${n}</span><button type="button" data-home-withdraw="${id}">1個取り出す</button></article>`).join('') || '<p>空</p>'}</div>
+      </div>
       <div class="home-inline-actions">
         <button type="button" data-quick-deposit class="primary-action" ${quick ? '' : 'disabled'}>Quick Deposit</button>
         <button type="button" data-release-secure class="secondary-action" ${Object.keys(h.secureCase).length ? '' : 'disabled'}>Secure Case → Home Storage</button>
       </div>
-      <p>${quick ? '通常Lootを手動一括移動します。Secure Case / Final系Itemは自動移動しません。' : 'Quick DepositはRank 2 Upgradeで解放。手動移動は常に可能です。'}</p>
+      <p>${quick ? '通常Lootを手動一括移動します。Secure Case / Final系Itemは自動移動しません。' : 'Quick DepositはRank 2 Upgradeで解放。1個ずつの手動移動は常に可能です。'}</p>
     </section>
     <section class="home-section">
       <div class="home-section__head"><div><span>LOADOUT PRESET</span><h3>Preset</h3></div><strong>${presets ? `${h.loadoutPresets.length} / 5` : 'LOCKED'}</strong></div>
@@ -345,6 +355,16 @@ function renderPanel() {
 }
 
 function bindPanelActions(content, g) {
+  content.querySelectorAll('[data-home-deposit]').forEach((button) => button.addEventListener('click', () => {
+    const result = moveBackpackToHome(g, button.dataset.homeDeposit, 1);
+    if (result.changed) { persist('Home Storage Deposit'); state.ctx?.renderAll?.(); renderPanel(); }
+    else toast(result.reason === 'full' ? 'Home Storageが満杯です' : '移動できません', 'warn');
+  }));
+  content.querySelectorAll('[data-home-withdraw]').forEach((button) => button.addEventListener('click', () => {
+    const result = moveHomeToBackpack(g, button.dataset.homeWithdraw, 1);
+    if (result.changed) { persist('Home Storage Withdraw'); state.ctx?.renderAll?.(); renderPanel(); }
+    else toast(result.reason === 'full' ? 'Backpackが満杯です' : '移動できません', 'warn');
+  }));
   content.querySelectorAll('[data-buy-upgrade]').forEach((button) => button.addEventListener('click', () => {
     const id = button.dataset.buyUpgrade;
     const def = PLAYER_UPGRADES[id];
@@ -364,7 +384,7 @@ function bindPanelActions(content, g) {
     if (setMaterialTracking(g, null).changed) { persist('Material Tracking Clear'); renderPanel(); }
   });
   content.querySelector('[data-quick-deposit]')?.addEventListener('click', () => {
-    const result = quickDepositToHome(g);
+    const result = quickDepositToHome(g, { favorites: [ensureHomeState(g).materialTracking].filter(Boolean) });
     if (result.changed) { persist('Quick Deposit'); toast(`${result.moved}個をHome Storageへ移動`, 'success'); state.ctx?.renderAll?.(); }
     else toast(result.reason === 'locked' ? 'Quick Depositは未解放です' : '移動できるItemがありません', 'info');
     renderPanel();
@@ -497,8 +517,12 @@ function pulseScanner() {
     return;
   }
   const hits = pulseWorldScanner(state.ctx.world, result.profile);
+  const resourcePoints = result.profile.resourceScanner
+    ? Object.values(g.exploration?.areas || {}).reduce((sum, area) => sum + (area.resourcePoints?.length || 0), 0)
+    : 0;
   persist('Scanner Pulse');
-  toast(hits.length ? `SCANNER: ${hits.length} target` : 'SCANNER: targetなし', hits.length ? 'success' : 'info');
+  const resourceText = resourcePoints ? ` / Resource Point ${resourcePoints}` : '';
+  toast(hits.length || resourcePoints ? `SCANNER: ${hits.length} loot${resourceText}` : 'SCANNER: targetなし', hits.length || resourcePoints ? 'success' : 'info');
   updateHudExtras();
 }
 
@@ -662,6 +686,8 @@ function updateMachineDiagnostic() {
     node.className = 'machine-diagnostic';
     panel.querySelector('.machine-actions')?.before(node);
   }
+  node.hidden = g.settings.contextualHints === false;
+  if (node.hidden) return;
   const target = state.ctx.world.currentTarget;
   const building = target?.kind === 'building' ? (g.buildings || []).find((entry) => entry.id === target.id) : null;
   const d = diagnoseMachine(g, building);

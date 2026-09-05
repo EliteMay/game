@@ -2,4 +2,5 @@
 // Automation Console and Final Phase UI are loaded as side-effect runtime layers from this stable entrypoint.
 import './phase5c-automation-ui.js';
 import './final-phase-ui.js';
+import './home-runtime.js';
 export * from './progression-ui-v4.js';

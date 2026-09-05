@@ -14,7 +14,7 @@ import { addBox, addCylinder, addMesh, makeMaterial } from './visual-kit.js';
 
 const PLAYER_HEIGHT = 1.7;
 const PLAYER_RADIUS = 0.42;
-const WORLD_BOUNDS = { minX: -21.4, maxX: 92, minZ: -30.5, maxZ: 30.5 };
+const WORLD_BOUNDS = { minX: -21.4, maxX: 92, minZ: -30.5, maxZ: 44.5 };
 
 function seededRandom(seed) {
   let value = seed >>> 0;
@@ -448,7 +448,7 @@ export class ScrapWorld {
     const strafe = Number(this.keys.has('KeyD')) - Number(this.keys.has('KeyA'));
     const moving = locked && (forward !== 0 || strafe !== 0);
     const sprint = moving && (this.keys.has('ShiftLeft') || this.keys.has('ShiftRight'));
-    const speed = sprint ? 8.0 : 5.2;
+    const speed = (sprint ? 8.0 : 5.2) * (this.callbacks.getSprintMultiplier?.() ?? 1);
     if (moving) {
       const len = Math.hypot(forward, strafe) || 1;
       const f = forward / len;

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import '../exploration-home-ui.js';
 import { ITEMS, usedSlots } from '../config.js';
 import {
   RESEARCH_AREA_ID,
@@ -544,7 +545,8 @@ function updateMovement(delta) {
   if (keys.has('KeyD')) moveVector.add(right);
   if (keys.has('KeyA')) moveVector.sub(right);
   if (moveVector.lengthSq() > 0) moveVector.normalize();
-  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 6.5 : 4.2;
+  const baseSpeed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 6.5 : 4.2;
+  const speed = baseSpeed * (window.__scrapPlayerConvenience?.sprintMultiplier?.() ?? 1);
   camera.position.addScaledVector(moveVector, speed * delta);
   camera.position.x = THREE.MathUtils.clamp(camera.position.x, -16.5, 16.5);
   camera.position.z = THREE.MathUtils.clamp(camera.position.z, -36.0, 21.5);
@@ -630,3 +632,11 @@ window.addEventListener('resize', () => {
 
 updateWorldState();
 requestAnimationFrame(render);
+
+window.__scrapExplorationRuntime = {
+  getGame: () => game,
+  persist,
+  scene,
+  camera,
+  lootMeshes: typeof lootMeshes !== 'undefined' ? lootMeshes : new Map(),
+};

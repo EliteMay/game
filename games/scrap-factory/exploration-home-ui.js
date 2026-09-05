@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { ITEMS, usedSlots } from './config.js';
 import {
   ensureHomeState,
+  hasPlayerUpgrade,
   markScannerPulse,
   protectExplorationLoot,
   secureCaseSlotCapacity,
@@ -17,6 +18,13 @@ const state = {
 function game() {
   return state.runtime?.getGame?.() || null;
 }
+
+window.__scrapPlayerConvenience = {
+  sprintMultiplier: () => {
+    const current = game();
+    return current && hasPlayerUpgrade(current, 'sprint_efficiency') ? 1.08 : 1;
+  },
+};
 
 function persist(reason = 'Exploration Home UI') {
   try { state.runtime?.persist?.(reason); }
@@ -163,8 +171,11 @@ function pulseScanner() {
       helper.material?.dispose?.();
     }, result.profile.durationMs);
   }
+  const resourcePoints = result.profile.resourceScanner
+    ? Object.values(g.exploration?.areas || {}).reduce((sum, area) => sum + (area.resourcePoints?.length || 0), 0)
+    : 0;
   persist('Exploration Scanner Pulse');
-  toast(selected.length ? `SCANNER: ${selected.length} target` : 'SCANNER: targetなし');
+  toast(selected.length || resourcePoints ? `SCANNER: ${selected.length} loot${resourcePoints ? ` / Resource Point ${resourcePoints}` : ''}` : 'SCANNER: targetなし');
 }
 
 function bindKeys() {

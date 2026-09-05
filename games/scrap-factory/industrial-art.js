@@ -319,7 +319,8 @@ export function buildIndustrialEnvironment(world) {
   scene.add(gantry);
 
   addFence(scene, staticColliders, [-22, -22], [20.5, -22]);
-  addFence(scene, staticColliders, [-22, 22], [20.5, 22]);
+  addFence(scene, staticColliders, [-22, 22], [-13, 22]);
+  addFence(scene, staticColliders, [-7, 22], [20.5, 22]);
   addFence(scene, staticColliders, [-22, -22], [-22, 22]);
   addFence(scene, staticColliders, [22.5, -22], [22.5, -6.5]);
   addFence(scene, staticColliders, [22.5, 6.5], [22.5, 22]);

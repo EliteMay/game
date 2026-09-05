@@ -384,3 +384,29 @@ Main progressionのRequirement 1〜10は実装済み。
 - gameplay balance / playtest
 
 これらは今回のMain Clear実装と混同して完成済み扱いにしない。
+
+## 2026-09-06 — Home / Player Upgrade / Tutorial Implementation
+
+### Implemented
+
+- Factory建築Grid外の固定Home、Door、Bed、PC、Home Storage、Exploration Workbench
+- New Game Home Spawn / Bed Manual Save / 既存Save座標維持 / Bed使用後Home Respawn
+- PC Player Upgrade Tree（Rank 1〜7、Main Progression非必須）
+- Backpack I / II / IIIのSlot容量拡張とFactory/Exploration共通容量判定
+- Home Storage手動移動、Quick Deposit、Auto Sort表示、Loadout Preset
+- Loot Scanner / Material Tracking / Resource情報 / Rare Detection / Sprint Efficiency
+- Secure Case I / IIと探索失敗時保護
+- Home起点Basic Tutorial、Skip/Replay、Tutorial Library、Next Goal、Stuck Help
+- Machine / Logistics / Power / Storage / Drone / Home / Final Phase Diagnostics
+- Additive Save Migration（Schema v1維持）とHome regression tests
+
+### Preserved Contracts
+
+- Rank 1〜7 / Main Clear / Mega Factory Final Phase
+- Directional Logistics / 2.5m Grid / Factory Layout
+- 既存Save Schema v1と旧Player位置
+- BackpackはSlot制のみ。重量制・Weight Penaltyは追加していない。
+
+### Validation
+
+このReport追加はHome integration workflow内で `npm run validate` 成功後にのみ実行される。GitHub通常PR Validationも別途通過させる。実ブラウザ操作・WebGL見た目確認はCI Static Validationとは別判定として扱う。

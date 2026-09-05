@@ -191,6 +191,8 @@ function makeTutorialState() {
 }
 
 export function makeDefaultHomeState({ existingSave = false } = {}) {
+  const tutorial = makeTutorialState();
+  if (existingSave) tutorial.basicStatus = 'skipped';
   return {
     version: HOME_VERSION,
     introducedFromLegacy: Boolean(existingSave),
@@ -204,7 +206,7 @@ export function makeDefaultHomeState({ existingSave = false } = {}) {
     materialTracking: null,
     pcBlueprints: [],
     cosmetics: { lamp: 'utility', wall: 'plain', shelf: 'tools' },
-    tutorial: makeTutorialState(),
+    tutorial,
     scanner: { lastPulseAt: 0 },
   };
 }
@@ -291,6 +293,14 @@ export function normalizeHomeState(candidate, { existingSave = false, legacyGame
 export function ensureHomeState(game, options = {}) {
   if (!game) return makeDefaultHomeState(options);
   const hasHome = isObject(game.home);
+  const runtimeReady = hasHome
+    && Number(game.home.version) === HOME_VERSION
+    && isObject(game.home.storage)
+    && isObject(game.home.secureCase)
+    && Array.isArray(game.home.upgrades)
+    && isObject(game.home.tutorial)
+    && isObject(game.home.tutorial.events);
+  if (runtimeReady) return game.home;
   game.home = normalizeHomeState(game.home, {
     existingSave: options.existingSave ?? !hasHome,
     legacyGame: game,
@@ -459,6 +469,31 @@ export function releaseSecureCaseToHome(game) {
     moved += take;
   }
   return { changed: moved > 0, moved };
+}
+
+export function moveBackpackToHome(game, itemId, amount = 1) {
+  const home = ensureHomeState(game);
+  if (!ITEMS[itemId]) return { changed: false, reason: 'unknown-item', moved: 0 };
+  const available = Math.max(0, Math.floor(Number(game.inventory?.[itemId] || 0)));
+  const requested = Math.min(available, Math.max(1, Math.floor(Number(amount) || 1)));
+  if (requested <= 0) return { changed: false, reason: 'no-item', moved: 0 };
+  const moved = addUpTo(home.storage, itemId, requested, homeStorageSlotCapacity(game));
+  if (moved > 0) game.inventory[itemId] = available - moved;
+  return { changed: moved > 0, reason: moved > 0 ? null : 'full', moved };
+}
+
+export function moveHomeToBackpack(game, itemId, amount = 1) {
+  const home = ensureHomeState(game);
+  if (!ITEMS[itemId]) return { changed: false, reason: 'unknown-item', moved: 0 };
+  const available = Math.max(0, Math.floor(Number(home.storage[itemId] || 0)));
+  const requested = Math.min(available, Math.max(1, Math.floor(Number(amount) || 1)));
+  if (requested <= 0) return { changed: false, reason: 'no-item', moved: 0 };
+  const moved = addUpTo(game.inventory, itemId, requested, backpackSlotCapacity(game));
+  if (moved > 0) {
+    home.storage[itemId] = available - moved;
+    if (home.storage[itemId] <= 0) delete home.storage[itemId];
+  }
+  return { changed: moved > 0, reason: moved > 0 ? null : 'full', moved };
 }
 
 export function quickDepositToHome(game, { favorites = [] } = {}) {

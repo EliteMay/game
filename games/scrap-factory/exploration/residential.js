@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import '../exploration-home-ui.js';
 import { ITEMS, usedSlots } from '../config.js';
 import {
   EXPLORATION_MAX_SLOTS,
@@ -462,7 +463,8 @@ function movePlayer(delta) {
   if (keys.has('KeyA')) direction.sub(right);
   if (direction.lengthSq() === 0) return;
   direction.normalize();
-  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 6.7 : 4.3;
+  const baseSpeed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 6.7 : 4.3;
+  const speed = baseSpeed * (window.__scrapPlayerConvenience?.sprintMultiplier?.() ?? 1);
   const step = speed * delta;
   const nextX = camera.position.x + direction.x * step;
   const nextZ = camera.position.z + direction.z * step;
@@ -571,3 +573,11 @@ updateCameraRotation();
 updateObjectiveVisibility();
 renderHud();
 requestAnimationFrame(animate);
+
+window.__scrapExplorationRuntime = {
+  getGame: () => game,
+  persist,
+  scene,
+  camera,
+  lootMeshes: typeof lootMeshes !== 'undefined' ? lootMeshes : new Map(),
+};

@@ -202,8 +202,7 @@ function baseGame(rank = 7) {
     player: { x: 5, y: 1.7, z: 5, yaw: 0 },
   };
   abandonExpedition(legacy);
-  // Home-aware exploration migration patches this exact coordinate during integration.
-  assert.ok(Number.isFinite(HOME_RESPAWN_POSITION.x));
+  assert.deepEqual(legacy.player, HOME_RESPAWN_POSITION, 'Bed-enabled expedition failure must return to Home');
 }
 
 console.log('home-system tests passed');

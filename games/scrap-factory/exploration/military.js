@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import '../exploration-home-ui.js';
 import { ITEMS, usedSlots } from '../config.js';
 import {
   MILITARY_AREA_ID,
@@ -412,7 +413,8 @@ function updateMovement(delta) {
   if (keys.has('KeyA')) movement.x -= 1;
   if (keys.has('KeyD')) movement.x += 1;
   if (movement.lengthSq() > 0) movement.normalize();
-  const speed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 8.0 : 5.2;
+  const baseSpeed = keys.has('ShiftLeft') || keys.has('ShiftRight') ? 8.0 : 5.2;
+  const speed = baseSpeed * (window.__scrapPlayerConvenience?.sprintMultiplier?.() ?? 1);
   const sin = Math.sin(yaw);
   const cos = Math.cos(yaw);
   velocity.x = (movement.x * cos - movement.z * sin) * speed;
@@ -508,3 +510,11 @@ if (validSession) {
 updateWorldState();
 renderHud();
 requestAnimationFrame(frame);
+
+window.__scrapExplorationRuntime = {
+  getGame: () => game,
+  persist,
+  scene,
+  camera,
+  lootMeshes: typeof lootMeshes !== 'undefined' ? lootMeshes : new Map(),
+};

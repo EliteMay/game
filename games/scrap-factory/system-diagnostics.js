@@ -1,4 +1,6 @@
 import { BUILDINGS, ITEMS, RECIPES } from './config.js';
+import { analyzeFactory } from './factory-management.js';
+import { backpackSlotCapacity, ensureHomeState, homeStorageSlotCapacity, secureCaseSlotCapacity } from './home-system.js';
 import { computePowerSnapshot, isBuildingPowered, powerReason } from './power.js';
 import { storageRemaining, isStorageBuilding } from './storage-capacity.js';
 import { analyzeMegaFactory } from './final-phase.js';
@@ -55,8 +57,21 @@ export function diagnoseSystems(game) {
   const dronePorts = buildings.filter((b) => b.type.includes('drone_port'));
   const droneMissing = dronePorts.filter((b) => !b.resourcePointId).length;
   const finalMissing = mega.missing?.map((entry) => entry.label) || [];
+  const factory = analyzeFactory(game || {});
+  const logisticsAlerts = (factory.alerts || []).filter((entry) => /物流|搬送|コンベア|conveyor|route|行き止まり|storage/i.test(`${entry.title || ''} ${entry.detail || ''}`));
+  const home = ensureHomeState(game);
 
   return [
+    {
+      id: 'home', name: 'Home / Player', status: 'OK',
+      summary: `Backpack ${backpackSlotCapacity(game)} / Home ${homeStorageSlotCapacity(game)} / Case ${secureCaseSlotCapacity(game)} Slot`,
+      action: home.respawnEnabled ? 'Respawn: Home Bed' : 'Bed未登録: 既存Return位置を維持',
+    },
+    {
+      id: 'logistics', name: 'Logistics', status: logisticsAlerts.length ? 'WARN' : 'OK',
+      summary: logisticsAlerts.length ? logisticsAlerts[0].title : '重大な物流Alertなし',
+      action: logisticsAlerts.length ? (logisticsAlerts[0].detail || '向き・受取Item・Storage残量を確認') : 'Directional Route正常',
+    },
     {
       id: 'power', name: 'Power',
       status: power.status === 'shortage' ? 'WARN' : 'OK',
