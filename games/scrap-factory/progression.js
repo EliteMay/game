@@ -12,4 +12,4 @@ export {
   rankProgress,
   requiredBuildingRank,
   researchState,
-} from './progression-phase5c.js';
+} from './progression-phase6b.js';
