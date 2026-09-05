@@ -6,22 +6,22 @@
 
 現在のPlayable Game:
 
-- **Scrap Factory** — 一人称3D / スクラップ回収 / 独立探索 / 加工 / 自動化 / Directional Logistics / Power / Factory Management / Progression Rank / Research
+- **Scrap Factory** — 一人称3D / 探索 / 加工 / 工場自動化 / Directional Logistics / Power / Drone Automation / Progression Rank / Research
 
 ## Source of Truth
 
 - `REQUIREMENTS.md` — ゲーム内容・進行・探索・Visual方針の確定要件
 - `SPEC.md` — 現在実装されている技術仕様とRuntime / Save Contract
-- `WORK_REPORT.md` — 今回までの実装・検証・未確認事項
+- `WORK_REPORT.md` — 実装・検証・未確認事項
 - `PROJECT_LEARNINGS.md` — 再利用価値のある実装上の学び
 
 要件と実装が食い違う場合、未実装要件を「実装済み」とは扱いません。
 
 ## 現在のPlayable状態
 
-`Scrap Factory` は **Phase 4-B: Smart Sorting / Factory Diagnostics** まで通常Gameplayへ接続しています。
+`Scrap Factory` は **Phase 5-A: Military Facility / Drone Automation** まで通常Gameplayへ接続しています。
 
-通常進行は **Rank 1 → 6** です。
+通常進行は **Rank 1 → 7** です。
 
 ```text
 Factory / Scrap Yard
@@ -29,14 +29,17 @@ Factory / Scrap Yard
 → 廃住宅街
 → Splitter / Merger / Power
 → Rank 5
-→ 廃工場復旧
-→ Advanced Assembly
-→ Assembler自動ライン
-→ Smart Sorter / Production Diagnostics
+→ 廃工場 / Advanced Assembly / Smart Sorter
 → Rank 6
+→ 軍事施設
+→ Security Grid停止
+→ Drone Control Blueprint回収
+→ Drone Control Research
+→ Drone Port自動回収Line
+→ Rank 7
 ```
 
-Rank 6が現在のPlayable Rank-Up上限です。軍事施設、Conveyor Mk.3、Priority / Overflow、Drone Researchなどは後続Phaseです。
+Rank 7が現在のPlayable Rank-Up上限です。崩壊した研究施設、Fabricator、Advanced Drone、Mega Factoryは後続Phaseです。
 
 ## Progression
 
@@ -46,84 +49,110 @@ Rank 6が現在のPlayable Rank-Up上限です。軍事施設、Conveyor Mk.3、
 | 2 → 3 | Crusher → Smelterを含む鉄インゴット完全自動ライン |
 | 3 → 4 | 廃住宅街Main Objective完了 |
 | 4 → 5 | Splitter / Mergerを使う2製品ライン + 自前発電 |
-| 5 → 6 | 廃工場復旧 + Advanced Assembly研究 + Assembler自動ライン |
+| 5 → 6 | 廃工場復旧 + Advanced Assembly + Assembler自動ライン |
+| 6 → 7 | 軍事施設攻略 + Drone Control Research + Drone Port → Factory Storage自動回収Route |
 
 主なResearch:
 
 - `Basic Fabrication` — 鉄板Hand Craft
 - `Scrap Yard Survey` — 廃住宅街Blueprint由来
 - `Grid Storage` — Battery
-- `Recovered Assembly Control / 高度組立制御` — Assembler / Circuit / Motor
-
-## Directional Logistics
-
-- Conveyor Mk.1 — 1.5個/秒
-- Conveyor Mk.2 — 3個/秒
-- Splitter — 背面1入力 → 正面/左右へRound-robin
-- Merger — 背面/左右3入力 → 正面1出力
-- Smart Sorter — Rank 5 / 3個/秒 / 背面1入力
-  - **正面:** `advanced`（Circuit / Motor / Control Unit）
-  - **左:** `processed` / `product`
-  - **右:** `raw`
-- Route実効帯域は経路上で最も遅いLogistics Nodeで決定
-- Visual方向とRuntime方向を一致させる
-
-Smart Sorterは現時点では**カテゴリ固定の自動分類**です。任意Item Filter、Priority、Overflowはまだ実装していません。
-
-## Factory Management / Diagnostics
-
-`P / FACTORY` から工場管理コンソールを開けます。
-
-Phase 4-Bでは既存Factory snapshotから次を導出して表示します。
-
-- 理論生産能力 / 分
-- 有効な出力Routeで処理できる生産量 / 分
-- Machine稼働率
-- Smart Sorter設置数
-- Output滞留
-- Storage満杯 / 容量逼迫
-- Power shortage
-- 物流行き止まり / Sorter分類先不足
-
-これらは診断用Derived Dataであり、Saveへ重複保存しません。
-
-## Advanced Production
-
-```text
-Motor ×1 + Circuit ×2 + Plastic ×1
-→ Assembler / 8秒 / 50 Power
-→ Control Unit ×1
-```
-
-Rank 5 → 6の必須判定は、廃工場Objective・Research・現在のDirectional Factory graphから導出します。
+- `Recovered Assembly Control` — Assembler / Circuit / Motor
+- `Recovered Drone Control` — Rank 6 / 軍事施設Blueprint由来 / Drone Port
 
 ## Exploration
 
 ### 廃住宅街 — Rank 3
 
 ```text
-Fuse回収
-→ Substation復旧
-→ Survey Terminal
-→ Blueprint / Research Data
-→ 正常帰還
+Fuse回収 → Substation復旧 → Survey Terminal → Blueprint → 正常帰還
 ```
 
 ### 廃工場 — Rank 5
 
 ```text
-Generator Hall復旧
-→ Control Room復旧
-→ Blueprint回収
-→ 任意でService Shortcut
+Generator復旧 → Control Room復旧 → Assembly Blueprint → 正常帰還
+```
+
+### 軍事施設 — Rank 6
+
+Danger 3の高Security施設です。
+
+```text
+CheckpointでSecurity Access Card回収
+→ Security YardでSecurity Grid停止
+→ Drone Control Bay再起動
+→ Command BunkerでDrone Control Blueprint回収
 → 正常帰還
 ```
 
-廃工場報酬:
+- Expedition Session HP: 100
+- Security Grid稼働中はTurret警戒区画でDamage
+- Access Card取得後、Turret電源を停止できる非戦闘Routeあり
+- 区画発見・Security停止・Shortcut・Blueprint進行は放棄後も保持
+- HP 0 / 放棄では今回の通常Lootだけ失う
 
-- `abandoned_factory_assembly_blueprint`
-- Research Data +2
-- `industrial-electronics-cache`
+Guaranteed reward:
+
+- `military_drone_control_blueprint`
+- Research Data +3
+- `military-alloy-cache` Resource Point
+
+## Drone Automation
+
+`drone_control_systems` Research完了後、**Drone Port**を建築できます。
+
+```text
+Secured Military Alloy Resource Point
+→ Drone Port / 12秒 / 65 Power
+→ 軍用レア合金 ×1
+→ Directional Logistics
+→ Small / Industrial Storage
+```
+
+Drone Port:
+
+- Cost: `$760`
+- Rank 6 + Drone Control Research必須
+- 65 Power
+- 12秒ごとに軍用レア合金を1個回収
+- 既存Production Runtime / Power / Back Pressureを再利用
+- 専用Launch Deck / Control Mast / Docked Utility Drone Visual
+
+Rank 6 → 7の必須判定では、軍事施設Objective・Research・`military-alloy-cache`確保・Drone PortからStorageへのDirectional Routeを現在のFactory graphから導出します。
+
+## Directional Logistics
+
+- Conveyor Mk.1 — 1.5個/秒
+- Conveyor Mk.2 — 3個/秒
+- Splitter — 1入力 → 3方向Round-robin
+- Merger — 3入力 → 1出力
+- Smart Sorter — 3個/秒
+  - Forward: `advanced`
+  - Left: `processed / product`
+  - Right: `raw`
+- Route実効帯域は経路上で最も遅いLogistics Nodeで決定
+
+未実装:
+
+- Conveyor Mk.3
+- Priority / Overflow
+- 複数Resource Pointを選択するDrone Route管理
+
+## Factory Management / Diagnostics
+
+`P / FACTORY`:
+
+- 理論生産能力 / 分
+- 搬送対応能力 / 分
+- Machine稼働率
+- Smart Sorter数
+- Output滞留
+- Storage満杯 / 容量逼迫
+- Power shortage
+- 物流行き止まり
+
+診断値はDerived Dataで、Saveへ重複保存しません。
 
 ## Power / Storage
 
@@ -135,6 +164,7 @@ PowerはRank 4から有効。
 - Crusher — 18 Power
 - Smelter — 30 Power
 - Assembler — 50 Power
+- Drone Port — 65 Power
 
 Storage:
 
@@ -152,7 +182,13 @@ Exploration Schema: 1
 Build Grid: 2.5m
 ```
 
-Phase 4-BでもSchema番号は変更していません。
+Phase 5-AでもSchema番号は変更していません。
+
+旧SaveにはAdditiveに次を補完します。
+
+- Military Exploration state
+- Expedition HP
+- Rare Alloy inventory key
 
 維持するContract:
 
@@ -160,8 +196,8 @@ Phase 4-BでもSchema番号は変更していません。
 - 2.5m Grid / Factory座標系を維持
 - Directional LogisticsのVisual = Runtime方向
 - Quick Build 1〜5の順序を維持
-- Route graph / Throughput / Factory diagnosticsをSaveへ重複保存しない
-- GitHub Pagesで動くRelative Pathを維持
+- Route graph / Throughput / DiagnosticsをSaveへ重複保存しない
+- GitHub Pages Relative Pathを維持
 
 ## 操作
 
@@ -170,7 +206,7 @@ Phase 4-BでもSchema番号は変更していません。
 | WASD | 移動 |
 | Shift | ダッシュ |
 | Space | ジャンプ（Factory） |
-| E | 拾う / 設備操作 |
+| E | 拾う / 設備・探索Objective操作 |
 | B | 建築メニュー |
 | R | 建築中の90°回転 |
 | F | 解体モード |
@@ -187,6 +223,6 @@ Phase 4-BでもSchema番号は変更していません。
 npm run validate
 ```
 
-Validatorでは既存Regressionに加えてPhase 4-BのSmart Sorter routing / Rank Gate / Factory diagnosticsを確認します。
+ValidatorはRank 1→7、既存物流 / Power / Storage / Residential / Industrialに加え、Military Exploration・HP・Drone Research・Drone Port Route・Rank 6→7をRegression確認します。
 
-Static CIだけでは、実ブラウザのPointer Lock、3D collider、Smart Sorterの一人称可読性、WebGL FPSまでは保証しません。
+Static CIだけでは、Pointer Lock、軍事施設内の実到達性、Turret警戒範囲の一人称可読性、Collider、Drone Port Build Preview、WebGL FPSまでは保証しません。
