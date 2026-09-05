@@ -3,7 +3,7 @@ import { BUILDINGS, ITEMS, RECIPES, positionKey } from './config.js';
 import {
   findDirectionalRoute,
   isLogisticsNode,
-  logisticsInputKeys,
+  logisticsAcceptsFrom,
   logisticsOutputKeys,
   logisticsThroughput,
 } from './logistics.js';
@@ -59,7 +59,7 @@ function connectedLogisticsOutputs(building, byCell) {
     const next = byCell.get(nextKey);
     if (!next) return false;
     if (!isLogisticsNode(next.type)) return true;
-    return logisticsInputKeys(next).includes(sourceKey);
+    return logisticsAcceptsFrom(next, sourceKey);
   });
 }
 
