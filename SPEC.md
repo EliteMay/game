@@ -2,11 +2,11 @@
 
 Updated: 2026-09-05
 
-この文書は現在実装されている `Scrap Factory` の技術仕様を記録する。将来要件は `REQUIREMENTS.md` をSource of Truthとし、この文書では未実装要件を実装済みとして扱わない。
+この文書は現在実装されている `Scrap Factory` の技術仕様を記録する。将来要件は `REQUIREMENTS.md` をSource of Truthとし、未実装要件を実装済みとして扱わない。
 
 ## 1. Current Playable Scope
 
-通常Gameplayは現在 **Rank 1 → 6** まで接続済み。
+通常Gameplayは **Rank 1 → 6** まで接続済み。
 
 ```text
 Factory / Scrap Yard
@@ -15,127 +15,83 @@ Factory / Scrap Yard
 → Rank 4 Advanced Logistics / Power
 → Rank 5
 → Abandoned Factory Exploration
-→ Advanced Assembly Research
+→ Advanced Assembly
 → Assembler automated line
+→ Smart Sorter / Factory Diagnostics
 → Rank 6
 ```
 
-Rank 6が現在のPlayable Rank-Up cap。
+現在は **Phase 4-B**。
 
-Phase 4全体要件のうち、現実装は **Phase 4-A vertical slice** とする。
-
-実装済み:
+実装済みPhase 4要素:
 
 - 廃工場独立探索Area
-- Generator復旧
-- Control Room復旧
+- Generator / Control Room復旧
 - Service Shortcut
-- Industrial Loot
 - Guaranteed Assembly Blueprint
-- Environment Hazard
+- Electrical Environment Hazard
 - Circuit / Motor / Control Unit
 - Advanced Assembly Research
 - Assembler
 - Rank 5 → 6 progression
-
-未実装で後続Phase:
-
 - Smart Sorter
-- Production StatisticsのPhase 4拡張
-- Bottleneck DetectionのPhase 4拡張
+- Production Statistics拡張
+- Bottleneck Detection拡張
+
+未実装:
+
 - Priority / Overflow
 - Conveyor Mk.3
+- Advanced Power
 - 軍事施設以降のRank 6+ gameplay
+- Final Hybrid Asset quality pass
 
 ---
 
 ## 2. Runtime Architecture
 
 ```text
-Hub UI
-└─ shared save adapter
-   └─ localStorage: elitemay-game-hub-v1
-
-Scrap Factory / Factory Scene
+Scrap Factory
 ├─ config.js
 ├─ logistics.js
 ├─ power.js
 ├─ storage-capacity.js
 ├─ storage.js
-├─ factory-management.js
-├─ feature-pack.js
 ├─ game.js
 ├─ world.js
 ├─ world-runtime.js
+├─ factory-management.js
+│  └─ phase4b-management-ui.js
+├─ feature-pack.js
 ├─ progression.js
-│  └─ progression-core.js
+│  ├─ progression-core.js
+│  └─ progression-phase4b.js
 ├─ progression-ui.js
 │  └─ progression-ui-v2.js
 ├─ exploration.js
 │  └─ exploration-core.js
 └─ exploration-ui.js
    └─ exploration-ui-v2.js
-
-Independent Exploration Scenes
-└─ exploration/
-   ├─ residential.html / .css / .js
-   └─ industrial.html / .css / .js
 ```
 
-Compatibility entrypointの `progression.js` / `exploration.js` / 各UI entryは既存Import pathを維持し、拡張実装をCore/V2へ委譲する。
+Compatibility entrypointは既存Import pathを維持する。
 
-Factoryと探索Areaは別Page / Three.js Sceneとして扱い、複数Worldを同時にフルロードしない。
-
-`world-runtime.js`はVisual Layerを担当し、Save / Economy / Production logicのSource of Truthにはしない。
+`world-runtime.js` はVisual Layerであり、Save / Production / LogisticsのSource of Truthにはしない。
 
 ---
 
 ## 3. Save Contract
 
-Root Save:
-
-```json
-{
-  "schemaVersion": 1,
-  "revision": 1,
-  "updatedAt": "ISO-8601",
-  "profile": {},
-  "games": {
-    "scrap-factory": {}
-  }
-}
+```text
+localStorage key: elitemay-game-hub-v1
+Root Save Schema: 1
+Progression Schema: 1
+Exploration Schema: 1
 ```
 
-固定Contract:
+Phase 4-BでもSchema変更なし。
 
-- localStorage key: `elitemay-game-hub-v1`
-- Root Save Schema: `1`
-- Progression Schema: `1`
-- Exploration Schema: `1`
-
-Phase 4-AではSchema番号を変更しない。
-
-旧Saveに存在しない新DataはNormalize時にAdditiveに補完する。
-
-新Inventory key:
-
-- `circuit`
-- `motor`
-- `control_unit`
-
-Explorationは既存Residential stateを保持したまま `industrial` area stateを追加する。
-
-保存しないDerived state:
-
-- Directional route graph
-- route throughput
-- Power generation / demand / shortage snapshot
-- Rank 5 → 6 mandatory達成cache
-- Assembler topology達成cache
-
-これらは現在の `buildings[]` / progression / exploration stateから導出する。
-
-Building単位で永続化が必要なRuntime state:
+保存する必要があるBuilding Runtime state:
 
 - `input`
 - `output`
@@ -145,16 +101,27 @@ Building単位で永続化が必要なRuntime state:
 - `powerStored`
 - `logisticsCursor`
 
+保存しないDerived Data:
+
+- Directional route graph
+- route throughput
+- Power snapshot
+- Factory production statistics
+- Bottleneck alert snapshot
+- Rank topology result
+
+Smart Sorterは固定カテゴリルールのため専用Filter設定を保存しない。
+
 ---
 
-## 4. Factory Spatial Contract
+## 4. Spatial / Compatibility Contract
 
-- Grid: `2.5m`
-- Factory座標系: 既存座標を維持
+- Build Grid: `2.5m`
+- Factory座標系を維持
 - 既存LayoutをMigrationで削除しない
-- Visual Conveyor direction = Runtime output direction
+- Visual Logistics direction = Runtime direction
 - Quick Build 1〜5の既存順序を維持
-- Relative PathでGitHub Pagesから動作する
+- Relative PathでGitHub Pagesから動作
 
 ---
 
@@ -162,16 +129,33 @@ Building単位で永続化が必要なRuntime state:
 
 Source of Truth: `logistics.js`
 
-- Conveyor Mk.1: 1.5 items/sec
-- Conveyor Mk.2: 3 items/sec
-- Splitter: Rear 1 input → Forward / Left / Right outputs
-- Merger: Rear / Left / Right inputs → Forward 1 output
-- Route throughput = Route上で最も遅いLogistics Node
-- Splitter distributionはStable route order + `logisticsCursor`
-- Advanced Nodeは明示Portを厳密適用
-- Legacy Conveyor corner互換は維持
+| Node | Throughput | Input | Output |
+| --- | ---: | --- | --- |
+| Conveyor Mk.1 | 1.5/s | 基本1 | Forward |
+| Conveyor Mk.2 | 3.0/s | 基本1 | Forward |
+| Splitter | 3.0/s | Rear | Forward / Left / Right |
+| Merger | 3.0/s | Rear / Left / Right | Forward |
+| Smart Sorter | 3.0/s | Rear | Item categoryで1方向 |
 
-Rank判定も同じDirectional Route APIを使用し、Progression専用の別Graphを作らない。
+### Smart Sorter
+
+Rank 5でBuild可能。
+
+Facing方向を基準に:
+
+```text
+advanced            → Forward
+processed / product → Left
+raw                 → Right
+```
+
+現在はProgrammable Filterではない。
+
+`findDirectionalRoutes()` は探索中の `itemId` を各Logistics Nodeへ渡し、Smart SorterだけItem categoryに応じて出力Portを1本へ制限する。
+
+Route throughputは経路上の最小Logistics throughput。
+
+SplitterのRound-robinと既存Conveyor corner compatibilityは維持する。
 
 ---
 
@@ -181,37 +165,28 @@ PowerはRank 4から有効。
 
 | Device | Value |
 | --- | --- |
-| Starter Grid | 55 Power / radius 17.5m |
-| Scrap Generator | 80 Power / metal scrap 1 = 24 sec |
+| Starter Grid | 55 Power |
+| Scrap Generator | 80 Power |
 | Battery | 960 Energy / charge 60 / discharge 80 |
 | Crusher | 18 Power |
 | Smelter | 30 Power |
 | Assembler | 50 Power |
 
-不足時:
-
-- 給電対象Machineだけ停止
-- Input / Outputを削除しない
-- 処理途中`progress`を保持
-- LogisticsはPassiveのため停止させない
-- 復電時にMachineは自動復旧
+不足時はMachine Input / Output / Progressを破壊しない。
 
 ---
 
 ## 7. Storage / Back Pressure
 
-- Small Storage: 120 items
-- Industrial Storage: 600 items
-- Capacity超過時に既存Itemを削除しない
+- Small Storage: 120
+- Industrial Storage: 600
 - Full Targetへ新Itemを移送しない
 - Target受入確認前にSource Outputを減らさない
-- Route候補がFullなら上流へBack Pressure
+- Legacy over-capacity stateの既存Itemを削除しない
 
 ---
 
-## 8. Production Definitions
-
-### Existing
+## 8. Production
 
 ```text
 Metal Scrap
@@ -221,126 +196,104 @@ Metal Scrap
 → Iron Ingot
 ```
 
-### Advanced Hand Craft
-
-`advanced_assembly` Research完了後:
+Advanced Hand Craft after `advanced_assembly`:
 
 ```text
-Copper Wire ×2 + E-Waste ×1 + Plastic ×1
-→ Circuit ×1
-
-Iron Ingot ×2 + Copper Wire ×2
-→ Motor ×1
-```
-
-### Assembler
-
-```text
-Motor ×1 + Circuit ×2 + Plastic ×1
-→ Assembler / 8.0 sec / 50 Power
-→ Control Unit ×1
+Copper Wire ×2 + E-Waste ×1 + Plastic ×1 → Circuit ×1
+Iron Ingot ×2 + Copper Wire ×2 → Motor ×1
 ```
 
 Assembler:
 
-- Build cost: `$420`
-- Required Rank: 5
-- Required Research: `advanced_assembly`
-- Input accepted: `motor`, `circuit`, `plastic`
-- Output: `control_unit`
-
-Production executionは既存 `game.js` のGeneric Recipe Runtimeを利用する。
+```text
+Motor ×1 + Circuit ×2 + Plastic ×1
+→ 8 sec / 50 Power
+→ Control Unit ×1
+```
 
 ---
 
-## 9. Progression / Research
+## 9. Factory Diagnostics
 
-### Current cap
+Source: `factory-management.js`
+
+`analyzeFactory(game)` は現在のFactory stateから毎回導出する。
+
+Production snapshot:
+
+- `theoreticalPerMinute`
+  - 各Recipeの `output amount × 60 / seconds` 合計
+- `routeSupportedPerMinute`
+  - Machine outputに有効Routeがある場合、Machine theoretical rateとRoute transport rateの小さい方を合計
+- `utilization`
+  - ready / processing Machine ÷ production Machine count
+- `bottleneckCount`
+- `smartSorters`
+
+Bottleneck / Capacity alerts:
+
+- Machine outputが2個以上滞留し、有効Routeなし
+- Route transport rateがMachine theoretical output rate未満
+- Storage full
+- Storage 85%以上はcapacity pressure info
+- Power shortage
+- Logistics output missing
+- Smart Sorterの3分類Lane不足はconfiguration info
+
+現行Recipe速度ではConveyor Mk.1でも単体Machineより速いケースが多いため、物流帯域不足Alertは将来の高速Recipe / 多段拡張向けでもある。Belt segment occupancyや物理Queue Simulationはまだ実装しない。
+
+### Management UI
+
+`phase4b-management-ui.js` が既存Factory Management consoleへ次を追加する。
+
+- 理論生産能力
+- 搬送対応能力
+- Machine稼働率
+- Smart Sorter数
+- Bottleneck一覧
+
+診断値はSaveへ保存しない。
+
+---
+
+## 10. Progression / Research
 
 `PLAYABLE_MAX_RANK = 6`
 
-### Advanced Assembly Research
+Smart Sorter:
+
+- required Rank: 5
+- Research requirement: なし
+- `progression-phase4b.js` が既存Progression entrypointを壊さず追加Gateを提供
+
+Advanced Assembly:
 
 ```text
-id: advanced_assembly
 requiredRank: 5
 researchDataCost: 2
 requiredBlueprint: abandoned_factory_assembly_blueprint
 ```
 
-Unlock:
+Rank 5 → 6 Mandatory:
 
-- `building:assembler`
-- `handcraft:circuit`
-- `handcraft:motor`
+1. Industrial Main Objective complete
+2. Advanced Assembly researched
+3. Assembler automated line complete
 
-Rank 5になっただけではAssemblerをBuildできない。廃工場ObjectiveからBlueprintを回収し、Researchを完了する必要がある。
-
-### Rank 5 → 6 Mandatory
-
-次をすべて満たす。
-
-1. 廃工場Main Objective完了
-2. `advanced_assembly` Research完了
-3. Assembler自動ライン成立
-
-Assembler line判定:
-
-- `hopper` / `storage` / `industrial_storage` を入力Source候補とする
-- Recipeの全入力ItemについてSource → AssemblerのDirectional Routeが必要
-- Assembler → `seller` / `storage` / `industrial_storage` の`control_unit` Directional Routeが必要
-- 実効Throughputは使用Routeの最小Throughputから導出
-
-Optional Goalsから2つ:
-
-- Motor発見
-- Circuit発見
-- Industrial Storageを生産Bufferとして使用
-- Industrial Service Shortcut開通
-- Assembler route throughput 3.0 items/sec
-
-Rank 6到達後はPhase cap。
+Smart Sorterは現在のRank 5→6 Mandatoryには追加しない。`REQUIREMENTS.md` 上ではOptional候補であり、既存Optional setを破壊的に変更しない。
 
 ---
 
-## 10. Exploration Contract
+## 11. Exploration
 
-### Shared
+### Residential — Rank 3
 
-- Factory InventoryとExpedition Session Packを分離
-- Session Pack: 12 slots
-- Normal ReturnまでLootをFactory Inventoryへ確定しない
-- Normal Return → Transport Depot
-- Abandon → Current Session Lootだけ失う
-- Discovered Zones / Main Objective progressは保持
-- Mandatory Blueprint rewardはRandom Dropにしない
-- Rewardは`rewardClaimed`でidempotent
-- 同時にActive Expeditionを複数持たない
+- 12-slot Expedition Pack
+- Fuse → Power → Survey
+- Normal ReturnでDepot確定
+- AbandonでCurrent Session Lootのみ失う
 
-### Residential
-
-Rank 3で解放。
-
-Objective:
-
-```text
-Fuse → Power → Survey
-```
-
-既存Residential behaviorをPhase 4-Aでも維持する。
-
-### Abandoned Factory / Industrial
-
-Rank 5で解放。
-
-Persistent Zones:
-
-- `arrival`
-- `generator_hall`
-- `assembly_floor`
-- `control_room`
-
-Objective dependency:
+### Industrial — Rank 5
 
 ```text
 Generator Restore
@@ -348,68 +301,54 @@ Generator Restore
 → Blueprint Recovery
 ```
 
-Service ShortcutはControl Room online後のOptional interaction。
+Optional Service Shortcut。
 
 Completion reward:
 
 - `abandoned_factory_assembly_blueprint`
 - Research Data +2
-- `industrial-electronics-cache` Resource Point
-
-Environment Hazard:
-
-- 青白いElectrical Arc zone
-- 接近時に安全距離へ押し戻す
-- Combat damage systemとは分離
-- Control Room復旧で一部Hazard stateを変更
+- `industrial-electronics-cache`
 
 ---
 
-## 11. Visual Layer
+## 12. Visual Layer
 
-Visual directionは `REQUIREMENTS.md` のStylized Industrial Realism / Hybrid Asset方針に従う。
+Visual directionは `REQUIREMENTS.md` の Stylized Industrial Realism / Hybrid Asset方針に従う。
 
-Phase 4-Aの最低Visual Gate:
+Phase 4-B:
 
-- 廃工場をResidentialの色替えにしない
-- Generator Hall / Assembly Floor / Control Roomを大きなランドマークとして区別
-- Objective stateを照明 / 発光 / Gate visibilityへ反映
-- Hazardを通常背景から視覚的に区別
-- AssemblerはGeneric Box fallbackではなく専用Silhouetteを持つ
-- Status light / moving partは既存Machine state updateに接続
+- Smart SorterはSplitter / Mergerの単純流用ではなく専用Center scannerと3色Lane markerを持つ
+- Forward / Left / Rightの3方向をVisual arrowで表示
+- VisualはGameplay routing ruleの向きと一致させる
 
-現在の廃工場 / AssemblerはProcedural実装。外部Hybrid Asset導入の最終品質Passは未完了。
+Procedural visualは現段階のGameplay-readable implementationであり、Final Hybrid Asset Foundationではない。
 
 ---
 
-## 12. Validation Contract
+## 13. Validation
 
 `npm run validate`
 
-Static CIで確認:
+Static CI:
 
-- 全JS/MJS syntax
-- required files
+- JS/MJS syntax
 - JSON parse
 - local HTML refs
 - Directional Logistics regression
 - Factory Management regression
-- Rank 1 → 6 Progression regression
-- Power regression
-- Storage / Back Pressure regression
-- Residential Exploration regression
-- Industrial Exploration regression
-- required runtime integration markers
-- local-only path / API key pattern
+- Progression Rank 1→6
+- Power
+- Storage / Back Pressure
+- Residential / Industrial Exploration
+- Phase 4-B Smart Sorter category routing
+- Smart Sorter Rank 5 Gate
+- Production statistics / bottleneck regression
+- required runtime markers
 
-Static CIだけでは保証しない:
+Static CIで保証しない:
 
 - Pointer Lock操作感
 - WebGL FPS
-- 3D collider / visual一致
-- 廃工場の実際の到達性
-- Landmark readability
-- Hazard visibility
-- Assembler Build Preview / first-person silhouette
-
-これらはBrowser Validation対象。
+- Collider / visual一致
+- Smart SorterのBuild Preview / 一人称可読性
+- Factory Management追加UIの実ブラウザ表示タイミング
