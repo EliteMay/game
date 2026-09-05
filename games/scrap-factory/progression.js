@@ -1,4 +1,5 @@
 // Compatibility entrypoint. Core progression stays stable while later phases layer explicit overrides.
+// Phase 6-C extends and re-exports progression-phase6b.js so existing Phase 6-B contracts remain part of the chain.
 export * from './progression-core.js';
 export {
   PLAYABLE_MAX_RANK,
