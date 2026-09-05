@@ -172,16 +172,24 @@ Building additive fields:
 - 旧Saveで現在Capacityを超えるItemが入っていても削除しない。
 - Over-capacity Storageは残容量0として扱い、新規投入だけ拒否する。
 
+### Rank 4 → 5 Derived Progress
+
+- Rank 4→5用の「物流成立」「実効帯域」「自前発電」「燃料Runway」「発電余力」はSaveへ新規Counterとして保存しない。
+- Logistics条件は現在の`buildings[]`から`findDirectionalRoutes()`で導出する。
+- Power条件は現在の`buildings[]`と`computePowerSnapshot()`から導出する。
+- Generator燃料Runwayは`powerFuelSeconds + input.metal_scrap × 24秒`から導出する。
+- Factory配置・方向・燃料状態を変えればProgression判定もその場で再評価される。
+
 ### General Compatibility
 
 - Root Save Schema Versionは`1`を維持する。
-- `progressionRank`は1〜7を保存可能。通常GameplayでRank Upできるのは現在1→2→3→4まで。
+- `progressionRank`は1〜7を保存可能。通常GameplayでRank Upできるのは現在1→2→3→4→5まで。
 - Building ID / Expedition IDは表示名や配列Indexから分離する。
 - 旧Saveに`progression`がない場合はFactory使用Evidenceから最低Rank / Legacy Unlockを推定する。
 - Legacy Smelter / Storage / Iron Plate Craftの既存利用を突然Lockしない。
 - Existing AchievementはProgression Rankへ変換せず保持する。
 
-Visual Foundation V2 / Directional Logistics / Phase 1 / Phase 2 / Phase 3-AではRoot Save Schemaを変更しない。
+Visual Foundation V2 / Directional Logistics / Phase 1 / Phase 2 / Phase 3-A / Phase 3-BではRoot Save Schemaを変更しない。
 
 ---
 
@@ -279,6 +287,8 @@ Residential Main Loot:
 - Rank 4以降: Crusher 18 Power / Smelter 30 Power。
 - Logistics / Storage / Sellerは現段階ではPassive Power設備。
 - Power不足中は途中Progress / Input / Outputを保持する。
+- Rank 4→5では既存加工Chainの`crushed_metal`と`iron_ingot`を別の自動搬送Outputとして成立させ、Advanced Logistics / Power運用を評価する。
+- Rank 5以降のAssembler / Advanced Production Recipeは後続Phaseで追加する。
 
 ---
 
@@ -339,6 +349,7 @@ Visual Arrow / Markingと実際のOutput方向を一致させる。
 - Output先がMachineならItem Accept判定を通す。
 - Route内同一Cell再訪を禁止する。
 - `findDirectionalRoute` / `findDirectionalRoutes`をProduction / Tutorial / Progression / Factory Analysisで共有する。
+- Rank 4→5判定もこのRoute graphをそのまま利用し、Progression専用の別Graphを作らない。
 
 ### Throughput
 
@@ -385,7 +396,7 @@ Advanced設備追加後もこの順序を変えない。
 - Rank 5
 - Cost: `$240`
 - Capacity: 600 items
-- 将来のRank 5 Factory向け大容量Buffer。
+- Rank 4→5 Progression完了後に通常Gameplayから利用可能な大容量Buffer。
 
 ### Capacity Source of Truth
 
@@ -633,6 +644,12 @@ Advanced Logistics / Battery / Industrial Storage visualは現時点で`world-ru
 - ObjectiveはFuse → Power → Surveyの現在Stepを明示する。
 - Return Terminalは「正常帰還でLoot確定」と分かる文言を表示する。
 
+### Progression UI
+
+- Rank 4ではAdvanced Logistics / Powerの現在状態をPure Progression判定へ反映する。
+- Rank 5到達後はPlayable Cap表示へ切り替え、Industrial Storageが利用可能であることを示す。
+- 次のRank 5→6が廃工場復旧 / AssemblerであることをFuture stateとして表示するが、未実装機能を利用可能とは表示しない。
+
 ---
 
 ## 14. Dependencies
@@ -646,17 +663,18 @@ CDN障害時は3D Factory / Exploration Sceneは起動できない。HubとSave 
 ## 15. Known Limits
 
 - Mobile Touch FPS操作なし（Desktop primary）。
-- 通常GameplayのRank UpはRank 1→2→3→4まで。
-- Rank 4→5の自然な到達条件は未接続。
-- Industrial StorageはRank 5 Save状態向け先行実装。
+- 通常GameplayのRank UpはRank 1→2→3→4→5まで。
+- Rank 5→6の廃工場復旧 / Assembler / Advanced Productionは未接続。
 - Residential AreaはPhase 3-Aの探索基盤。建物内部探索の深さ、敵、Combat、HP、環境Hazardは未実装。
 - ResidentialのDanger 1は現時点で敵/HP Gameplayへ完全接続していない。
 - BatteryはStarter Grid + Pole coverageを使うが、複数独立Power Network componentはまだ持たない。
 - Power Generationは現段階では全体Pool。将来Network分離時にcomponent単位へ拡張する。
+- Rank 4→5の「安定稼働」は履歴TimerをSaveする方式ではなく、現在のPower正常状態 + 自前Generator capacity + 最低30秒Fuel Runwayで決定する。
 - ThroughputはRoute-level Credit Model。per-segment occupancy / physical queueは未実装。
 - Storage Back PressureはFinal Target受入制御で、Belt segment上の物理Queueではない。
 - Nested SplitterはSourceから到達する最終Route単位でRound-robin。各Splitter独立Queueではない。
 - Smart Sorter / Priority / Overflow / Assembler / Phase 2新Recipeは未実装。
+- BrowserでRank 4→5用の複数ライン構築操作、Progression HUD更新、Industrial Storage unlock/build、Generator燃料維持を実操作確認する必要がある。
 - BrowserでTransport Terminal / Residential movement / collision / objective reachability / return / abandon / FPSを実操作確認する必要がある。
 
 ---
@@ -946,3 +964,78 @@ Survey Terminal完了時:
 CIではResidential HTMLのLocal ReferenceとRuntime integration markerも検証する。
 
 Browser / Visual validationはStatic CIと別Gateとして扱う。
+
+---
+
+## 21. Phase 3-B Rank 5 Production / Power Progression Contract
+
+### Rank 4 → 5
+
+Mandatory:
+
+- 同一FactoryのDirectional Route graph上で`crushed_metal`と`iron_ingot`の2種類の自動加工Outputを成立させる。
+- 対象Route群がSplitterとMergerの両方を含む。
+- Power Snapshotが正常で、給電範囲外Consumerがない。
+- Starter Gridを除外した**稼働中Generatorだけの発電量**が現在のCovered Machine Demand以上。
+- Demandを賄うGenerator群について、現在燃焼分 + 投入済みMetal Scrapから最低30秒のFuel Runwayを確保する。
+
+Optionalから2つ:
+
+- 対象複数ラインでConveyor Mk.2を使用。
+- 対象複数ラインの実効Throughputが3.0 items/sec以上。
+- `grid_storage` Research完了。
+- 自前Generator Fuel Runway 120秒以上。
+- 自前Generator Reserve 10 Power以上。
+
+Reward:
+
+- Rank 5
+- Industrial Storage
+
+### Advanced Line Analysis
+
+`analyzeRank4AdvancedLine(game)`:
+
+- `findDirectionalRoutes()`を利用する。
+- Hopper → Crusher → Final Targetで`crushed_metal` Routeを探す。
+- Hopper → Crusher → Smelter → Final Targetで`iron_ingot` Routeを探す。
+- Final TargetはSeller / Small Storage / Industrial Storage。
+- 2つのRoute bundleにSplitter / Mergerが含まれるかを判定する。
+- Mk.2利用有無とRoute minimum throughputを導出する。
+- Route graphをSaveへ複製しない。
+
+### Own Power Analysis
+
+`analyzeRank4Power(game)`:
+
+- `computePowerSnapshot()`を既存Power Source of Truthとして利用する。
+- `generatorActive()`の稼働中GeneratorだけをOwn Generationへ数える。
+- Starter Grid 55 PowerとBattery dischargeはOwn Generator capacityへ加算しない。
+- 現在のCovered DemandをOwn Generationで賄えない場合は未達。
+- Generator inputへ燃料があっても`powerFuelSeconds <= 0`ならActive Generatorとして数えない。
+- Fuel Runwayは選択されたGenerator群の最小Runwayで評価する。
+
+### Persistence
+
+- Root Schema Versionは1のまま。
+- Progression Versionは1のまま。
+- Rank 4→5専用Timer / historical uptime / cached topology / cached power statusは保存しない。
+- Rank Up結果のRank 5だけ既存`progressionRank`へ保存する。
+
+### Regression
+
+`scripts/progression.test.mjs`で最低限確認する。
+
+- `PLAYABLE_MAX_RANK = 5`
+- Splitter + Merger + Mk.2の2加工Output topology検出
+- Route throughput 3.0
+- Own Generation 80 / Demand 66 / Reserve 14
+- Fuel Runway 48秒でMandatory成立
+- Mandatory + OptionalsでRank 5到達
+- Industrial Storage unlock
+- Rank 5でphase cap
+- Mergerを外すとMandatory失敗
+- Generator停止時はInputに燃料があってもMandatory失敗
+- 既存Rank / Research / Legacy Migration Regression維持
+
+Browserでの建築操作・Progression HUD反映・Industrial Storage実BuildはStatic CIとは別Gateとして扱う。
