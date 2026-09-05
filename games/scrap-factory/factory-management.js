@@ -1,6 +1,7 @@
 if (typeof window !== 'undefined') {
   import('./progression-ui.js');
   import('./exploration-ui.js');
+  import('./phase4b-management-ui.js');
 }
 import { BUILDINGS, ITEMS, RECIPES, positionKey } from './config.js';
 import {
@@ -68,6 +69,12 @@ function connectedLogisticsOutputs(building, byCell) {
   });
 }
 
+function recipeOutputRatePerMinute(recipe) {
+  if (!recipe) return 0;
+  const amount = Object.values(recipe.output || {}).reduce((sum, value) => sum + Math.max(0, Number(value || 0)), 0);
+  return Number(recipe.seconds || 0) > 0 ? amount * 60 / Number(recipe.seconds) : 0;
+}
+
 export function analyzeFactory(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
   const byCell = new Map(buildings.map((building) => [positionKey(building.x, building.z), building]));
@@ -80,12 +87,18 @@ export function analyzeFactory(game) {
   let storageUsed = 0;
   let storageTotalCapacity = 0;
   let storageFull = 0;
+  let theoreticalOutputPerMinute = 0;
+  let routeSupportedOutputPerMinute = 0;
+  let bottleneckCount = 0;
+  let smartSorters = 0;
 
   for (const building of buildings) {
     bufferedItems += bufferAmount(building.input) + bufferAmount(building.output);
     const def = BUILDINGS[building.type];
     const recipe = def?.recipe ? RECIPES[def.recipe] : null;
     if (recipe) {
+      const productionRate = recipeOutputRatePerMinute(recipe);
+      theoreticalOutputPerMinute += productionRate;
       const ready = Object.entries(recipe.input).every(([itemId, amount]) => Number(building.input?.[itemId] || 0) >= amount);
       if (Number(building.progress || 0) > 0 || ready) activeMachines += 1;
       else {
@@ -96,26 +109,63 @@ export function analyzeFactory(game) {
           .join(' / ');
         alerts.push({ severity: 'info', buildingId: building.id, title: `${def.name}: 素材待ち`, detail: missing || '入力素材がありません' });
       }
-      const outputEntry = Object.entries(building.output || {}).find(([, amount]) => Number(amount) > 0);
+
+      const outputEntry = Object.entries(recipe.output || {})[0] || null;
       if (outputEntry) {
-        const [itemId, amount] = outputEntry;
+        const [itemId] = outputEntry;
+        const amount = Number(building.output?.[itemId] || 0);
         const route = findDirectionalRoute(buildings, building, itemId, acceptsItem);
-        if (!route && Number(amount) >= 2) {
-          alerts.push({ severity: 'warn', buildingId: building.id, title: `${def.name}: 出力が滞留`, detail: `${ITEMS[itemId]?.name || itemId} ×${amount} / 搬送先なし` });
+        if (!route) {
+          if (amount >= 2) {
+            alerts.push({
+              severity: 'warn',
+              kind: 'bottleneck',
+              buildingId: building.id,
+              title: `${def.name}: 出力が滞留`,
+              detail: `${ITEMS[itemId]?.name || itemId} ×${amount} / 搬送先なし`,
+            });
+            bottleneckCount += 1;
+          }
+        } else {
+          const transportRate = Number(route.throughput || 0) * 60;
+          routeSupportedOutputPerMinute += Math.min(productionRate, transportRate);
+          if (transportRate + 1e-9 < productionRate) {
+            alerts.push({
+              severity: 'warn',
+              kind: 'bottleneck',
+              buildingId: building.id,
+              title: `${def.name}: 物流帯域不足`,
+              detail: `生産能力 ${productionRate.toFixed(1)}/分 > 搬送 ${transportRate.toFixed(1)}/分`,
+            });
+            bottleneckCount += 1;
+          }
         }
       }
     }
 
     if (isStorageBuilding(building)) {
-      storageUsed += storageAmount(building);
-      storageTotalCapacity += storageCapacity(building);
-      if (storageRemaining(building) <= 0) {
+      const used = storageAmount(building);
+      const capacity = storageCapacity(building);
+      storageUsed += used;
+      storageTotalCapacity += capacity;
+      const remaining = storageRemaining(building);
+      if (remaining <= 0) {
         storageFull += 1;
+        bottleneckCount += 1;
         alerts.push({
           severity: 'warn',
+          kind: 'bottleneck',
           buildingId: building.id,
           title: `${def?.name || 'Storage'}: 満杯`,
-          detail: `${storageAmount(building)} / ${storageCapacity(building)} / 上流はBack Pressureで停止`,
+          detail: `${used} / ${capacity} / 上流はBack Pressureで停止`,
+        });
+      } else if (capacity > 0 && used / capacity >= 0.85) {
+        alerts.push({
+          severity: 'info',
+          kind: 'capacity',
+          buildingId: building.id,
+          title: `${def?.name || 'Storage'}: 容量逼迫`,
+          detail: `${Math.round((used / capacity) * 100)}% 使用 / 残り ${remaining}`,
         });
       }
     }
@@ -123,6 +173,7 @@ export function analyzeFactory(game) {
     if (isLogisticsNode(building.type)) {
       logisticsNodes += 1;
       logisticsCapacity += logisticsThroughput(building.type);
+      if (building.type === 'smart_sorter') smartSorters += 1;
       const connected = connectedLogisticsOutputs(building, byCell);
       if (!connected.length) {
         alerts.push({
@@ -138,6 +189,13 @@ export function analyzeFactory(game) {
           title: `${def.name}: 分岐先が1本のみ`,
           detail: 'Splitterの利点を使うには2本以上の有効な出力先へ接続します',
         });
+      } else if (building.type === 'smart_sorter' && connected.length < 3) {
+        alerts.push({
+          severity: 'info',
+          buildingId: building.id,
+          title: `${def.name}: 分類先が不足`,
+          detail: '正面=高度部品 / 左=中間材・製品 / 右=原料 の3レーンを接続すると全カテゴリを分類できます',
+        });
       }
     }
   }
@@ -145,6 +203,19 @@ export function analyzeFactory(game) {
   const counts = {};
   for (const building of buildings) counts[building.type] = Number(counts[building.type] || 0) + 1;
   const power = computePowerSnapshot(game);
+  if (power.enabled && power.status === 'shortage') {
+    alerts.unshift({
+      severity: 'warn',
+      kind: 'bottleneck',
+      buildingId: null,
+      title: 'POWER: 供給不足',
+      detail: `供給 ${Math.floor(power.generation || 0)} / 需要 ${Math.floor(power.demand || 0)} / 範囲外 ${power.uncoveredIds?.size || 0}`,
+    });
+    bottleneckCount += 1;
+  }
+
+  const machineTotal = activeMachines + waitingMachines;
+  const utilization = machineTotal > 0 ? activeMachines / machineTotal : 0;
 
   return {
     totalBuildings: buildings.length,
@@ -157,6 +228,13 @@ export function analyzeFactory(game) {
     storageUsed,
     storageCapacity: storageTotalCapacity,
     storageFull,
+    production: {
+      theoreticalPerMinute: theoreticalOutputPerMinute,
+      routeSupportedPerMinute: routeSupportedOutputPerMinute,
+      utilization,
+      bottleneckCount,
+      smartSorters,
+    },
     power: {
       enabled: power.enabled,
       status: power.status,
