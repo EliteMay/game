@@ -3,6 +3,7 @@ import * as phase5c from './progression-phase5c.js';
 import {
   CENTRAL_CORE_EXPERIMENTAL_BLUEPRINT,
   TRI_LAB_FABRICATION_BLUEPRINT,
+  allResearchCargoSecured,
 } from './final-chapter.js';
 
 export * from './progression-phase5c.js';
@@ -69,6 +70,12 @@ export function isBuildingUnlocked(game, type) {
   return buildingUnlockState(game, type).unlocked;
 }
 
+function blueprintSatisfied(game, progression, definition) {
+  if (!definition.requiredBlueprint) return true;
+  if (progression.blueprints.includes(definition.requiredBlueprint)) return true;
+  return definition.id === 'experimental_fabrication' && allResearchCargoSecured(game);
+}
+
 export function researchState(game, researchId) {
   if (!Object.prototype.hasOwnProperty.call(RESEARCH, researchId)
       || Object.prototype.hasOwnProperty.call(phase5c.RESEARCH, researchId)) {
@@ -82,7 +89,7 @@ export function researchState(game, researchId) {
   if (progression.progressionRank < definition.requiredRank) {
     return { ...definition, exists: true, completed: false, available: false, reason: 'rank' };
   }
-  if (definition.requiredBlueprint && !progression.blueprints.includes(definition.requiredBlueprint)) {
+  if (!blueprintSatisfied(game, progression, definition)) {
     return { ...definition, exists: true, completed: false, available: false, reason: 'blueprint' };
   }
   if (progression.researchData < definition.researchDataCost) {
@@ -99,6 +106,9 @@ export function completeResearch(game, researchId) {
   const progression = core.ensureProgressionState(game);
   const state = researchState(game, researchId);
   if (!state.available) return { changed: false, state, progression };
+  if (state.requiredBlueprint && !progression.blueprints.includes(state.requiredBlueprint)) {
+    progression.blueprints.push(state.requiredBlueprint);
+  }
   progression.researchData -= state.researchDataCost;
   if (!progression.completedResearch.includes(researchId)) progression.completedResearch.push(researchId);
   for (const unlock of state.unlocks || []) if (!progression.unlocks.includes(unlock)) progression.unlocks.push(unlock);
