@@ -217,6 +217,23 @@ function buildFullAutomationFixture() {
     return dir.rotation;
   }
 
+  function reserveInputGateway(target, gx, gz) {
+    const targetGrid = gridOf(target);
+    add(`gateway-${target.id}`, 'conveyor_mk3', gx, gz, { rotation: stepRotation({ gx, gz }, targetGrid) });
+    targetNetworks.set(target.id, new Set([key(gx, gz)]));
+  }
+
+  reserveInputGateway(crusher, -4, -4);
+  reserveInputGateway(smelter, -1, -4);
+  reserveInputGateway(plate, 2, -5);
+  reserveInputGateway(motor, 4, -3);
+  reserveInputGateway(circuit, -1, 0);
+  reserveInputGateway(control, 2, 0);
+  reserveInputGateway(experimental, 5, 0);
+  reserveInputGateway(core, 5, 3);
+  reserveInputGateway(storage, 5, 6);
+  reserveInputGateway(powerA, -4, 4);
+
   function targetJoins(sourceGrid, target) {
     const targetGrid = gridOf(target);
     const existing = targetNetworks.get(target.id) || new Set();
