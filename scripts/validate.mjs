@@ -19,6 +19,7 @@ const required = [
   'games/scrap-factory/logistics.js',
   'games/scrap-factory/power.js',
   'games/scrap-factory/storage-capacity.js',
+  'games/scrap-factory/drone-routes.js',
   'games/scrap-factory/exploration.js',
   'games/scrap-factory/exploration-core.js',
   'games/scrap-factory/exploration-core-v3.js',
@@ -27,15 +28,18 @@ const required = [
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
   'games/scrap-factory/phase4b-management-ui.js',
+  'games/scrap-factory/phase5c-automation-ui.js',
   'games/scrap-factory/progression.js',
   'games/scrap-factory/progression-core.js',
   'games/scrap-factory/progression-phase4b.js',
   'games/scrap-factory/progression-phase5a.js',
   'games/scrap-factory/progression-phase5b.js',
+  'games/scrap-factory/progression-phase5c.js',
   'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
   'games/scrap-factory/world-runtime.js',
+  'games/scrap-factory/world-runtime-phase5b.js',
   'games/scrap-factory/game.js',
   'games/scrap-factory/exploration/residential.html',
   'games/scrap-factory/exploration/residential.css',
@@ -57,6 +61,7 @@ const required = [
   'scripts/military-exploration.test.mjs',
   'scripts/phase5a.test.mjs',
   'scripts/phase5b.test.mjs',
+  'scripts/phase5c.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -100,6 +105,7 @@ for (const [name, script] of [
   ['Military exploration', 'scripts/military-exploration.test.mjs'],
   ['Phase 5-A drone progression', 'scripts/phase5a.test.mjs'],
   ['Phase 5-B priority overflow logistics', 'scripts/phase5b.test.mjs'],
+  ['Phase 5-C automation power warehouse', 'scripts/phase5c.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -149,6 +155,9 @@ if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push(
 if (!factoryManagement.includes("import('./exploration-ui.js')")) failures.push('Factory management must load exploration-ui.js in browser runtime');
 if (!factoryManagement.includes("import('./phase4b-management-ui.js')")) failures.push('Factory management must load phase4b-management-ui.js in browser runtime');
 
+const progressionUi = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-ui.js'), 'utf8');
+if (!progressionUi.includes("import './phase5c-automation-ui.js'")) failures.push('Progression UI must load the Phase 5-C Automation Console');
+
 const residentialRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/residential.js'), 'utf8');
 for (const marker of ['startExpedition', 'collectExplorationLoot', 'advanceResidentialObjective', 'returnFromExpedition', 'abandonExpedition']) {
   if (!residentialRuntime.includes(marker)) failures.push(`Residential exploration runtime missing core integration: ${marker}`);
@@ -187,9 +196,32 @@ for (const marker of ['conveyor_mk3', 'priority_splitter', 'overflow_splitter'])
   if (!phase5bProgression.includes(marker)) failures.push(`Phase 5-B progression missing marker: ${marker}`);
 }
 
-const worldRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/world-runtime.js'), 'utf8');
+const phase5cProgression = fs.readFileSync(path.join(root, 'games/scrap-factory/progression-phase5c.js'), 'utf8');
+for (const marker of ['industrial_generator', 'logistics_warehouse']) {
+  if (!phase5cProgression.includes(marker)) failures.push(`Phase 5-C progression missing marker: ${marker}`);
+}
+
+const droneRoutes = fs.readFileSync(path.join(root, 'games/scrap-factory/drone-routes.js'), 'utf8');
+for (const marker of ['residential-copper-network', 'industrial-electronics-cache', 'military-alloy-cache', 'assignDroneResourcePoint']) {
+  if (!droneRoutes.includes(marker)) failures.push(`Phase 5-C drone route core missing marker: ${marker}`);
+}
+
+const storageRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/storage.js'), 'utf8');
+if (!storageRuntime.includes('resourcePointId')) failures.push('Phase 5-C storage normalization must preserve Drone Port resourcePointId');
+
+const phase5bWorld = fs.readFileSync(path.join(root, 'games/scrap-factory/world-runtime-phase5b.js'), 'utf8');
 for (const marker of ['conveyor_mk3', 'priority_splitter', 'overflow_splitter']) {
-  if (!worldRuntime.includes(marker)) failures.push(`Phase 5-B world visual missing marker: ${marker}`);
+  if (!phase5bWorld.includes(marker)) failures.push(`Phase 5-B world visual base missing marker: ${marker}`);
+}
+
+const worldRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/world-runtime.js'), 'utf8');
+for (const marker of ['world-runtime-phase5b.js', 'drone_port_copper', 'drone_port_electronics', 'industrial_generator', 'logistics_warehouse']) {
+  if (!worldRuntime.includes(marker)) failures.push(`Phase 5-C world visual wrapper missing marker: ${marker}`);
+}
+
+const automationUi = fs.readFileSync(path.join(root, 'games/scrap-factory/phase5c-automation-ui.js'), 'utf8');
+for (const marker of ['Automation Console', 'assignDroneResourcePoint', 'logistics_warehouse', 'saveRootSave']) {
+  if (!automationUi.includes(marker)) failures.push(`Phase 5-C Automation Console missing marker: ${marker}`);
 }
 
 const textFiles = [];
@@ -219,4 +251,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A + Phase 5-B tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + residential + industrial + military + Phase 4-B + Phase 5-A + Phase 5-B + Phase 5-C tests.`);
