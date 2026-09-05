@@ -43,6 +43,20 @@ export const RECIPES = {
     output: { control_unit: 1 },
     seconds: 8.0,
   },
+  drone_residential_copper: {
+    id: 'drone_residential_copper',
+    machine: 'drone_port',
+    input: {},
+    output: { copper_wire: 1 },
+    seconds: 8.0,
+  },
+  drone_industrial_electronics: {
+    id: 'drone_industrial_electronics',
+    machine: 'drone_port',
+    input: {},
+    output: { e_waste: 1 },
+    seconds: 10.0,
+  },
   drone_military_alloy: {
     id: 'drone_military_alloy',
     machine: 'drone_port',
@@ -80,7 +94,7 @@ export const BUILDINGS = {
   },
   drone_port: {
     id: 'drone_port', name: 'ドローンポート', cost: 760, category: 'automation', buildable: true,
-    description: '軍事施設のDrone Control技術で解放。確保済みMilitary Alloy Resource PointへUtility Droneを自動派遣し、12秒ごとに軍用レア合金を回収する。65 Powerを使用。',
+    description: '確保済みResource PointへUtility Droneを自動派遣するRank 6設備。Portごとに回収先を選択でき、65 Powerを使用する。',
     color: 0x53646c, accepts: [], recipe: 'drone_military_alloy', powerUse: 65,
   },
   conveyor: {
@@ -130,13 +144,23 @@ export const BUILDINGS = {
   },
   industrial_storage: {
     id: 'industrial_storage', name: '産業倉庫', cost: 240, category: 'logistics', buildable: true,
-    description: 'Rank 5向け大容量Storage。最大600個を保管し、大規模ラインのBufferとして使う。',
+    description: 'Rank 5向け大容量Storage。最大600個を保管し、大規模ラインのBufferとして使う。Rank 6ではその場で物流倉庫へUpgrade可能。',
     color: 0x435660, accepts: ['raw', 'processed', 'product', 'advanced'], storageCapacity: 600,
+  },
+  logistics_warehouse: {
+    id: 'logistics_warehouse', name: '物流倉庫', cost: 620, category: 'logistics', buildable: true,
+    description: 'Rank 6の高密度Storage。最大1800個を保管し、産業倉庫から中身と配置を維持したままその場Upgradeできる。',
+    color: 0x3d5159, accepts: ['raw', 'processed', 'product', 'advanced'], storageCapacity: 1800,
   },
   generator: {
     id: 'generator', name: 'スクラップ発電機', cost: 260, category: 'power', buildable: true,
     description: '鉄くず1個を燃料として24秒稼働し、80 Powerを供給するRank 4向け発電設備。',
-    color: 0x7a6242, accepts: ['metal_scrap'], powerGeneration: 80,
+    color: 0x7a6242, accepts: ['metal_scrap'], powerGeneration: 80, powerFuelItem: 'metal_scrap', powerFuelSeconds: 24,
+  },
+  industrial_generator: {
+    id: 'industrial_generator', name: '産業発電機', cost: 680, category: 'power', buildable: true,
+    description: 'Rank 6 Advanced Power設備。鉄くず1個を36秒利用し、180 Powerを安定供給する大容量Generator。',
+    color: 0x5f6448, accepts: ['metal_scrap'], powerGeneration: 180, powerFuelItem: 'metal_scrap', powerFuelSeconds: 36,
   },
   power_pole: {
     id: 'power_pole', name: '電力ポール', cost: 45, category: 'power', buildable: true,
@@ -173,9 +197,11 @@ export const BUILD_MENU_ORDER = [
   'priority_splitter',
   'overflow_splitter',
   'generator',
+  'industrial_generator',
   'power_pole',
   'battery',
   'industrial_storage',
+  'logistics_warehouse',
   'assembler',
   'drone_port',
 ];
