@@ -2,6 +2,7 @@ import { getRuntimeGame, persistRuntimeGame } from './storage.js';
 import { POST_CLEAR_OBJECTIVES, optimizationStatus, recordPostClearOptimization } from './post-clear-optimization.js';
 
 const POLL_MS = 1000;
+const OPTIMIZATION_KEY = 'KeyK';
 let panel = null;
 let hudButton = null;
 
@@ -14,13 +15,19 @@ function ensureStylesheet() {
   document.head.append(link);
 }
 
+function gameplayReady() {
+  const hud = document.querySelector('#hud');
+  const boot = document.querySelector('#boot-screen');
+  return Boolean(window.__scrapFactoryBooted && hud && !hud.hidden && boot?.hidden);
+}
+
 function otherOverlayOpen() {
-  return [...document.querySelectorAll('.overlay-panel')].some((item) => !item.hidden)
-    || Boolean(document.querySelector('#factory-management-panel:not([hidden])'));
+  return [...document.querySelectorAll('.overlay-panel, .factory-management-panel, .progression-panel, .transport-terminal-panel, .home-system-panel')]
+    .some((item) => item !== panel && !item.hidden);
 }
 
 function acquireOverlayCarrier() {
-  if (otherOverlayOpen()) return false;
+  if (!gameplayReady() || otherOverlayOpen()) return false;
   const guideButton = document.querySelector('#open-guide-hud');
   const guidePanel = document.querySelector('#guide-panel');
   if (!guideButton || !guidePanel) return false;
@@ -92,16 +99,36 @@ function render() {
 }
 
 function openPanel() {
-  if (!panel || !hudButton || hudButton.hidden || !panel.hidden) return;
-  if (!acquireOverlayCarrier()) return;
+  if (!panel || !hudButton || hudButton.hidden || !panel.hidden) return false;
+  if (!acquireOverlayCarrier()) return false;
   panel.hidden = false;
   render();
+  return true;
 }
 
 function closePanel() {
-  if (!panel || panel.hidden) return;
+  if (!panel || panel.hidden) return false;
   panel.hidden = true;
   releaseOverlayCarrier();
+  return true;
+}
+
+function handleKeydown(event) {
+  if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+  if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement || event.target instanceof HTMLTextAreaElement) return;
+
+  if (!panel?.hidden) {
+    if (event.code === 'Escape' || event.code === OPTIMIZATION_KEY) {
+      event.preventDefault();
+      closePanel();
+    }
+    return;
+  }
+
+  if (event.code !== OPTIMIZATION_KEY || hudButton?.hidden) return;
+  if (!gameplayReady() || otherOverlayOpen()) return;
+  event.preventDefault();
+  openPanel();
 }
 
 function createUi() {
@@ -115,7 +142,7 @@ function createUi() {
   hudButton.className = 'post-clear-optimization-hud';
   hudButton.type = 'button';
   hudButton.hidden = true;
-  hudButton.innerHTML = '<span>OPTIMIZE</span><strong id="post-clear-optimization-count">0 / ' + POST_CLEAR_OBJECTIVES.length + '</strong>';
+  hudButton.innerHTML = '<kbd>K</kbd><span>OPTIMIZE</span><strong id="post-clear-optimization-count">0 / ' + POST_CLEAR_OBJECTIVES.length + '</strong>';
   hudButton.addEventListener('click', openPanel);
   hud.append(hudButton);
 
@@ -135,6 +162,7 @@ function createUi() {
   ].join('');
   shell.append(panel);
   panel.querySelector('#close-post-clear-optimization').addEventListener('click', closePanel);
+  document.addEventListener('keydown', handleKeydown);
   return true;
 }
 
