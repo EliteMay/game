@@ -13,6 +13,7 @@
     "test:industrial": "node scripts/industrial-exploration.test.mjs",
     "test:phase4b": "node scripts/phase4b.test.mjs",
     "test:military": "node scripts/military-exploration.test.mjs",
-    "test:phase5a": "node scripts/phase5a.test.mjs"
+    "test:phase5a": "node scripts/phase5a.test.mjs",
+    "test:phase5b": "node scripts/phase5b.test.mjs"
   }
 }
