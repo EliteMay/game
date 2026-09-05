@@ -1,0 +1,108 @@
+name: Post Clear Browser Smoke
+
+on:
+  push:
+    branches:
+      - feat/post-clear-optimization
+
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install browser dependencies
+        run: |
+          npm install --no-save playwright@1.55.0 three@0.185.0
+          npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y fonts-noto-cjk
+      - name: Localize Three.js for test checkout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('games/scrap-factory/index.html')
+          s = p.read_text()
+          s = s.replace('https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js', '/node_modules/three/build/three.module.js')
+          p.write_text(s)
+          PY
+      - name: Run browser smoke
+        run: |
+          python3 -m http.server 4173 > /tmp/game-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true' EXIT
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import assert from 'node:assert/strict';
+
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+          const pageErrors = [];
+          const consoleErrors = [];
+          const requestFailures = [];
+          page.on('pageerror', (error) => pageErrors.push(String(error)));
+          page.on('console', (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text()); });
+          page.on('requestfailed', (request) => requestFailures.push(request.url() + ' :: ' + request.failure()?.errorText));
+
+          await page.goto('http://127.0.0.1:4173/games/scrap-factory/index.html', { waitUntil: 'networkidle' });
+          await page.waitForFunction(() => !document.querySelector('#start-game')?.disabled, null, { timeout: 20000 });
+          await page.click('#start-game');
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
+
+          await page.evaluate(() => {
+            const runtime = window.__scrapFactoryRuntime;
+            const game = runtime.getGame();
+            game.finalChapter.mainClearedAt = '2026-09-06T00:00:00.000Z';
+            runtime.persist();
+            runtime.renderAll();
+          });
+
+          await page.waitForSelector('#post-clear-optimization-hud:not([hidden])', { timeout: 5000 });
+          assert.equal((await page.textContent('#post-clear-optimization-count'))?.trim(), '0 / 4');
+          await page.click('#post-clear-optimization-hud');
+          await page.waitForSelector('#post-clear-optimization-panel:not([hidden])');
+          const text = await page.textContent('#post-clear-optimization-panel');
+          for (const label of ['Factory Optimization', 'POWER HEADROOM', 'BUFFER RESERVE', 'LOGISTICS BACKBONE', 'REDUNDANT AUTOMATION']) {
+            assert.ok(text?.includes(label), 'missing panel label: ' + label);
+          }
+          const overflow = await page.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+          assert.ok(overflow.scrollWidth <= overflow.width + 2, 'page-level horizontal overflow detected');
+          await page.screenshot({ path: 'post-clear-optimization.png', fullPage: true });
+
+          await page.evaluate(() => {
+            const runtime = window.__scrapFactoryRuntime;
+            const game = runtime.getGame();
+            game.postClearOptimization.completedObjectiveIds = ['power_headroom'];
+            game.postClearOptimization.completedAt = { power_headroom: '2026-09-06T00:10:00.000Z' };
+            runtime.persist();
+          });
+          await page.reload({ waitUntil: 'networkidle' });
+          await page.waitForFunction(() => !document.querySelector('#start-game')?.disabled, null, { timeout: 20000 });
+          await page.click('#start-game');
+          await page.waitForFunction(() => window.__scrapFactoryBooted && window.__scrapFactoryRuntime?.getGame?.(), null, { timeout: 20000 });
+          await page.waitForSelector('#post-clear-optimization-hud:not([hidden])', { timeout: 5000 });
+          assert.equal((await page.textContent('#post-clear-optimization-count'))?.trim(), '1 / 4', 'optimization history must survive save/reload');
+          const savedState = await page.evaluate(() => window.__scrapFactoryRuntime.getGame().postClearOptimization);
+          assert.deepEqual(savedState.completedObjectiveIds, ['power_headroom']);
+          assert.equal(savedState.completedAt.power_headroom, '2026-09-06T00:10:00.000Z');
+          await page.click('#post-clear-optimization-hud');
+          await page.waitForSelector('#post-clear-optimization-panel:not([hidden])');
+          await page.click('#close-post-clear-optimization');
+          assert.equal(await page.isHidden('#post-clear-optimization-panel'), true, 'optimization panel must close cleanly');
+
+          const meaningfulConsoleErrors = consoleErrors.filter((message) => !message.toLowerCase().includes('favicon'));
+          const meaningfulRequestFailures = requestFailures.filter((message) => !message.toLowerCase().includes('favicon'));
+          assert.deepEqual(pageErrors, [], 'page errors: ' + pageErrors.join('\n'));
+          assert.deepEqual(meaningfulConsoleErrors, [], 'console errors: ' + meaningfulConsoleErrors.join('\n'));
+          assert.deepEqual(meaningfulRequestFailures, [], 'request failures: ' + meaningfulRequestFailures.join('\n'));
+          console.log('Post-clear browser smoke passed');
+          await browser.close();
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: post-clear-browser-smoke
+          path: post-clear-optimization.png
+          if-no-files-found: ignore
