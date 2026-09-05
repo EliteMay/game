@@ -1,0 +1,59 @@
+body.industrial-expedition {
+  background: #0d1213;
+}
+
+.industrial-expedition .expedition-boot::before,
+.industrial-expedition .exploration-pause::before {
+  background:
+    radial-gradient(circle at 70% 22%, rgba(63, 120, 126, 0.16), transparent 32%),
+    linear-gradient(180deg, rgba(7, 12, 13, 0.36), rgba(7, 11, 12, 0.82));
+}
+
+.industrial-boot-card,
+.industrial-expedition .exploration-pause__card {
+  border-color: rgba(102, 146, 145, 0.42);
+  box-shadow: 0 24px 90px rgba(0, 0, 0, 0.55);
+}
+
+.industrial-boot-card > p,
+.industrial-objective > span,
+.industrial-hazard-note > span {
+  color: #8fb8b4;
+}
+
+.industrial-objective {
+  border-left-color: #7faaa7;
+}
+
+.industrial-hazard-note {
+  position: fixed;
+  left: 50%;
+  bottom: 82px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 11px;
+  border: 1px solid rgba(91, 154, 163, 0.38);
+  background: rgba(10, 20, 22, 0.78);
+  color: #d2e4e2;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+.industrial-hazard-note span {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+}
+
+.industrial-expedition .exploration-toast.is-hazard {
+  border-color: rgba(111, 188, 201, 0.75);
+  color: #daf8ff;
+}
+
+@media (max-width: 760px) {
+  .industrial-hazard-note {
+    display: none;
+  }
+}
