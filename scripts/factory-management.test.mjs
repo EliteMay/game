@@ -32,6 +32,7 @@ assert.equal(factory.playerBuilt, 10);
 assert.ok(factory.activeMachines >= 1);
 assert.ok(factory.alerts.some((alert) => alert.title.includes('行き止まり')), 'dead-end conveyor should be reported');
 assert.ok(factory.alerts.some((alert) => alert.title.includes('出力が滞留')), 'blocked crusher output should be reported');
+assert.equal(factory.storageCapacity, 840, 'seven Small Storages should expose 840 total capacity');
 
 const logisticsFactory = analyzeFactory({
   buildings: [
@@ -58,6 +59,24 @@ assert.ok(
   underusedSplitter.alerts.some((alert) => alert.title.includes('分岐先が1本のみ')),
   'splitter with only one valid output should be reported',
 );
+
+const capacityFactory = analyzeFactory({
+  progression: { progressionRank: 4 },
+  buildings: [
+    { id: 'small-full', type: 'storage', x: 0, z: 0, rotation: 0, input: {}, output: { metal_scrap: 120 } },
+    { id: 'industrial', type: 'industrial_storage', x: 2.5, z: 0, rotation: 0, input: {}, output: { iron_ingot: 200 } },
+    { id: 'battery', type: 'battery', x: 5, z: 0, rotation: 0, input: {}, output: {}, powerStored: 500 },
+    { id: 'crusher-power', type: 'crusher', x: 7.5, z: 0, rotation: 0, input: {}, output: {} },
+  ],
+});
+assert.equal(capacityFactory.storageUsed, 320);
+assert.equal(capacityFactory.storageCapacity, 720);
+assert.equal(capacityFactory.storageFull, 1);
+assert.ok(capacityFactory.alerts.some((alert) => alert.title.includes('満杯')), 'full storage should be a warning alert');
+assert.equal(capacityFactory.power.enabled, true);
+assert.equal(capacityFactory.power.demand, 18);
+assert.equal(capacityFactory.power.batteryStored, 500);
+assert.equal(capacityFactory.power.batteryCapacity, 960);
 
 const ironPlan = planProduction('iron_ingot', 20);
 const smelter = ironPlan.lines.find((line) => line.kind === 'machine' && line.machine === 'smelter');
