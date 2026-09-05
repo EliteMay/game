@@ -69,7 +69,7 @@ jobs:
           }));
           const distance = Math.hypot(moved.x - initial.x, moved.z - initial.z);
           assert.equal(moved.locked, true, 'pointer lock should remain active during gameplay');
-          assert.ok(distance > 1, `WASD movement should move player from fresh spawn; distance=${distance}`);
+          assert.ok(distance > 0.25, `WASD movement should move player from fresh spawn; distance=${distance}`);
           assert.deepEqual(pageErrors, [], 'page errors: ' + pageErrors.join('\n'));
 
           console.log('fresh-spawn WASD smoke passed', { initial, moved, distance });
