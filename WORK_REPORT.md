@@ -4,126 +4,151 @@ Date: 2026-09-05
 
 ## Current Milestone
 
-`Scrap Factory` は **Phase 4-B: Smart Sorting / Factory Diagnostics** まで実装。
+`Scrap Factory` は **Phase 5-A: Military Facility / Drone Automation** まで実装。
 
-通常GameplayのRank Upは **Rank 1 → 6** まで接続済み。
+通常GameplayのRank Upは **Rank 1 → 7** まで接続した。
 
-Phase 4-Aで廃工場・Advanced Assembly・Assemblerまで接続した後、Phase 4-Bでは既存Directional LogisticsとFactory Managementを壊さず、Rank 5の工場最適化機能を追加した。
+今回のVertical Slice:
 
 ```text
-Rank 5
-→ 廃工場 / Advanced Assembly
-→ Assembler自動ライン
-→ Smart Sorterによるカテゴリ分類
-→ Production Statistics / Bottleneck Detection
-→ Rank 6
+Rank 6
+→ 軍事施設
+→ Access Card
+→ Security Grid OFFLINE
+→ Drone Control Bay ONLINE
+→ Drone Control Blueprint
+→ Drone Control Research
+→ Drone Port
+→ Rare AlloyをFactory Storageへ自動搬送
+→ Rank 7
 ```
 
-Priority / OverflowとConveyor Mk.3はRank 6以降の要件なので今回のSliceには含めない。
+Conveyor Mk.3 / Priority / Overflow / multiple Drone route managementはPhase 5-B以降へ残す。
 
 ---
 
 ## Implemented
 
-### 1. Smart Sorter
+### 1. Military Facility Exploration
+
+追加:
+
+- `exploration/military.html`
+- `exploration/military.css`
+- `exploration/military.js`
+- `exploration-core-v3.js`
+
+Persistent zones:
+
+- Checkpoint
+- Security Yard
+- Drone Control Bay
+- Command Bunker
+
+Main Objective:
+
+```text
+Security Access Card回収
+→ Security Grid停止
+→ Drone Control Bay復旧
+→ Drone Control Blueprint回収
+```
+
+Optional:
+
+- Service Gate shortcut
+
+Guaranteed reward:
+
+- `military_drone_control_blueprint`
+- Research Data +3
+- `military-alloy-cache` Resource Point
+
+Rewardはidempotent。
+
+### 2. HP / Security Threat
+
+Exploration SessionへAdditiveに `hp` を追加。
+
+- Default 100
+- Normalize 0–100
+- Security Grid稼働中のTurret範囲で22 Damage
+- HP 0でExpedition failure
+- Failure / AbandonはCurrent Session Lootのみ失う
+- Discovered Zones / Security shutdown / Shortcut / Blueprint progressは保持
+
+Weapon systemを先に導入せず、Access Card → Security Grid停止という非戦闘Routeを成立させた。
+
+### 3. Drone Control Research
+
+追加Research:
+
+```text
+id: drone_control_systems
+Rank: 6
+Research Data: 3
+Blueprint: military_drone_control_blueprint
+Unlock: building:drone_port
+```
+
+### 4. Rare Alloy / Drone Port
+
+追加Item:
+
+- `rare_alloy` / 軍用レア合金
 
 追加Building:
 
-- `smart_sorter`
-- Rank 5
-- Cost `$180`
-- Throughput `3 items/sec`
-- Rear 1 input
+- `drone_port`
+- Cost `$760`
+- Rank 6 + Drone Control Research
+- 65 Power
 
-固定分類:
+Drone Port Production:
 
 ```text
-advanced            → Forward
-processed / product → Left
-raw                 → Right
+military-alloy-cache secured
+→ Drone Port / 12 sec
+→ Rare Alloy ×1
 ```
 
-現在は任意Item Filterを設定するProgrammable Sorterではない。
+Production implementationは既存Generic Recipe Runtimeを再利用。
 
-### 2. Item-aware Directional Routing
+Outputは既存Directional Logistics / Storage Back Pressureをそのまま使用する。
 
-`logistics.js` の同じDirectional Route graphを拡張し、`findDirectionalRoutes()` が現在運ぶ `itemId` をSmart SorterのPort選択へ渡す。
+### 5. Rank 6 → 7
 
-既存Contract:
+`PLAYABLE_MAX_RANK = 7`。
 
-- Conveyor Mk.1 / Mk.2 direction
-- Legacy Conveyor corner
-- Splitter Round-robin
-- Merger Port
-- Route throughput
+Mandatory:
 
-は維持している。
+1. Military Main Objective complete
+2. Drone Control Research complete
+3. `military-alloy-cache` Resource Point secured
+4. Drone Port → Small / Industrial Storage のRare Alloy Route成立
 
-Smart Sorter用に別物流Graphは作っていない。
+Optional 2つ:
 
-### 3. Rank 5 Unlock Gate
+- Military 3/4 zones discovery
+- Service Gate
+- Rare Alloy discovery
+- Drone Port 2台
+- Drone route throughput 3.0/s
 
-`progression-phase4b.js` を追加。
+Rank topology cacheは保存しない。
 
-- Smart Sorter required Rank = 5
-- Research requirementなし
-- 既存 `progression.js` Import pathを維持
-- 既存Rank 1→6の定義は変更しない
+### 6. Drone Port Visual
 
-Requirements上のSmart Sorter LineはRank 5 Optional候補だが、既にPlayableなRank 5 Optional setを今回勝手に置換しない。
+Generic Box fallbackのまま完成扱いせず、`world-runtime.js`へ専用Procedural silhouetteを追加。
 
-### 4. Production Statistics
+- Launch deck
+- Control mast
+- antenna / radar ring
+- Docked Utility Drone
+- status light
+- active spinner
 
-`analyzeFactory()` にDerived production snapshotを追加。
-
-- 理論生産能力 / 分
-- 有効Routeで処理できる生産量 / 分
-- Machine稼働率
-- Smart Sorter設置数
-- Bottleneck count
-
-これらは現在のRecipe / Building / Routeから毎回導出し、Saveへ保存しない。
-
-### 5. Bottleneck Detection
-
-追加Detection:
-
-- Output 2個以上滞留 + 搬送先なし
-- Route transport rate < Machine theoretical rate
-- Storage full
-- Storage 85%以上の容量逼迫
-- Power shortage
-- Logistics output missing
-- Smart Sorter分類Lane不足
-
-Storage full / Output stall / Power shortageを明確なBottleneckとして扱う。
-
-現行Recipeは単体Machineの生産速度がConveyor Mk.1より遅いため、純粋なBelt帯域不足は将来の高速Recipe拡張で意味が大きくなる。
-
-### 6. Factory Management UI
-
-`phase4b-management-ui.js` を追加し、既存Factory Management consoleへ:
-
-- 理論生産能力
-- 搬送対応能力
-- Machine稼働率
-- Smart Sorter数
-- 生産統計・ボトルネック一覧
-
-を追加。
-
-既存 `feature-pack.js` の大規模書き換えを避け、Factory Managementの既存UIを保持したまま拡張している。
-
-### 7. Smart Sorter Visual
-
-`world-runtime.js` に専用Procedural visualを追加。
-
-- Center scanner body
-- 3-direction cross lane
-- category別Lane marker
-- Forward / Left / Right arrow
-
-Splitter / Mergerの見た目をそのまま流用しない。
+Save / Production logicとは分離。
 
 ---
 
@@ -136,15 +161,16 @@ Splitter / Mergerの見た目をそのまま流用しない。
 - Existing Factory Layout
 - 2.5m Build Grid
 - Factory coordinate system
-- Visual Logistics direction = Runtime direction
-- Quick Build 1〜5 order
-- Existing Rank 1 → 6 behavior
-- Splitter / Merger behavior
+- Directional Logistics visual = runtime direction
+- Quick Build 1〜5
+- Rank 1 → 6 existing progression behavior
+- Residential / Industrial Exploration behavior
+- Smart Sorter behavior
 - Storage Back Pressure / no item loss
 - Power shortage state preservation
-- GitHub Pages relative paths
+- GitHub Pages Relative Paths
 
-Smart Sorterには保存が必要なFilter stateを追加していないためSchema変更なし。
+旧SaveへMilitary Area / HP / Rare AlloyをAdditive補完する。
 
 ---
 
@@ -152,50 +178,59 @@ Smart Sorterには保存が必要なFilter stateを追加していないためSc
 
 追加:
 
-- `scripts/phase4b.test.mjs`
+- `scripts/military-exploration.test.mjs`
+- `scripts/phase5a.test.mjs`
 
-確認内容:
+既存 `scripts/progression.test.mjs` は旧Rank6 cap assertionのみ新仕様へ更新し、Rank 1〜6の既存判定は維持。
 
-- Smart Sorter throughput = 3
-- Advanced → Forward
-- Processed / Product → Left
-- Raw → Right
-- 3方向Networkで実際に正しいSellerへRoute解決
-- Rank 4ではSmart Sorter locked
-- Rank 5でunlocked
-- Production statistics生成
-- Smart Sorter count
-- Full Storage bottleneck detection
+Coverage:
 
-`npm run validate` にPhase 4-B regressionを組み込んだ。
+- Military Rank gate
+- Exploration Schema v1 additive normalization
+- Session HP normalization
+- Access → Security → Drone Bay dependency
+- Shortcut
+- Blueprint guaranteed + reward exactly once
+- Resource Point acquisition
+- Return / Abandon
+- Drone Research Blueprint Gate
+- Drone Port Rank / Research Gate
+- Drone Port → Storage route
+- Route throughput
+- Rank 6 → 7 eligibility
+- Rank 7 phase cap
+- Existing logistics / management / progression / power / storage / residential / industrial / Phase 4-B regressions
 
 ---
 
 ## CI
 
-実装Head:
+Initial PR run #83 failed because the previous Regression intentionally fixed `PLAYABLE_MAX_RANK = 6`.
+
+Phase 5-A requirements extend the cap to Rank 7, so the obsolete cap assertion was updated without weakening prior Rank behavior tests.
+
+Implementation + dedicated Drone Port visual Head:
 
 ```text
-f588480dd94fe27bfd38417d4427231efa5cc446
-Validate Web Game / run #78
+fa7a691e4610df2ac9cb9960e36c96d6c9a1ac8c
+Validate Web Game / run #85
 result: success
 ```
 
-この結果には既存Regressionと新しいPhase 4-B testが含まれる。
-
-Documentation更新後の最終Headでも再度CIを確認する。
+Documentation更新後の最終HeadはMerge前に再検証する。
 
 ---
 
 ## Not Yet Verified
 
-Static CIでは次を保証できない。
+Static CIでは保証できない:
 
-- 実ブラウザPointer Lock
-- Smart Sorter Build Previewの見え方
-- 3色Lane marker / arrowの一人称可読性
-- Smart Sorter collider / placement feel
-- Factory Management追加Cardsの実ブラウザ表示タイミング
+- Pointer Lock実操作
+- Military Facilityの各Objectiveへの実到達性
+- Facility propsとplayer colliderの一致
+- Turret threat radiusの一人称可読性
+- HP failure時の体感
+- Drone Port Build Preview / first-person scale
 - WebGL FPS / draw cost
 
 これらはBrowser Validation対象。
@@ -204,19 +239,21 @@ Static CIでは次を保証できない。
 
 ## Remaining Work
 
-### Phase 4 Visual / Polish
+### Phase 5-B
 
-- Hybrid Asset Foundation継続
-- Industrial Area visual density / hazard polish
-- Browser visual / FPS review
-
-### Rank 6+
-
-- 軍事施設
 - Conveyor Mk.3
-- Priority / Overflow Logistics
+- Priority Logistics
+- Overflow Logistics
+- multiple Resource Point / Drone route assignment
 - Advanced Power
-- Military Research
-- Drone Research / automated resource collection
 
-Phase 4-BでSmart Sorter / Production Statistics / Bottleneck Detectionは実装したが、Rank 6以降のAdvanced Logisticsまで完了した扱いにはしない。
+### Later
+
+- 武器 / patrol AIを含む軽戦闘の本実装
+- 崩壊した研究施設
+- Fabricator
+- Advanced Drone
+- Mega Factory / Main Clear
+- Final Hybrid Asset quality pass
+
+Phase 5-AはRank 6→7の主要Loopを接続したが、Rank 6 Advanced Logistics全体を完了した扱いにはしない。
