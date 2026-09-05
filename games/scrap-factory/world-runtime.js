@@ -3,7 +3,7 @@ import { ScrapWorld as BaseScrapWorld } from './world.js?base=v2';
 
 const FENCE_ALPHA_TEST = 0.12;
 const GROUND_CLEARANCE = 0.025;
-const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger']);
+const ADVANCED_LOGISTICS = new Set(['conveyor_mk2', 'splitter', 'merger', 'smart_sorter']);
 const INFRASTRUCTURE_VISUALS = new Set(['battery', 'industrial_storage']);
 const ADVANCED_PRODUCTION_VISUALS = new Set(['assembler']);
 
@@ -113,8 +113,14 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
   const group = new THREE.Group();
   group.userData.advancedLogisticsArt = true;
   const frame = material(0x2d3436, { preview, metalness: 0.72, roughness: 0.58 });
-  const belt = material(type === 'merger' ? 0x473d4d : type === 'splitter' ? 0x4c4a35 : 0x26383b, { preview, metalness: 0.42, roughness: 0.76 });
-  const rail = material(type === 'merger' ? 0x8f79a0 : type === 'splitter' ? 0xb5a34c : 0x5aa0a8, { preview, metalness: 0.55, roughness: 0.5 });
+  const belt = material(
+    type === 'merger' ? 0x473d4d : type === 'splitter' ? 0x4c4a35 : type === 'smart_sorter' ? 0x304b46 : 0x26383b,
+    { preview, metalness: 0.42, roughness: 0.76 },
+  );
+  const rail = material(
+    type === 'merger' ? 0x8f79a0 : type === 'splitter' ? 0xb5a34c : type === 'smart_sorter' ? 0x5d9b87 : 0x5aa0a8,
+    { preview, metalness: 0.55, roughness: 0.5 },
+  );
   const accent = material(0xd3b23e, { preview, metalness: 0.32, roughness: 0.48 });
 
   if (type === 'conveyor_mk2') {
@@ -135,6 +141,18 @@ function addAdvancedLogisticsVisual(root, type, preview = false) {
       addArrow(group, [0, 0.62, -0.7], Math.PI, accent);
       addArrow(group, [0, 0.62, 0.7], 0, accent);
       addBox(group, [0.35, 0.18, 0.35], rail, [0, 0.66, 0]);
+    } else if (type === 'smart_sorter') {
+      const advancedLane = material(0x5ab494, { preview, metalness: 0.38, roughness: 0.44 });
+      const productLane = material(0x7797c0, { preview, metalness: 0.38, roughness: 0.44 });
+      const rawLane = material(0xc08d58, { preview, metalness: 0.38, roughness: 0.44 });
+      addBox(group, [0.58, 0.5, 0.58], rail, [0, 0.77, 0]);
+      addBox(group, [0.42, 0.16, 0.42], frame, [0, 1.08, 0]);
+      addArrow(group, [0.74, 0.64, 0], -Math.PI / 2, advancedLane, 1.05);
+      addArrow(group, [0, 0.64, -0.74], Math.PI, productLane, 1.05);
+      addArrow(group, [0, 0.64, 0.74], 0, rawLane, 1.05);
+      addBox(group, [0.48, 0.08, 0.18], advancedLane, [0.64, 0.58, 0]);
+      addBox(group, [0.18, 0.08, 0.48], productLane, [0, 0.58, -0.64]);
+      addBox(group, [0.18, 0.08, 0.48], rawLane, [0, 0.58, 0.64]);
     } else {
       addArrow(group, [0.72, 0.62, 0], -Math.PI / 2, accent, 1.1);
       addArrow(group, [-0.68, 0.61, 0], -Math.PI / 2, rail, 0.75);

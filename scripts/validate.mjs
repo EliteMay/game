@@ -25,8 +25,10 @@ const required = [
   'games/scrap-factory/exploration-ui-v2.js',
   'games/scrap-factory/factory-management.js',
   'games/scrap-factory/feature-pack.js',
+  'games/scrap-factory/phase4b-management-ui.js',
   'games/scrap-factory/progression.js',
   'games/scrap-factory/progression-core.js',
+  'games/scrap-factory/progression-phase4b.js',
   'games/scrap-factory/progression-ui.js',
   'games/scrap-factory/storage.js',
   'games/scrap-factory/world.js',
@@ -45,6 +47,7 @@ const required = [
   'scripts/storage-capacity.test.mjs',
   'scripts/exploration.test.mjs',
   'scripts/industrial-exploration.test.mjs',
+  'scripts/phase4b.test.mjs',
   'README.md',
   'REQUIREMENTS.md',
   'SPEC.md',
@@ -84,6 +87,7 @@ for (const [name, script] of [
   ['Storage capacity', 'scripts/storage-capacity.test.mjs'],
   ['Exploration', 'scripts/exploration.test.mjs'],
   ['Industrial exploration', 'scripts/industrial-exploration.test.mjs'],
+  ['Phase 4-B advanced logistics', 'scripts/phase4b.test.mjs'],
 ]) {
   try {
     execFileSync(process.execPath, [path.join(root, script)], { stdio: 'pipe' });
@@ -130,6 +134,7 @@ if (!scrapHtml.includes('src="./feature-pack.js"')) failures.push('Scrap Factory
 const factoryManagement = fs.readFileSync(path.join(root, 'games/scrap-factory/factory-management.js'), 'utf8');
 if (!factoryManagement.includes("import('./progression-ui.js')")) failures.push('Factory management must load progression-ui.js in browser runtime');
 if (!factoryManagement.includes("import('./exploration-ui.js')")) failures.push('Factory management must load exploration-ui.js in browser runtime');
+if (!factoryManagement.includes("import('./phase4b-management-ui.js')")) failures.push('Factory management must load phase4b-management-ui.js in browser runtime');
 
 const residentialRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/exploration/residential.js'), 'utf8');
 for (const marker of ['startExpedition', 'collectExplorationLoot', 'advanceResidentialObjective', 'returnFromExpedition', 'abandonExpedition']) {
@@ -144,6 +149,11 @@ for (const marker of ['INDUSTRIAL_AREA_ID', 'collectExplorationLoot', 'advanceIn
 const gameRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/game.js'), 'utf8');
 for (const marker of ['computePowerSnapshot', 'tickGeneratorFuel', 'tickPowerStorage', 'storageRemaining', 'isBuildingUnlocked', 'isHandCraftUnlocked']) {
   if (!gameRuntime.includes(marker)) failures.push(`Scrap Factory runtime missing core integration: ${marker}`);
+}
+
+const logisticsRuntime = fs.readFileSync(path.join(root, 'games/scrap-factory/logistics.js'), 'utf8');
+for (const marker of ['smart_sorter', 'smartSorterLaneForItem', 'SMART_SORTER_LANES']) {
+  if (!logisticsRuntime.includes(marker)) failures.push(`Phase 4-B logistics runtime missing marker: ${marker}`);
 }
 
 const textFiles = [];
@@ -173,4 +183,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + exploration + industrial exploration tests.`);
+console.log(`Validation passed: ${jsFiles.length} JS/MJS files, ${htmlFiles.length} HTML targets, logistics + management + progression + power + storage + exploration + industrial exploration + Phase 4-B tests.`);

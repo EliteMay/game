@@ -90,6 +90,11 @@ export const BUILDINGS = {
     description: 'Rank 4物流設備。背面・左・右の3入力を受け、正面1方向へ合流させる。最大3個/秒。',
     color: 0x65566b, accepts: [], throughput: 3,
   },
+  smart_sorter: {
+    id: 'smart_sorter', name: 'スマートソーター', cost: 180, category: 'logistics', buildable: true,
+    description: 'Rank 5物流設備。背面から受けた素材をカテゴリで自動分類する。高度部品は正面、中間材・製品は左、原料は右へ最大3個/秒で送る。',
+    color: 0x4f6b62, accepts: [], throughput: 3,
+  },
   storage: {
     id: 'storage', name: '小型倉庫', cost: 60, category: 'logistics', buildable: true,
     description: '自動ラインの途中で最大120個を保管する中間バッファ。満杯になると上流を止め、Itemを消失させない。',
@@ -135,6 +140,7 @@ export const BUILD_MENU_ORDER = [
   'conveyor_mk2',
   'splitter',
   'merger',
+  'smart_sorter',
   'generator',
   'power_pole',
   'battery',
