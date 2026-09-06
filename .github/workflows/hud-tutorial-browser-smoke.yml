@@ -103,3 +103,5 @@ jobs:
           name: hud-tutorial-browser-smoke
           path: hud-tutorial-build.png
           if-no-files-found: ignore
+
+# rerun after HOME marker spacing adjustment
