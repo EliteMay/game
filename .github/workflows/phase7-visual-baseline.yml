@@ -6,6 +6,7 @@ on:
     paths:
       - 'games/scrap-factory/phase7-world-runtime.js'
       - 'games/scrap-factory/phase7-world-polish.js'
+      - 'games/scrap-factory/phase7-settings.js'
       - 'games/scrap-factory/progression-ui.js'
       - 'scripts/phase7-visual-baseline-review.mjs'
       - '.github/workflows/phase7-visual-baseline.yml'
