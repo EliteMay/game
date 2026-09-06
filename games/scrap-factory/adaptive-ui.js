@@ -210,12 +210,12 @@ function updateCommandRail(currentGame, world) {
   rail.hidden = currentGame.settings?.showShortcuts === false || contextualMode;
 }
 
-function updateContextualHud() {
+function updateContextualHud(currentGame) {
   const exploring = state.area !== 'base';
   const progression = document.querySelector('#progression-hud');
   const finalPhase = document.querySelector('#final-phase-hud');
   if (progression) progression.hidden = exploring;
-  if (finalPhase && exploring) finalPhase.hidden = true;
+  if (finalPhase) finalPhase.hidden = exploring || Number(currentGame?.progression?.progressionRank || 1) < 7;
 }
 
 function update() {
@@ -227,7 +227,7 @@ function update() {
   updateArea(currentRuntime.world);
   updateEconomy(currentGame);
   updateCommandRail(currentGame, currentRuntime.world);
-  updateContextualHud();
+  updateContextualHud(currentGame);
   updateBuildContext();
 }
 
