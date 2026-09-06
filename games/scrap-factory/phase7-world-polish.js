@@ -23,10 +23,10 @@ const ENERGY_TYPES = new Set([
 
 const BUDGETS = Object.freeze({
   high: Object.freeze({
-    detailDistance: 22,
-    shadowDistance: 16,
-    animationDistance: 22,
-    particleDistance: 20,
+    detailDistance: 14,
+    shadowDistance: 10,
+    animationDistance: 14,
+    particleDistance: 12,
     cullDistance: 82,
     packetDistance: 34,
     maxPackets: 140,
@@ -34,10 +34,10 @@ const BUDGETS = Object.freeze({
     updateSeconds: 0.18,
   }),
   medium: Object.freeze({
-    detailDistance: 18,
-    shadowDistance: 12,
-    animationDistance: 18,
-    particleDistance: 15,
+    detailDistance: 11,
+    shadowDistance: 7,
+    animationDistance: 11,
+    particleDistance: 9,
     cullDistance: 68,
     packetDistance: 28,
     maxPackets: 90,
@@ -45,9 +45,9 @@ const BUDGETS = Object.freeze({
     updateSeconds: 0.22,
   }),
   low: Object.freeze({
-    detailDistance: 13,
+    detailDistance: 8,
     shadowDistance: 0,
-    animationDistance: 13,
+    animationDistance: 8,
     particleDistance: 0,
     cullDistance: 52,
     packetDistance: 20,
@@ -136,7 +136,6 @@ export class Phase7WorldPolish {
     this.budget = BUDGETS.high;
     this.entries = [];
     this.batches = [];
-    this.elapsed = 0;
     this.updateSerial = 0;
     this.counts = { detail: 0, proxy: 0, culled: 0 };
     this.sparkPool = createPointPool(world.scene, { color: 0xe5bd63, size: 0.065, opacity: 0.72, max: 64 });
@@ -254,8 +253,6 @@ export class Phase7WorldPolish {
   }
 
   update(force = false) {
-    const step = Number(this.world.clock?.getDelta ? 0 : 0);
-    this.elapsed += step;
     const now = performance.now() / 1000;
     if (!force && now - this.updateSerial < this.budget.updateSeconds) return;
     this.updateSerial = now;
