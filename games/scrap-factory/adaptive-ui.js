@@ -19,6 +19,7 @@ const state = {
   prepared: false,
   area: null,
   areaBannerUntil: 0,
+  managementOpen: false,
 };
 
 function runtime() {
@@ -49,6 +50,92 @@ function classifyCommand(control) {
   if (!key) return;
   control.dataset.commandKey = key;
   control.classList.toggle('hud-key--secondary', !PRIMARY_COMMAND_KEYS.has(key));
+}
+
+function setManagementOpen(open) {
+  state.managementOpen = Boolean(open);
+  const toggle = document.querySelector('[data-hud-management-toggle]');
+  const tray = document.querySelector('[data-hud-management-tray]');
+  if (toggle) toggle.setAttribute('aria-expanded', String(state.managementOpen));
+  if (tray) tray.hidden = !state.managementOpen;
+}
+
+function createHudContextStack() {
+  const hud = document.querySelector('#hud');
+  if (!hud) return null;
+
+  let stack = hud.querySelector('[data-hud-context-stack]');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'hud-context-stack';
+    stack.dataset.hudContextStack = 'true';
+    hud.append(stack);
+  }
+
+  const objective = document.querySelector('.objective-panel');
+  if (objective && objective.parentElement !== stack) stack.prepend(objective);
+
+  let management = stack.querySelector('[data-hud-management]');
+  if (!management) {
+    management = document.createElement('div');
+    management.className = 'hud-management';
+    management.dataset.hudManagement = 'true';
+    management.innerHTML = `
+      <button class="hud-management__toggle" type="button" data-hud-management-toggle aria-expanded="false" aria-controls="hud-management-tray">
+        <span>MANAGEMENT（管理）</span>
+        <strong data-management-alert hidden>0</strong>
+      </button>
+      <div id="hud-management-tray" class="hud-management__tray" data-hud-management-tray hidden></div>
+    `;
+    stack.append(management);
+    management.querySelector('[data-hud-management-toggle]')?.addEventListener('click', () => {
+      setManagementOpen(!state.managementOpen);
+    });
+    management.querySelector('[data-hud-management-tray]')?.addEventListener('click', (event) => {
+      if (event.target instanceof Element && event.target.closest('button')) setManagementOpen(false);
+    });
+  }
+
+  return stack;
+}
+
+function moveContextHudNodes(stack) {
+  if (!stack) return;
+  const management = stack.querySelector('[data-hud-management]');
+  const tray = stack.querySelector('[data-hud-management-tray]');
+  if (!management || !tray) return;
+
+  // Optional/player-requested status stays visible in normal document flow so
+  // bilingual copy can grow without colliding with the primary objective.
+  ['#factory-challenge-pin', '#final-phase-hud'].forEach((selector) => {
+    const node = document.querySelector(selector);
+    if (node && node.parentElement !== stack) stack.insertBefore(node, management);
+  });
+
+  // Rank / Factory / Automation are reference actions. Keep them one click
+  // away instead of consuming three permanent HUD surfaces.
+  ['#progression-hud', '#factory-management-hud', '#automation-hud'].forEach((selector) => {
+    const node = document.querySelector(selector);
+    if (node && node.parentElement !== tray) tray.append(node);
+  });
+
+  const factoryAlert = document.querySelector('#factory-alert-count');
+  const combinedAlert = management.querySelector('[data-management-alert]');
+  if (combinedAlert) {
+    const count = Math.max(0, Number(factoryAlert?.textContent || 0));
+    combinedAlert.textContent = String(count);
+    combinedAlert.hidden = count <= 0 || factoryAlert?.hidden === true;
+  }
+
+  const hasActions = tray.querySelector('button');
+  management.hidden = !hasActions;
+  if (!hasActions) setManagementOpen(false);
+}
+
+function ensureHudComposition() {
+  const stack = createHudContextStack();
+  moveContextHudNodes(stack);
+  return stack;
 }
 
 function prepareHud() {
@@ -84,6 +171,7 @@ function prepareHud() {
     else buildHint.append(context);
   }
 
+  ensureHudComposition();
   state.prepared = true;
 }
 
@@ -217,8 +305,12 @@ function updateContextualHud(currentGame) {
   const exploring = state.area !== 'base';
   const progression = document.querySelector('#progression-hud');
   const finalPhase = document.querySelector('#final-phase-hud');
+  const management = document.querySelector('[data-hud-management]');
+
   if (progression) progression.hidden = exploring;
   if (finalPhase) finalPhase.hidden = exploring || Number(currentGame?.progression?.progressionRank || 1) < 7;
+  if (management) management.hidden = exploring || !management.querySelector('[data-hud-management-tray] button');
+  if (exploring) setManagementOpen(false);
 }
 
 function update() {
@@ -227,6 +319,7 @@ function update() {
   const currentGame = game();
   if (!currentRuntime || !currentGame) return;
 
+  ensureHudComposition();
   updateArea(currentRuntime.world);
   updateEconomy(currentGame);
   updateCommandRail(currentGame, currentRuntime.world);
