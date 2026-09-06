@@ -568,3 +568,5 @@ Reset button
 - Guide (`O`) now follows the same toggle behavior for consistency.
 - Build / Inventory panels show the current Tutorial objective inside the panel, so the instruction that led into the panel does not disappear while the player is acting on it.
 - Repeated action-key events are ignored for `B` / `Tab` / `O` / `F` to prevent hold-to-flicker behavior.
+- Chromium Browser Smoke Run `34000578539`: success at 1536×864. `B` / `Tab` / `O` open-close toggles, Pointer Lock restore, contextual Tutorial visibility, and HOME/Contract non-overlap were verified.
+- Screenshot review: Build panel keeps the current Tutorial directly below its header without obscuring the equipment list; HOME marker has clear separation from the upper HUD.
