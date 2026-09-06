@@ -191,7 +191,9 @@ function applyGraphics(world, settings) {
     world.setQuality?.('low');
     world.renderer.shadowMap.enabled = false;
     if (world.visualFx?.dust) world.visualFx.dust.visible = false;
-    world.camera.far = 145;
+    // Keep the procedural sky sphere inside the camera frustum. Factory draw distance
+    // is reduced separately by the Phase 7 LOD/culling budget in Performance Mode.
+    world.camera.far = 190;
     world.camera.updateProjectionMatrix();
     return;
   }
