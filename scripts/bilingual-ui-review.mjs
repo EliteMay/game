@@ -71,7 +71,7 @@ try {
     'Advanced Drone Port（上位ドローンポート） / Advanced Drone（上位ドローン） / Resource Point（資源回収地点） / Recipe（レシピ） / Power（電力）',
   );
   assert.match(translations.tutorial, /MAIN（メイン）: Home Bed（ホームのベッド）/);
-  assert.match(translations.tutorial, /CURRENT TUTORIAL（現在のチュートリアル）/);
+  assert.match(translations.tutorial, /CURRENT（現在） TUTORIAL（チュートリアル）/);
   assert.match(translations.tutorial, /RANK（ランク） 2/);
   assert.match(translations.home, /Backpack（バッグ） II/);
   assert.match(translations.home, /Home Storage（ホーム保管庫） III/);
