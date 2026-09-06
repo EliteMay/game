@@ -13,6 +13,11 @@ function rectGap(a, b) {
   return Math.round((b.top - a.bottom) * 100) / 100;
 }
 
+async function activateManagement(page) {
+  await page.evaluate(() => document.querySelector('[data-hud-management-toggle]')?.click());
+  await new Promise((resolve) => setTimeout(resolve, 120));
+}
+
 await mkdir('artifacts/hud-hierarchy-review', { recursive: true });
 const browser = await puppeteer.launch({
   executablePath: await executablePath(),
@@ -94,8 +99,10 @@ try {
   assert.equal(collapsed1440.automationVisible, false, 'Automation must not remain as a separate permanent HUD card');
   await page.screenshot({ path: 'artifacts/hud-hierarchy-review/collapsed-1440.png' });
 
-  await page.click('[data-hud-management-toggle]');
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Pointer Lock intentionally owns physical mouse movement during gameplay.
+  // Invoke the launcher element directly here because this check validates HUD
+  // disclosure/layout, while the existing P keyboard path covers in-game access.
+  await activateManagement(page);
   const expanded1440 = await inspectHud('1440 expanded');
   assert.equal(expanded1440.trayVisible, true, 'management tray must open from the single launcher');
   assert.deepEqual(expanded1440.trayParentIds.sort(), ['automation-hud', 'factory-management-hud', 'progression-hud'].sort());
@@ -105,7 +112,7 @@ try {
   assert.ok(expanded1440.tray.top >= expanded1440.management.bottom, 'expanded tray must flow below the launcher');
   await page.screenshot({ path: 'artifacts/hud-hierarchy-review/expanded-1440.png' });
 
-  await page.click('[data-hud-management-toggle]');
+  await activateManagement(page);
   await page.setViewport({ width: 1024, height: 720, deviceScaleFactor: 1 });
   await new Promise((resolve) => setTimeout(resolve, 180));
   const collapsed1024 = await inspectHud('1024 collapsed');
