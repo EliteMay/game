@@ -586,3 +586,7 @@ confirm destructive reset
 ## Spawn points must be validated against runtime colliders
 
 Player spawn / respawn座標は見た目上の空き位置だけで決めず、Player radiusを含む実Runtime colliderとの重なりを検証する。Collider内から開始するとKey input自体は正常でも全Movementがcollisionで拒否され、Input Bugに見える。Fresh Start / Reset後 / Respawnは実ブラウザでPointer LockとWASD移動まで確認する。
+
+## Tutorial instructions must survive the transition into the UI they ask the player to open
+
+When a tutorial says “press B to open Build” or “press Tab to open Inventory”, hiding the tutorial as soon as that panel opens forces the player to close the panel just to reread the next instruction. Contextual panels should keep the current objective visible inside the panel, and opener shortcuts should act as toggles when that interaction is safe. This reduces memory load and unnecessary open/close cycles.

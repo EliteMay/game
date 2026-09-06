@@ -72,6 +72,22 @@ kbd { min-width: 28px; display: inline-grid; place-items: center; padding: 4px 7
 .objective-panel__header { display: flex; justify-content: space-between; gap: 12px; color: #aab1aa; font-size: 0.64rem; font-weight: 850; letter-spacing: 0.12em; }
 .objective-panel h2 { margin: 9px 0 4px; font-size: 0.98rem; }
 .objective-panel p { margin: 0; color: #b5bbb5; font-size: 0.78rem; line-height: 1.5; }
+
+.panel-tutorial-reminder {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border: 1px solid #3b4243;
+  border-left: 3px solid var(--accent);
+  background: #181d1e;
+}
+.panel-tutorial-reminder__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.panel-tutorial-reminder__meta span { color: var(--accent); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.12em; }
+.panel-tutorial-reminder__meta strong { color: #aeb6b0; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+.panel-tutorial-reminder h3 { margin: 7px 0 4px; font-size: 0.92rem; }
+.panel-tutorial-reminder p { margin: 0; color: #b7beb8; font-size: 0.78rem; line-height: 1.5; }
+.panel-tutorial-reminder small { display: block; margin-top: 9px; color: #8f9992; font-size: 0.7rem; }
+.panel-tutorial-reminder small kbd { margin-right: 4px; }
+
 .hud__bottom-left { position: absolute; left: 20px; bottom: 18px; display: flex; gap: 7px; }
 .hud-key { display: inline-flex; align-items: center; gap: 7px; padding: 6px 8px; border: 1px solid rgb(255 255 255 / 0.11); background: rgb(20 24 25 / 0.74); color: #bfc5bf; font-size: 0.65rem; font-weight: 850; letter-spacing: 0.08em; }
 button.hud-key:hover { border-color: rgb(255 255 255 / 0.28); }
