@@ -1,10 +1,13 @@
 // User-facing language compatibility layer.
-// Keep established English game/system terminology, but always pair unclear English with Japanese.
+// Keep established English game/system terminology, but pair unclear English with Japanese.
+// Requirements already state that players must not need English knowledge to progress.
 
 const EXACT_LABELS = new Map([
   ['GAME 01 / INDUSTRIAL SALVAGE', 'GAME 01 / INDUSTRIAL SALVAGE（ゲーム01 / 産業廃材回収）'],
   ['INITIAL CONTRACT', 'INITIAL CONTRACT（初期目標）'],
   ['LOADING SYSTEM…', 'LOADING SYSTEM…（システム読込中）'],
+  ['SYSTEM READY', 'SYSTEM READY（準備完了）'],
+  ['CURRENT TUTORIAL', 'CURRENT TUTORIAL（現在のチュートリアル）'],
   ['ZONE', 'ZONE（エリア）'],
   ['FACTORY BASE', 'FACTORY BASE（工場拠点）'],
   ['CASH', 'CASH（所持金）'],
@@ -15,6 +18,7 @@ const EXACT_LABELS = new Map([
   ['DISMANTLE', 'DISMANTLE（解体）'],
   ['GUIDE', 'GUIDE（ガイド）'],
   ['MENU', 'MENU（メニュー）'],
+  ['TERMINAL', 'TERMINAL（端末）'],
   ['BUILD MODE', 'BUILD MODE（建築モード）'],
   ['DISMANTLE MODE', 'DISMANTLE MODE（解体モード）'],
   ['PAUSED', 'PAUSED（一時停止）'],
@@ -26,6 +30,17 @@ const EXACT_LABELS = new Map([
   ['FIELD MANUAL / CODEX', 'FIELD MANUAL / CODEX（操作マニュアル / 図鑑）'],
   ['SYSTEM SETTINGS', 'SYSTEM SETTINGS（システム設定）'],
   ['CONTRACT COMPLETE', 'CONTRACT COMPLETE（目標達成）'],
+  ['HOME SAVED', 'HOME SAVED（ホームを保存しました）'],
+  ['HOME AVAILABLE', 'HOME AVAILABLE（ホーム利用可能）'],
+  ['BASIC TUTORIAL COMPLETE', 'BASIC TUTORIAL COMPLETE（基本チュートリアル完了）'],
+  ['GOAL', 'GOAL（目標）'],
+  ['HINT', 'HINT（ヒント）'],
+  ['RANK', 'RANK（ランク）'],
+  ['UPGRADE', 'UPGRADE（アップグレード）'],
+  ['AI MODULE', 'AI MODULE（AI制御モジュール）'],
+  ['EXP FRAME', 'EXP FRAME（実験フレーム）'],
+  ['EXP POWER', 'EXP POWER（実験電力）'],
+  ['AUTO CORE', 'AUTO CORE（自律産業コア）'],
   ['High', 'High（高）'],
   ['Medium', 'Medium（中）'],
   ['Low', 'Low（低）'],
@@ -87,13 +102,14 @@ const EXACT_LABELS = new Map([
   ['OK', 'OK（正常）'],
 ]);
 
-// Longest terms first so a specific phrase is translated before a generic word.
+// Longest/specific terms first. The replacement algorithm protects translated phrases,
+// so shorter entries cannot re-translate a word inside a longer bilingual label.
 const TERM_LABELS = [
   ['Autonomous Industrial Core', '自律産業コア'],
   ['Experimental Power System', '実験電力システム'],
   ['Experimental Technology', '実験技術'],
-  ['Experimental Power', '実験電力設備'],
   ['Advanced Drone Port', '上位ドローンポート'],
+  ['Advanced Drone Route', '上位ドローン回収経路'],
   ['Advanced Drone', '上位ドローン'],
   ['Utility Drone', '通常ドローン'],
   ['Automation Console', '自動化コンソール'],
@@ -102,30 +118,59 @@ const TERM_LABELS = [
   ['Factory Optimization', '工場最適化'],
   ['Mega Factory', '巨大工場'],
   ['Main Clear', 'メインクリア'],
+  ['MAIN CLEAR', 'メインクリア'],
   ['Resource Point', '資源回収地点'],
+  ['Research Data', '研究データ'],
   ['Control Unit', '制御ユニット'],
   ['Smart Sorter', 'スマート仕分け機'],
   ['Priority Splitter', '優先分配機'],
   ['Overflow Splitter', '余剰分配機'],
   ['Logistics Warehouse', '物流倉庫'],
   ['Industrial Storage', '産業倉庫'],
-  ['Back Pressure', '詰まりによる上流停止'],
+  ['Experimental Power', '実験電力設備'],
+  ['Factory Network Link', '工場ネットワーク接続'],
+  ['Rare Loot Detection', 'レア回収品検出'],
+  ['Loot Scanner', '回収品スキャナー'],
+  ['Resource Scanner', '資源スキャナー'],
+  ['Advanced Scanner', '上位スキャナー'],
+  ['Scanner Mastery', 'スキャナー最終強化'],
   ['Power Shortage', '電力不足'],
+  ['Back Pressure', '詰まりによる上流停止'],
   ['Material Tracking', '素材追跡'],
+  ['Quick Deposit', '一括預け入れ'],
+  ['Auto Sort', '自動整理'],
+  ['Loadout Preset', '持ち物プリセット'],
+  ['Sprint Efficiency', 'ダッシュ効率化'],
   ['Manual Save', '手動セーブ'],
   ['Secure Case', 'セキュアケース'],
   ['Player Progress', 'プレイヤー進行'],
   ['Player Management', 'プレイヤー管理'],
   ['Home Storage', 'ホーム保管庫'],
+  ['Home Respawn', 'ホーム復活地点'],
+  ['Home Bed', 'ホームのベッド'],
   ['Tutorial Library', 'チュートリアル一覧'],
+  ['Contextual Hints', '状況ヒント'],
   ['Contextual Hint', '状況ヒント'],
   ['System Diagnostics', 'システム診断'],
+  ['SYSTEM DIAGNOSTICS', 'システム診断'],
   ['Production Machine', '生産設備'],
+  ['Directional Logistics', '方向付き物流'],
   ['Drone Route', 'ドローン回収経路'],
   ['DRONE PORT', 'ドローンポート'],
   ['ADVANCED DRONE', '上位ドローン'],
+  ['Build Mode', '建築モード'],
+  ['Build Menu', '建築メニュー'],
+  ['Scrap Yard', 'スクラップ置き場'],
+  ['Factory Base', '工場拠点'],
+  ['Session Loot', '探索中の回収品'],
+  ['Power Pole', '電力ポール'],
+  ['BASIC TUTORIAL COMPLETE', '基本チュートリアル完了'],
+  ['HOME AVAILABLE', 'ホーム利用可能'],
+  ['HOME SAVED', 'ホームを保存しました'],
   ['UTILITY', '通常型'],
   ['ADVANCED', '上位型'],
+  ['OPTIONAL', '任意'],
+  ['RECOMMENDED', '推奨'],
   ['Fabricator', 'ファブリケーター'],
   ['Assembler', 'アセンブラー'],
   ['Crusher', '粉砕機'],
@@ -133,8 +178,13 @@ const TERM_LABELS = [
   ['Conveyor', 'コンベア'],
   ['Splitter', '分配機'],
   ['Merger', '合流機'],
+  ['Hopper', '投入ホッパー'],
+  ['Seller', '販売ターミナル'],
+  ['Generator', '発電機'],
+  ['Battery', '蓄電池'],
   ['Motor', 'モーター'],
   ['Circuit', '制御回路'],
+  ['Backpack', 'バッグ'],
   ['Storage', '保管庫'],
   ['Recipe', 'レシピ'],
   ['Research', '研究'],
@@ -156,6 +206,57 @@ const TERM_LABELS = [
   ['Danger', '危険度'],
   ['Expedition', '探索'],
   ['Abandon', '探索中断'],
+  ['Preview', '設置プレビュー'],
+  ['Pause', '一時停止'],
+  ['Depot', '保管拠点'],
+  ['Save', 'セーブ'],
+  ['Pulse', 'パルス'],
+  ['Preset', 'プリセット'],
+  ['Stack', 'スタック'],
+  ['Slot', '枠'],
+  ['Pin', 'ピン留め'],
+  ['Factory', '工場'],
+  ['Home', 'ホーム'],
+  ['Player', 'プレイヤー'],
+  ['Inventory', '持ち物'],
+  ['Exploration', '探索'],
+  ['Building', '建築'],
+  ['Logistics', '物流'],
+  ['Production', '生産'],
+  ['Automation', '自動化'],
+  ['Movement', '移動'],
+  ['Tracking', '追跡'],
+  ['Basics', '基本'],
+  ['Optional', '任意'],
+  ['Recommended', '推奨'],
+  ['Rare', 'レア'],
+  ['Main', 'メイン'],
+  ['Current', '現在'],
+  ['Next', '次'],
+  ['Status', '状態'],
+  ['Cost', '費用'],
+  ['Available', '利用可能'],
+  ['Complete', '完了'],
+  ['Owned', '取得済み'],
+  ['Locked', '未解放'],
+  ['SCANNER', 'スキャナー'],
+  ['BACKPACK', 'バッグ'],
+  ['TUTORIAL', 'チュートリアル'],
+  ['TERMINAL', '端末'],
+  ['CURRENT', '現在'],
+  ['STATUS', '状態'],
+  ['COST', '費用'],
+  ['SLOTS', '枠'],
+  ['SLOT', '枠'],
+  ['RANK', 'ランク'],
+  ['POWER', '電力'],
+  ['OUTPUT', '出力'],
+  ['INPUT', '入力'],
+  ['UPGRADE', 'アップグレード'],
+  ['GOAL', '目標'],
+  ['HINT', 'ヒント'],
+  ['MAIN', 'メイン'],
+  ['HOME', 'ホーム'],
 ];
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'KBD', 'CODE', 'PRE', 'TEXTAREA']);
@@ -167,6 +268,10 @@ function preserveOuterWhitespace(original, replacement) {
   return `${original.slice(0, first)}${replacement}${original.slice(last)}`;
 }
 
+function marker(index) {
+  return `\uE000${index}\uE001`;
+}
+
 export function bilingualizeText(value) {
   if (typeof value !== 'string' || !/[A-Za-z]/.test(value)) return value;
   const trimmed = value.trim();
@@ -174,11 +279,28 @@ export function bilingualizeText(value) {
   const exact = EXACT_LABELS.get(trimmed);
   if (exact) return preserveOuterWhitespace(value, exact);
 
+  // Protect already-bilingual phrases first. This makes the operation idempotent.
   let result = value;
+  const protectedParts = [];
   for (const [english, japanese] of TERM_LABELS) {
     const bilingual = `${english}（${japanese}）`;
-    if (!result.includes(english) || result.includes(bilingual)) continue;
-    result = result.split(english).join(bilingual);
+    if (!result.includes(bilingual)) continue;
+    const token = marker(protectedParts.length);
+    result = result.split(bilingual).join(token);
+    protectedParts.push([token, bilingual]);
+  }
+
+  // Replace each longest term with an opaque token so shorter terms cannot match inside it.
+  const translatedParts = [];
+  for (const [english, japanese] of TERM_LABELS) {
+    if (!result.includes(english)) continue;
+    const token = marker(protectedParts.length + translatedParts.length);
+    result = result.split(english).join(token);
+    translatedParts.push([token, `${english}（${japanese}）`]);
+  }
+
+  for (const [token, bilingual] of [...protectedParts, ...translatedParts]) {
+    result = result.split(token).join(bilingual);
   }
   return result;
 }
@@ -231,7 +353,7 @@ function flushQueue() {
 
 function queue(root) {
   if (!root) return;
-  queuedRoots.add(root.nodeType === Node.TEXT_NODE ? root : root);
+  queuedRoots.add(root);
   if (scheduled) return;
   scheduled = true;
   queueMicrotask(flushQueue);
