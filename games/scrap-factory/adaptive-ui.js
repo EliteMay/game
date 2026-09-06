@@ -13,6 +13,7 @@ const STYLE_HREF = './adaptive-ui.css';
 const BASE_BACKPACK_SLOTS = 12;
 const AREA_BANNER_MS = 2200;
 const UPDATE_MS = 180;
+const PRIMARY_COMMAND_KEYS = new Set(['B', 'Tab', 'O']);
 
 const state = {
   prepared: false,
@@ -43,6 +44,13 @@ function statContainer(selector, className) {
   return node;
 }
 
+function classifyCommand(control) {
+  const key = control.querySelector('kbd')?.textContent?.trim();
+  if (!key) return;
+  control.dataset.commandKey = key;
+  control.classList.toggle('hud-key--secondary', !PRIMARY_COMMAND_KEYS.has(key));
+}
+
 function prepareHud() {
   ensureStylesheet();
 
@@ -50,13 +58,7 @@ function prepareHud() {
   statContainer('#revenue-value', 'hud-stat--revenue');
   statContainer('#inventory-slots', 'hud-stat--capacity');
 
-  const controls = document.querySelectorAll('.hud__bottom-left .hud-key');
-  controls.forEach((control) => {
-    const key = control.querySelector('kbd')?.textContent?.trim();
-    if (!key) return;
-    control.dataset.commandKey = key;
-    if (key === 'F' || key === 'Esc') control.classList.add('hud-key--secondary');
-  });
+  document.querySelectorAll('.hud__bottom-left .hud-key').forEach(classifyCommand);
 
   const setting = document.querySelector('#setting-shortcuts')?.closest('.setting-row');
   if (setting) {
@@ -206,6 +208,7 @@ function updateCommandRail(currentGame, world) {
   if (shortcutBar) shortcutBar.hidden = true;
   if (!rail || !currentGame) return;
 
+  rail.querySelectorAll('.hud-key').forEach(classifyCommand);
   const contextualMode = Boolean(world?.buildMode) || document.body.classList.contains('is-dismantling');
   rail.hidden = currentGame.settings?.showShortcuts === false || contextualMode;
 }
