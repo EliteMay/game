@@ -71,11 +71,11 @@ Main Clear確認後は **K** でFactory Optimization Panelを開けます。Rank
 
 4 / 4達成で `OPTIMIZATION MASTERED` を履歴保存します。達成後にFactoryを組み替えても達成履歴は失われません。
 
-残っている主要作業:
+Phase 7 Final Qualityは実装・Browser Reviewまで完了しています。今後の主な確認 / 拡張は次です:
 
-1. Factory Optimization / Challengeのlong-term content追加
-2. final Hybrid Asset / Lighting / VFX / LOD quality pass
-3. Mega FactoryのBrowser / Performance / Visual / Balance検証
+1. Factory Optimization / Challengeのlong-term content追加（任意拡張）
+2. 実GPU / 実機でMega Factory 45 FPS目安を確認
+3. 180秒安定稼働や最終生産BalanceのActual Playtest調整
 
 ## Rank 7 Final Chapter
 
@@ -418,7 +418,27 @@ Final progression regressionでは特に次を固定しています。
 - Main Clear historical persistence
 - production HTMLからProgression / Automation / Final Phase UIが読み込まれること
 
-Static CIでは実ブラウザPointer Lock、Main Clear overlay layout、Factory layout ergonomics、Build Preview、Advanced Drone / Experimental Powerの一人称Scale、Collider、WebGL FPS、180秒の実プレイBalance / 操作感、Firefox / Chromium実操作までは保証しません。
+Chromium + WebGL/SwiftShaderのBrowser Reviewでは、Production Runtime起動、高度Machine Visual、Build Preview、設置後回転、264設備Stress、Performance Mode、page overflowを確認済みです。実GPUでの45 FPS目安、Firefox / Pointer Lockの実操作、Collider / Placement feel、180秒の実プレイBalanceまでは保証しません。
+
+## Phase 7 Final Visual / Performance Quality (2026-09-06)
+
+Final Quality passでは、既存のPhase 5-B〜6-C高度Machine VisualをProduction Runtimeへ正式接続しました。Factory Simulation / Save / Rank / Logistics / Powerは変更せず、Rendering Layerだけを拡張しています。
+
+- Conveyor Mk.2 / Mk.3、Splitter / Merger / Smart Sorter / Priority / Overflow
+- Battery / Industrial Storage / Logistics Warehouse
+- Assembler variants / Fabricator / Autonomous Core Fabricator
+- Utility / Advanced Drone variants
+- Industrial Generator / Experimental Power System
+- 高度設備のBuild Previewと設置後Rotation
+- 距離ベースDetail / Shadow / Animation / Particle budget
+- 遠距離Machineのtype-batched `THREE.InstancedMesh` proxy
+- Transfer Packet上限と距離Budget
+- 稼働Machineのbounded Spark / Heat / Energy feedback
+- Performance ModeでShadow / Particle / Detail距離を追加削減
+
+同一Chromium/SwiftShader Stress fixture（264設備）で、旧Production baselineの6,054 draw calls / 134,084 trianglesから、Highで1,285 draw calls / 58,944 trianglesへ削減しました。Performance Modeは134 draw calls / 8,898 trianglesでした。SwiftShader値は実GPU FPSの代用ではなく、同一環境の相対比較Evidenceとして扱います。
+
+Visual Review #5（Run `34035243298`）ではHigh / Stress / Performance Mode screenshotを確認し、Performance ModeのCamera Far ClipでProcedural Skyが多角形化していた不具合も修正済みです。
 
 ## Home / Player Convenience (2026-09-06)
 

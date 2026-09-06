@@ -1,6 +1,6 @@
 # Specification
 
-Updated: 2026-09-05
+Updated: 2026-09-06
 
 この文書は現在実装されている `Scrap Factory` の技術仕様を記録する。将来要件は `REQUIREMENTS.md` をSource of Truthとし、未実装要件を実装済みとして扱わない。
 
@@ -41,10 +41,17 @@ Factory / Scrap Yard
 
 `REQUIREMENTS.md` の Rank 7 → Main Clear 手順8「最終製品の完全自動Line」、手順9「Mega Factoryを一定時間安定稼働」、手順10「Main Clear」を通常Gameplayへ接続している。
 
-未実装 / 後続:
-- clear-after optimization objectivesの拡張
-- final Hybrid Asset / Lighting / VFX / LOD quality pass
-- Mega Factory実測Performance / Browser / Visual Review
+Phase 7 Final Qualityまで実装済み:
+- 高度Machine VisualのProduction接続
+- distance-based LOD / Culling / Shadow / Animation / VFX budget
+- type-batched Instanced proxy / bounded transfer packets
+- Chromium + WebGL/SwiftShaderで264設備Stress / Visual Review
+
+後続 / 未確認:
+- clear-after optimization objectivesの任意拡張
+- 実GPU / 実機で45 FPS目安の確認
+- Firefox / Pointer Lock / Collider / Placementの実操作
+- 180秒安定稼働と最終BalanceのActual Playtest
 
 ---
 
@@ -69,6 +76,9 @@ Scrap Factory
 ├─ world.js
 ├─ world-runtime-phase5b.js
 ├─ world-runtime.js
+├─ phase7-settings.js
+├─ phase7-world-polish.js
+├─ phase7-world-runtime.js
 ├─ progression.js
 │  ├─ progression-core.js
 │  ├─ progression-phase4b.js
@@ -93,7 +103,7 @@ Scrap Factory
 
 Compatibility entrypoints `progression.js` / `exploration.js` / `progression-ui.js` を維持する。
 
-`index.html` は `game.js` / `feature-pack.js` / `progression-ui.js` をproduction runtimeとして読み込む。`progression-ui.js` は既存Automation ConsoleとFinal Phase UIをside-effect layerとして読み込み、Rank / Research UIは `progression-ui-v4.js` を維持する。
+`index.html` は `game.js` / `feature-pack.js` / `progression-ui.js` をproduction runtimeとして読み込む。`progression-ui.js` は既存Automation Console / Final Phase UI / Home / adaptive UI / Phase 7 settings / Phase 7 visual runtimeをside-effect layerとして読み込み、Rank / Research UIは `progression-ui-v4.js` を維持する。
 
 Final Phaseでも `game.js` に専用物流 / 専用Power / 専用Production Simulationを追加しない。既存Generic Production / Drone / Generator / Directional Logistics Runtimeと、Phase 6-Cのderived analyzerへ接続する。
 
@@ -590,21 +600,33 @@ Rank 7 UIは:
 
 ---
 
-## 13. Visual Layer
+## 13. Visual / Performance Layer
 
-Visual direction: `Stylized Industrial Realism`。
+Visual direction: `Stylized Industrial Realism`。Visual variant is not simulation source of truth.
 
-Existing dedicated procedural visuals:
-- Advanced Drone variants
-- Experimental Power System
-- Assembler recipe variants
-- Autonomous Core Fabricator variant
+Productionでは `phase7-world-runtime.js` が既存 `world-runtime-phase5b.js` → `world-runtime.js` の高度Machine VisualをTemplateとして再利用し、`game.js` のFactory Simulationを置き換えず表示Meshだけを差し替える。
 
-Final Phase UIは既存Industrial UI languageへ合わせたHUD / progress / clear overlayの最小追加。
+Dedicated visual coverage:
+- Conveyor Mk.2 / Mk.3
+- Splitter / Merger / Smart Sorter / Priority / Overflow
+- Battery / Industrial Storage / Logistics Warehouse
+- Assembler / recipe variants
+- Utility / Advanced Drone variants
+- Industrial Generator / Experimental Power System
+- Fabricator / Autonomous Core Fabricator
 
-Final Hero Machine / Mega Factory startup visual、Hybrid Asset / Lighting / VFX / LODのfinal quality passは後続。
+`phase7-world-polish.js` はRendering-only budgetを担当する。
 
-Visual variant is not simulation source of truth.
+- near: full machine detail / bounded shadow / animation / VFX
+- mid/far: type-batched `THREE.InstancedMesh` proxy
+- quality tierごとのdetail / shadow / animation / particle / cull distance
+- transfer packet distance + maximum count
+- bounded Spark / Heat / Energy point pools
+- Performance ModeはLow visual budgetを使用し、Simulation resultを変更しない
+
+Performance ModeでもProcedural SkyをCamera Far Clipで切らない。Factory draw distance削減はCamera far planeではなくPhase 7 LOD / Culling budgetで行う。
+
+Final Phase UIは既存Industrial UI languageへ合わせたHUD / progress / clear overlayを維持する。
 
 ---
 
@@ -625,6 +647,11 @@ scripts/validate.mjs
 → scripts/phase6c.test.mjs
   → scripts/phase6c-bus.test.mjs
 → scripts/final-phase.test.mjs
+→ scripts/home-system.test.mjs
+→ scripts/post-clear-optimization.test.mjs
+→ scripts/adaptive-ui.test.mjs
+→ scripts/phase7-settings.test.mjs
+→ scripts/phase7-visual.test.mjs
 ```
 
 Phase 6-C regression covers:
@@ -699,21 +726,30 @@ baseline: success
 
 Documentation-inclusive final head / merge commit must be revalidated before完成扱いにする。
 
-### Unverified by static CI
+### Browser / Visual evidence and remaining real-device checks
 
-- real browser Pointer Lock / Pause flow
-- Main Clear overlayのpointer-lock復帰
-- Progression / Automation / Final HUD actual layout / overflow
+Chromium + WebGL/SwiftShader Visual Review #5（Run `34035243298`）で確認済み:
+
+- Production Runtime / Phase 7 visual patch起動
+- Phase 5-B / Phase 6-C高度Machine visual
+- 高度設備Build Preview / transparency
+- 設置後Rotation
+- 264設備StressでHigh: 1,285 draw calls / 58,944 triangles
+- Performance Mode: 134 draw calls / 8,898 triangles
+- transfer packet visual上限
+- Performance ModeのShadow / VFX削減
+- 1440×900 screenshot / page-level horizontal overflowなし
+- Performance Mode sky clipping修正後のVisual Review
+
+未確認:
+
+- 実GPU / 実機で45 FPS目安を満たすか
+- real browser Pointer Lock / Pause / Main Clear overlay復帰の操作感
 - Route / Recipe reload interaction feel
-- Advanced Drone / Experimental Power first-person scale
-- Build Preview readability
-- Mega Factory layout ergonomics
-- collider / placement feel
-- WebGL FPS / 150〜250 machine scale performance
+- collider / placement feel / Mega Factory layout ergonomics
 - 180秒の実プレイBalance / pacing
 - final automated line gameplay feel
-- Firefox / Chromium real operation
-- final Visual Review / Screenshot Review
+- Firefox実操作
 
 ## 2026-09-06 Home / Player Upgrade / Tutorial Runtime
 

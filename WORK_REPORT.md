@@ -570,3 +570,85 @@ Reset button
 - Repeated action-key events are ignored for `B` / `Tab` / `O` / `F` to prevent hold-to-flicker behavior.
 - Chromium Browser Smoke Run `34000578539`: success at 1536×864. `B` / `Tab` / `O` open-close toggles, Pointer Lock restore, contextual Tutorial visibility, and HOME/Contract non-overlap were verified.
 - Screenshot review: Build panel keeps the current Tutorial directly below its header without obscuring the equipment list; HOME marker has clear separation from the upper HUD.
+
+## 2026-09-06 — Phase 7 Final Visual / Performance Quality Pass
+
+Earlier `Final Quality` / `Browser Performance / Visual Review` remaining items in this report are superseded by this section.
+
+### Implemented
+
+- Phase 5-B〜6-Cで既に作られていた高度Machine VisualをProduction Runtimeへ正式接続
+- Conveyor Mk.2 / Mk.3、Splitter / Merger / Smart Sorter / Priority / Overflow
+- Battery / Industrial Storage / Logistics Warehouse
+- Assembler variants / Utility + Advanced Drone / Industrial Generator
+- Fabricator / Autonomous Core Fabricator / Experimental Power System
+- 高度設備のBuild Preview / transparency / post-placement rotation
+- type-batched `THREE.InstancedMesh` proxyによる遠距離LOD
+- 距離ベースShadow / Animation / Particle budget
+- bounded Spark / Heat / Energy feedback
+- transfer packet距離制限 + maximum count
+- Performance ModeのLow visual budget
+- Rendering layerはFactory Simulation / Logistics / Power / Save resultを変更しない
+
+### Baseline / Stress Evidence
+
+同一Chromium + SwiftShader fixture。絶対Frame timeは実GPU FPSとして扱わず、同一環境の相対比較だけに使う。
+
+| 264設備 | Draw calls | Triangles |
+| --- | ---: | ---: |
+| 旧Production baseline | 6,054 | 134,084 |
+| Phase 7 High | 1,285 | 58,944 |
+| Performance Mode | 134 | 8,898 |
+
+Highでは264設備中72をdetail、192をinstanced proxyへ移行。Performance Modeでは12 detail / 252 proxy。Visual transfer packetsはHighで最大140へbounded。
+
+### Browser / Visual Validation
+
+Final successful visual run:
+
+```text
+Phase 7 Visual Review #5
+Run: 34035243298
+Head: 0c09735ecd6f2b69935403f42f02270e89503cfe
+Result: success
+```
+
+確認済み:
+
+- Production Runtime patch active
+- Phase 5-B visual count / Phase 6-C late visual count
+- enhanced Build Preview + transparency
+- post-placement rotation
+- 264設備Stress
+- Packet budget
+- Performance Mode: Low visual budget / shadows off / spark・heat・energy off
+- 1440×900 horizontal overflowなし
+- page errors 0
+- High / Stress / Performance Mode screenshot目視
+
+Visual Review #4のPerformance Mode screenshotでProcedural SkyがCamera Far Clipに切られ、大きな明るい多角形として見える問題を発見。Performance Modeのcamera farを145へ縮める方式をやめ、skyは190のfrustum内に維持し、Factory draw distanceは既存のLOD / Culling budgetで削減するよう修正した。Review #5 screenshotで崩れ解消を目視確認済み。
+
+### Static Regression
+
+- `scripts/phase7-settings.test.mjs`
+- `scripts/phase7-visual.test.mjs`
+- `npm run validate` へ統合
+- Phase 7 layerが `RECIPES` / Power snapshot / Progression state等のSimulation ownershipを持たないことをRegressionで固定
+
+### Preserved Contracts
+
+- Rank 1→7 / Main Clear / Post Clear Optimization
+- Save Schema v1
+- Existing Factory Layout / 2.5m Grid
+- Directional Logistics / Power / Storage Back Pressure
+- Home / Player Upgrade / Tutorial
+- Factory Simulation resultはGraphics Quality / Performance Modeで変化しない
+
+### Still Requires Real-device / Actual Playtest
+
+- 実GPU環境で通常60 FPS / Mega Factory約45 FPS目安を満たすか
+- Firefox / Chromium Pointer Lock実操作
+- Collider / Placement / Mega Factory layout ergonomics
+- 180秒stable-run pacing / final production balance
+
+CIのSwiftShader stress結果だけから実機45 FPS達成とは扱わない。
