@@ -590,3 +590,25 @@ Player spawn / respawn座標は見た目上の空き位置だけで決めず、P
 ## Tutorial instructions must survive the transition into the UI they ask the player to open
 
 When a tutorial says “press B to open Build” or “press Tab to open Inventory”, hiding the tutorial as soon as that panel opens forces the player to close the panel just to reread the next instruction. Contextual panels should keep the current objective visible inside the panel, and opener shortcuts should act as toggles when that interaction is safe. This reduces memory load and unnecessary open/close cycles.
+
+## 2026-09-06 / Phase 7 Production Visual Wiring & Stress Budget
+
+### Evidence
+
+- 高度Machine専用Visual実装はRepository内に存在していたが、Productionの `game.js` は基底 `world.js` を直接使用しており、作成済みVisualが実プレイへ接続されていなかった。
+- 264設備の旧Production stressは6,054 draw calls / 134,084 triangles。Phase 7 LOD後はHighで1,285 / 58,944、Performance Modeで134 / 8,898。
+- Performance Modeでcamera farを145へ縮めたところ、半径165のProcedural Sky sphereがFar Clipに切られ、Screenshot上で大きな明るい多角形になった。
+
+### Keep
+
+- 「実装ファイルが存在する」ではなく、Production entrypointから実際に使われることをBrowser Runtimeで確認する。Dormant implementationは未実装と同じ扱いにする。
+- Game Rule / SimulationとRendering optimizationを分離する。遠距離Machineをproxy化してもProduction / Logistics / Power resultは変えない。
+- 大量の同系統Objectはtype-batched Instancing、距離LOD、Shadow / Animation / Particle budgetを組み合わせる。単一の最適化だけへ依存しない。
+- SwiftShaderの絶対FPSは実GPU性能の証明に使わず、同じfixture・同じ環境のbefore / after比較Evidenceとして使う。
+- Performance ModeでDraw Distanceを落とす場合、Camera Far ClipでSky / Background Geometryまで切るのではなく、対象Object側のLOD / Cullingを優先する。
+
+### Watch
+
+- Static testとrenderer countersが通っても、clip / z-fighting / silhouette崩れ等のVisual defectは残り得る。最終Screenshot目視を別Gateにする。
+- Instanced proxyは主要Silhouette /物流方向を壊さない範囲に留める。近距離Interaction targetはfull detailを維持する。
+- Hidden base geometryを残すとdraw callは減ってもGPU resource / memory debtが残るため、差し替え後に不要Geometry / Materialをdisposeする。

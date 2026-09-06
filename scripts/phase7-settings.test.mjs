@@ -29,7 +29,8 @@ for (const setting of [
 assert.match(moduleSource, /\['high', 'medium', 'low', 'custom'\]/, 'graphics quality must support High / Medium / Low / Custom');
 assert.match(moduleSource, /world\.setQuality\?\.\('low'\)/, 'Performance Mode must reuse low-cost renderer quality');
 assert.match(moduleSource, /world\.renderer\.shadowMap\.enabled = false/, 'Performance Mode must disable realtime shadows');
-assert.match(moduleSource, /world\.camera\.far = 145/, 'Performance Mode must reduce draw distance');
+assert.match(moduleSource, /world\.camera\.far = 190/, 'Performance Mode must keep the procedural sky inside the camera frustum');
+assert.match(moduleSource, /Factory draw distance[\s\S]*Phase 7 LOD\/culling budget/, 'Performance Mode draw-distance reduction must remain owned by the visual LOD budget');
 assert.match(moduleSource, /Simulationは変更しません/, 'Performance Mode UI must explicitly preserve Simulation');
 assert.doesNotMatch(moduleSource, /processMachines|transportTick|computePowerSnapshot|RECIPES|BUILDINGS/, 'settings layer must not alter Factory Simulation contracts');
 
