@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "node scripts/validate.mjs && node scripts/phase6b.test.mjs && node scripts/phase6c.test.mjs && node scripts/final-phase.test.mjs && node scripts/home-system.test.mjs && node scripts/post-clear-optimization.test.mjs && node scripts/reset-save.test.mjs",
+    "validate": "node scripts/validate.mjs && node scripts/phase6b.test.mjs && node scripts/phase6c.test.mjs && node scripts/final-phase.test.mjs && node scripts/home-system.test.mjs && node scripts/post-clear-optimization.test.mjs && node scripts/reset-save.test.mjs && node scripts/adaptive-ui.test.mjs",
     "test:logistics": "node scripts/logistics.test.mjs",
     "test:management": "node scripts/factory-management.test.mjs",
     "test:progression": "node scripts/progression.test.mjs",
@@ -22,6 +22,7 @@
     "test:final": "node scripts/final-phase.test.mjs",
     "test:home": "node scripts/home-system.test.mjs",
     "test:post-clear": "node scripts/post-clear-optimization.test.mjs",
-    "test:reset-save": "node scripts/reset-save.test.mjs"
+    "test:reset-save": "node scripts/reset-save.test.mjs",
+    "test:adaptive-ui": "node scripts/adaptive-ui.test.mjs"
   }
 }
