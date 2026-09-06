@@ -1,4 +1,6 @@
-/* Contextual Industrial / Adaptive Density gameplay HUD. */
+/* Contextual Industrial / Adaptive Density gameplay HUD.
+   Normal play keeps one primary objective and one disclosed management entry.
+   Detailed management remains in the existing full-screen panels. */
 
 .hud__top-left {
   gap: 6px;
@@ -51,21 +53,234 @@
   box-shadow: inset 2px 0 var(--warn);
 }
 
-.objective-panel {
-  width: min(310px, calc(100% - 40px));
-  padding: 11px 13px 12px;
-  border-top-width: 1px;
-  background: rgb(16 20 21 / 0.76);
+/* Right HUD is one layout system. Bilingual text can grow vertically without
+   fixed top offsets causing Rank / Factory / Automation to collide. */
+.hud-context-stack {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 8;
+  display: grid;
+  justify-items: stretch;
+  gap: 7px;
+  width: min(356px, calc(100vw - 36px));
+  max-height: calc(100vh - 36px);
+  pointer-events: none;
+}
+
+.hud-context-stack > * {
+  min-width: 0;
+}
+
+.hud-context-stack .objective-panel {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  padding: 10px 12px 11px;
+  border: 1px solid rgb(255 255 255 / 0.11);
+  border-top: 2px solid var(--accent);
+  background: rgb(15 19 20 / 0.8);
+  box-shadow: 0 8px 22px rgb(0 0 0 / 0.12);
   backdrop-filter: blur(6px);
 }
 
-.objective-panel h2 {
-  margin-top: 7px;
-  font-size: 0.94rem;
+.hud-context-stack .objective-panel__header {
+  gap: 10px;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
 }
 
-.objective-panel p {
-  font-size: 0.76rem;
+.hud-context-stack .objective-panel h2 {
+  margin: 6px 0 3px;
+  font-size: 0.9rem;
+  line-height: 1.34;
+  letter-spacing: -0.01em;
+}
+
+.hud-context-stack .objective-panel p {
+  margin: 0;
+  color: #aeb6af;
+  font-size: 0.71rem;
+  line-height: 1.46;
+}
+
+/* Contextual status belongs below the current objective. These modules used
+   fixed top coordinates before; normalize them into the same flow. */
+.hud-context-stack .factory-challenge-pin,
+.hud-context-stack .final-phase-hud {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin: 0;
+  pointer-events: none;
+}
+
+.hud-context-stack .factory-challenge-pin {
+  padding: 8px 10px 9px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-left: 2px solid var(--accent);
+  background: rgb(15 19 20 / 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.hud-context-stack .factory-challenge-pin strong {
+  font-size: 0.74rem;
+}
+
+.hud-context-stack .factory-challenge-pin small {
+  font-size: 0.62rem;
+}
+
+.hud-context-stack .final-phase-hud {
+  padding: 8px 10px !important;
+  border: 1px solid rgb(255 255 255 / 0.11) !important;
+  border-left: 2px solid var(--accent) !important;
+  background: rgb(15 19 20 / 0.76) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(5px) !important;
+}
+
+/* Rank / Factory / Automation are reference actions, not three permanent
+   status cards. One restrained launcher reveals them on request. */
+.hud-management {
+  position: relative;
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.hud-management__toggle {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  min-width: 132px;
+  padding: 7px 9px;
+  border: 1px solid rgb(255 255 255 / 0.11);
+  background: rgb(15 19 20 / 0.68);
+  color: #bac1bb;
+  font: inherit;
+  font-size: 0.59rem;
+  font-weight: 850;
+  letter-spacing: 0.075em;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
+}
+
+.hud-management__toggle:hover,
+.hud-management__toggle[aria-expanded="true"] {
+  border-color: rgb(212 183 79 / 0.48);
+  background: rgb(24 29 30 / 0.9);
+  color: #eef0e9;
+}
+
+.hud-management__toggle strong {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 5px;
+  background: #a54d42;
+  color: #fff;
+  font-size: 0.6rem;
+  line-height: 1;
+}
+
+.hud-management__tray {
+  width: min(246px, 100%);
+  display: grid;
+  gap: 3px;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(13 17 18 / 0.92);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.3);
+  backdrop-filter: blur(8px);
+}
+
+.hud-management__tray .progression-hud,
+.hud-management__tray .factory-management-hud,
+.hud-management__tray .automation-console-hud {
+  position: relative !important;
+  inset: auto !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 38px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-left: 2px solid rgb(212 183 79 / 0.28);
+  background: transparent;
+  box-shadow: none;
+  color: #c7cdc8;
+  backdrop-filter: none;
+  pointer-events: auto;
+}
+
+.hud-management__tray .progression-hud:hover,
+.hud-management__tray .factory-management-hud:hover,
+.hud-management__tray .automation-console-hud:hover {
+  border-color: rgb(255 255 255 / 0.13);
+  border-left-color: var(--accent);
+  background: rgb(255 255 255 / 0.055);
+}
+
+.hud-management__tray .progression-hud {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  text-align: left;
+}
+
+.hud-management__tray .progression-hud span,
+.hud-management__tray .progression-hud strong,
+.hud-management__tray .progression-hud small {
+  grid-row: auto !important;
+  grid-column: auto !important;
+  margin: 0;
+}
+
+.hud-management__tray .progression-hud strong {
+  justify-self: start;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.hud-management__tray .progression-hud small {
+  justify-self: end;
+  font-size: 0.56rem;
+}
+
+.hud-management__tray .factory-management-hud,
+.hud-management__tray .automation-console-hud {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 7px 9px;
+  font-size: 0.62rem;
+  letter-spacing: 0.065em;
+  text-align: left;
+}
+
+.hud-management__tray .automation-console-hud span {
+  flex: 1;
+}
+
+.hud-management__tray .factory-management-hud strong {
+  margin-left: auto;
 }
 
 .hud__bottom-left {
@@ -181,21 +396,13 @@
   color: #e5aaa3;
 }
 
-/* Factory progression is a reference action in normal factory work, not an
-   exploration overlay. The JS layer hides it outside the base. */
-.progression-hud {
-  top: 126px;
-  min-width: 104px;
-  background: rgb(16 20 21 / 0.74);
-  backdrop-filter: blur(6px);
-}
-
-.final-phase-hud {
-  background: rgb(16 20 21 / 0.78) !important;
-  backdrop-filter: blur(6px) !important;
-}
-
 @media (max-width: 900px) {
+  .hud-context-stack {
+    top: 12px;
+    right: 12px;
+    width: min(340px, calc(100vw - 24px));
+  }
+
   .hud__bottom-left {
     left: 12px;
     bottom: 12px;
@@ -220,15 +427,32 @@
 }
 
 @media (max-width: 620px) {
-  .objective-panel {
-    right: 12px;
-    top: 12px;
-    width: min(290px, calc(100% - 24px));
+  .hud-context-stack {
+    width: calc(100vw - 24px);
   }
 
+  .hud-context-stack .objective-panel {
+    padding: 9px 10px 10px;
+  }
+
+  .hud-context-stack .objective-panel h2 {
+    font-size: 0.84rem;
+  }
+
+  .hud-context-stack .objective-panel p {
+    font-size: 0.68rem;
+  }
+
+  .hud-management__tray {
+    width: 100%;
+  }
+
+  /* Keep economy/reference information away from the top objective on narrow
+     screens rather than shrinking both into an overlapping desktop layout. */
   .hud__top-left {
-    top: 12px;
+    top: auto;
     left: 12px;
+    bottom: 62px;
   }
 
   .hud-key span {
@@ -260,6 +484,21 @@
 }
 
 @media (max-height: 680px) {
+  .hud-context-stack {
+    top: 8px;
+    max-height: calc(100vh - 16px);
+  }
+
+  .hud-context-stack .objective-panel p {
+    font-size: 0.66rem;
+    line-height: 1.38;
+  }
+
+  .hud-management__tray {
+    max-height: 150px;
+    overflow-y: auto;
+  }
+
   .build-hint {
     bottom: 8px;
     padding-top: 8px;
