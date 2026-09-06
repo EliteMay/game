@@ -1,0 +1,259 @@
+name: Apply HUD Tutorial Hotkey Fix
+
+on:
+  push:
+    branches:
+      - fix/hud-tutorial-hotkeys
+    paths:
+      - .github/workflows/apply-hud-tutorial-hotkeys.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Apply UI and hotkey fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected exactly one match, found {count}')
+              p.write_text(text.replace(old, new, 1))
+
+          game = 'games/scrap-factory/game.js'
+          replace_once(game,
+          """let audio = null;
+          let beforeUnloadSaved = false;
+          const transportCredits = new Map();""",
+          """let audio = null;
+          let beforeUnloadSaved = false;
+          let panelTutorialReminder = null;
+          const transportCredits = new Map();""")
+
+          replace_once(game,
+          """function handleWorldKey(code) {
+            if (!started) return;
+            if (code === 'KeyO' && !currentPanel && !world.buildMode) {
+              openPanel('guide');
+              return;
+            }
+            if (code === 'KeyF' && !currentPanel && !world.buildMode) {
+              setDismantleMode(!dismantleMode);
+              return;
+            }
+            if (code === 'KeyE' && !currentPanel && !world.buildMode && !dismantleMode) world.interact();
+            if (code === 'KeyB' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'buildMenuOpened', true); advanceTutorial(); openPanel('build'); }
+            if (code === 'Tab' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'inventoryOpened', true); advanceTutorial(); openPanel('inventory'); }
+          }""",
+          """function handleWorldKey(code) {
+            if (!started) return;
+            if (code === 'KeyO') {
+              if (currentPanel === 'guide') {
+                closePanelAndResume();
+                return;
+              }
+              if (!currentPanel && !world.buildMode) openPanel('guide');
+              return;
+            }
+            if (code === 'KeyB') {
+              if (currentPanel === 'build') {
+                closePanelAndResume();
+                return;
+              }
+              if (!currentPanel && !dismantleMode) {
+                recordTutorialEvent(game, 'buildMenuOpened', true);
+                advanceTutorial();
+                openPanel('build');
+              }
+              return;
+            }
+            if (code === 'Tab') {
+              if (currentPanel === 'inventory') {
+                closePanelAndResume();
+                return;
+              }
+              if (!currentPanel && !dismantleMode) {
+                recordTutorialEvent(game, 'inventoryOpened', true);
+                advanceTutorial();
+                openPanel('inventory');
+              }
+              return;
+            }
+            if (code === 'KeyF' && !currentPanel && !world.buildMode) {
+              setDismantleMode(!dismantleMode);
+              return;
+            }
+            if (code === 'KeyE' && !currentPanel && !world.buildMode && !dismantleMode) world.interact();
+          }""")
+
+          replace_once(game,
+          """  if (name === 'build') {
+              renderBuildMenu();
+              ui.buildPanel.hidden = false;
+            }
+            if (name === 'inventory') {
+              renderInventory();
+              ui.inventoryPanel.hidden = false;
+            }""",
+          """  if (name === 'build') {
+              renderBuildMenu();
+              ui.buildPanel.hidden = false;
+              ensurePanelTutorialReminder(ui.buildPanel, 'B');
+            }
+            if (name === 'inventory') {
+              renderInventory();
+              ui.inventoryPanel.hidden = false;
+              ensurePanelTutorialReminder(ui.inventoryPanel, 'Tab');
+            }""")
+
+          replace_once(game,
+          """function hidePanels() {
+            for (const panel of [ui.pause, ui.buildPanel, ui.inventoryPanel, ui.machinePanel, ui.guidePanel, ui.settingsPanel]) panel.hidden = true;
+          }""",
+          """function ensurePanelTutorialReminder(panel, toggleKey) {
+            const card = panel?.querySelector('.panel-card');
+            if (!card) return;
+            if (!panelTutorialReminder) {
+              panelTutorialReminder = document.createElement('aside');
+              panelTutorialReminder.className = 'panel-tutorial-reminder';
+              panelTutorialReminder.setAttribute('aria-label', '現在のチュートリアル目標');
+              panelTutorialReminder.innerHTML = `
+                <div class="panel-tutorial-reminder__meta">
+                  <span>CURRENT TUTORIAL</span>
+                  <strong data-panel-tutorial-progress></strong>
+                </div>
+                <h3 data-panel-tutorial-title></h3>
+                <p data-panel-tutorial-body></p>
+                <small><kbd data-panel-toggle-key></kbd> をもう一度押して閉じる</small>
+              `;
+            }
+            const header = card.querySelector('.panel-header');
+            if (panelTutorialReminder.parentElement !== card) {
+              if (header) header.insertAdjacentElement('afterend', panelTutorialReminder);
+              else card.prepend(panelTutorialReminder);
+            }
+            panelTutorialReminder.querySelector('[data-panel-toggle-key]').textContent = toggleKey;
+            panelTutorialReminder.hidden = false;
+            updatePanelTutorialReminder();
+          }
+
+          function updatePanelTutorialReminder(goal = homeTutorialObjective(game)) {
+            if (!panelTutorialReminder) return;
+            panelTutorialReminder.querySelector('[data-panel-tutorial-progress]').textContent = goal.progress;
+            panelTutorialReminder.querySelector('[data-panel-tutorial-title]').textContent = `${goal.kind}: ${goal.title}`;
+            panelTutorialReminder.querySelector('[data-panel-tutorial-body]').textContent = goal.body;
+          }
+
+          function hidePanels() {
+            for (const panel of [ui.pause, ui.buildPanel, ui.inventoryPanel, ui.machinePanel, ui.guidePanel, ui.settingsPanel]) panel.hidden = true;
+            if (panelTutorialReminder) panelTutorialReminder.hidden = true;
+          }""")
+
+          replace_once(game,
+          """function renderTutorial() {
+            const goal = homeTutorialObjective(game);
+            ui.tutorialTitle.textContent = `${goal.kind}: ${goal.title}`;
+            ui.tutorialBody.textContent = goal.body;
+            ui.tutorialProgress.textContent = goal.progress;
+          }""",
+          """function renderTutorial() {
+            const goal = homeTutorialObjective(game);
+            ui.tutorialTitle.textContent = `${goal.kind}: ${goal.title}`;
+            ui.tutorialBody.textContent = goal.body;
+            ui.tutorialProgress.textContent = goal.progress;
+            updatePanelTutorialReminder(goal);
+          }""")
+
+          replace_once('games/scrap-factory/world.js',
+          """if (event.repeat && ['KeyE', 'KeyB', 'KeyR'].includes(event.code)) return;""",
+          """if (event.repeat && ['KeyE', 'KeyB', 'KeyR', 'KeyO', 'KeyF', 'Tab'].includes(event.code)) return;""")
+
+          css = 'games/scrap-factory/game.css'
+          replace_once(css,
+          """.objective-panel p { margin: 0; color: #b5bbb5; font-size: 0.78rem; line-height: 1.5; }
+          .hud__bottom-left""",
+          """.objective-panel p { margin: 0; color: #b5bbb5; font-size: 0.78rem; line-height: 1.5; }
+
+          .panel-tutorial-reminder {
+            margin: 16px 0 0;
+            padding: 12px 14px;
+            border: 1px solid #3b4243;
+            border-left: 3px solid var(--accent);
+            background: #181d1e;
+          }
+          .panel-tutorial-reminder__meta { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+          .panel-tutorial-reminder__meta span { color: var(--accent); font-size: 0.62rem; font-weight: 900; letter-spacing: 0.12em; }
+          .panel-tutorial-reminder__meta strong { color: #aeb6b0; font-size: 0.68rem; font-variant-numeric: tabular-nums; }
+          .panel-tutorial-reminder h3 { margin: 7px 0 4px; font-size: 0.92rem; }
+          .panel-tutorial-reminder p { margin: 0; color: #b7beb8; font-size: 0.78rem; line-height: 1.5; }
+          .panel-tutorial-reminder small { display: block; margin-top: 9px; color: #8f9992; font-size: 0.7rem; }
+          .panel-tutorial-reminder small kbd { margin-right: 4px; }
+
+          .hud__bottom-left""")
+
+          home_css = 'games/scrap-factory/home-system.css'
+          replace_once(home_css,
+          """  right: 22px;
+            padding: 7px 10px;""",
+          """  left: 20px;
+            right: auto;
+            padding: 7px 10px;""")
+          replace_once(home_css,
+          """.home-marker-chip { top: 76px; }
+          .scanner-chip { top: 108px; color: #d9c66d; }""",
+          """.home-marker-chip { top: 124px; }
+          .scanner-chip { top: 156px; color: #d9c66d; }""")
+          replace_once(home_css,
+          """  .home-marker-chip,
+            .scanner-chip { right: 10px; }""",
+          """  .home-marker-chip,
+            .scanner-chip { left: 10px; right: auto; }""")
+
+          report = Path('WORK_REPORT.md')
+          report_text = report.read_text()
+          note = """
+
+          ## 2026-09-06 HUD / Tutorial Hotkey UX Fix
+
+          - HOME distance chip was moved away from the upper-right Contract HUD so the two elements no longer overlap.
+          - Build (`B`) and Inventory (`Tab`) panels now use the same key as a toggle: press once to open, press again to close and resume gameplay.
+          - Guide (`O`) now follows the same toggle behavior for consistency.
+          - Build / Inventory panels show the current Tutorial objective inside the panel, so the instruction that led into the panel does not disappear while the player is acting on it.
+          - Repeated action-key events are ignored for `B` / `Tab` / `O` / `F` to prevent hold-to-flicker behavior.
+          """
+          if '## 2026-09-06 HUD / Tutorial Hotkey UX Fix' not in report_text:
+              report.write_text(report_text.rstrip() + note + '\n')
+
+          learn = Path('PROJECT_LEARNINGS.md')
+          learn_text = learn.read_text()
+          learning = """
+
+          ## Tutorial instructions must survive the transition into the UI they ask the player to open
+
+          When a tutorial says “press B to open Build” or “press Tab to open Inventory”, hiding the tutorial as soon as that panel opens forces the player to close the panel just to reread the next instruction. Contextual panels should keep the current objective visible inside the panel, and opener shortcuts should act as toggles when that interaction is safe. This reduces memory load and unnecessary open/close cycles.
+          """
+          if '## Tutorial instructions must survive the transition into the UI they ask the player to open' not in learn_text:
+              learn.write_text(learn_text.rstrip() + learning + '\n')
+          PY
+      - name: Validate patched tree
+        run: |
+          npm run validate
+          git diff --check
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add games/scrap-factory/game.js games/scrap-factory/world.js games/scrap-factory/game.css games/scrap-factory/home-system.css WORK_REPORT.md PROJECT_LEARNINGS.md
+          git commit -m "fix: keep tutorial visible across panel hotkeys"
+          git push
