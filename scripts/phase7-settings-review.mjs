@@ -131,7 +131,21 @@ try {
   assert.equal(saved.quality, 'custom');
 
   await page.screenshot({ path: 'artifacts/phase7-settings-review/settings-1440.png', fullPage: false });
+  await page.$eval('[data-phase7-custom]', (node) => node.scrollIntoView({ block: 'center' }));
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const customRect = await page.$eval('[data-phase7-custom]', (node) => {
+    const r = node.getBoundingClientRect();
+    return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+  });
+  assert.ok(customRect.left >= 0 && customRect.right <= 1440, 'Custom graphics group must fit 1440px viewport');
+  assert.ok(customRect.bottom > 0 && customRect.top < 900, 'Custom graphics group must be reachable inside settings panel');
+  await page.screenshot({ path: 'artifacts/phase7-settings-review/custom-1440.png', fullPage: false });
+
   await page.setViewport({ width: 1024, height: 720, deviceScaleFactor: 1 });
+  await page.evaluate(() => {
+    const panel = document.querySelector('#settings-panel .panel-card');
+    if (panel) panel.scrollTop = 0;
+  });
   await new Promise((resolve) => setTimeout(resolve, 150));
   const compact = await page.evaluate(() => ({
     horizontalOverflow: document.documentElement.scrollWidth > innerWidth,
@@ -145,7 +159,7 @@ try {
   await page.screenshot({ path: 'artifacts/phase7-settings-review/settings-1024.png', fullPage: false });
 
   if (pageErrors.length) throw new Error(`Browser page errors:\n${pageErrors.join('\n')}`);
-  console.log(JSON.stringify({ initial, accessibility, custom, performanceMode, compact }, null, 2));
+  console.log(JSON.stringify({ initial, accessibility, custom, performanceMode, customRect, compact }, null, 2));
 } finally {
   await browser.close();
 }
