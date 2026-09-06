@@ -27,14 +27,6 @@ function makeTemplateHost() {
   };
 }
 
-function buildEnhancedMesh(building) {
-  const host = makeTemplateHost();
-  const mesh = EnhancedScrapWorld.prototype.addBuilding.call(host, building);
-  if (!mesh) return null;
-  host.scene.remove(mesh);
-  return mesh;
-}
-
 function disposeRoot(root) {
   root?.traverse?.((node) => {
     if (!node.isMesh) return;
@@ -42,6 +34,19 @@ function disposeRoot(root) {
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     for (const material of materials) material?.dispose?.();
   });
+}
+
+function buildEnhancedMesh(building) {
+  const host = makeTemplateHost();
+  const mesh = EnhancedScrapWorld.prototype.addBuilding.call(host, building);
+  if (!mesh) return null;
+  host.scene.remove(mesh);
+  for (const child of [...mesh.children]) {
+    if (child.visible !== false) continue;
+    mesh.remove(child);
+    disposeRoot(child);
+  }
+  return mesh;
 }
 
 function makePreview(root, opacity = 0.52) {
