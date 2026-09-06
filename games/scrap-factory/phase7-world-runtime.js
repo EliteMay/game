@@ -193,7 +193,14 @@ function patchProductionWorld(runtime) {
 
   for (const building of game.buildings || []) replaceBuildingVisual(world, building);
   world.phase7Polish.rebuild();
-  world.phase7Polish.setQuality(game.settings?.quality || 'high');
+  const visualQuality = game.settings?.performanceMode
+    ? 'low'
+    : game.settings?.quality === 'medium'
+      ? 'medium'
+      : game.settings?.quality === 'low'
+        ? 'low'
+        : 'high';
+  world.phase7Polish.setQuality(visualQuality);
   return true;
 }
 
