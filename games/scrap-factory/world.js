@@ -117,7 +117,7 @@ export class ScrapWorld {
   #bindEvents() {
     this.onResize = () => this.resize();
     this.onKeyDown = (event) => {
-      if (event.repeat && ['KeyE', 'KeyB', 'KeyR'].includes(event.code)) return;
+      if (event.repeat && ['KeyE', 'KeyB', 'KeyR', 'KeyO', 'KeyF', 'Tab'].includes(event.code)) return;
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ShiftLeft', 'ShiftRight', 'Space', 'Tab'].includes(event.code)) event.preventDefault();
       this.keys.add(event.code);
       if (event.code === 'Space' && this.player.grounded && document.pointerLockElement === this.canvas) {

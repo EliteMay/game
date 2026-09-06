@@ -560,3 +560,13 @@ Reset button
 - Fix: Fresh/Home respawnをBed collider外の `(-10.25, 36.1)` へ移動。既存Saveの現在位置は変更しない。
 - Regression: `scripts/home-system.test.mjs` でrespawnとBed colliderの重なりを禁止。
 - Browser verification: Fresh Spawn Movement Smoke Run `33999840395` success。Pointer Lock中にWを押し、`z=36.10 -> 36.62` の実移動を確認。
+
+## 2026-09-06 HUD / Tutorial Hotkey UX Fix
+
+- HOME distance chip was moved away from the upper-right Contract HUD so the two elements no longer overlap.
+- Build (`B`) and Inventory (`Tab`) panels now use the same key as a toggle: press once to open, press again to close and resume gameplay.
+- Guide (`O`) now follows the same toggle behavior for consistency.
+- Build / Inventory panels show the current Tutorial objective inside the panel, so the instruction that led into the panel does not disappear while the player is acting on it.
+- Repeated action-key events are ignored for `B` / `Tab` / `O` / `F` to prevent hold-to-flicker behavior.
+- Chromium Browser Smoke Run `34000578539`: success at 1536×864. `B` / `Tab` / `O` open-close toggles, Pointer Lock restore, contextual Tutorial visibility, and HOME/Contract non-overlap were verified.
+- Screenshot review: Build panel keeps the current Tutorial directly below its header without obscuring the equipment list; HOME marker has clear separation from the upper HUD.

@@ -235,7 +235,8 @@
 .scanner-chip {
   position: fixed;
   z-index: 22;
-  right: 22px;
+  left: 20px;
+  right: auto;
   padding: 7px 10px;
   border: 1px solid rgba(255,255,255,.12);
   background: rgba(19,24,25,.8);
@@ -244,8 +245,8 @@
   letter-spacing: .05em;
   pointer-events: none;
 }
-.home-marker-chip { top: 76px; }
-.scanner-chip { top: 108px; color: #d9c66d; }
+.home-marker-chip { top: 132px; }
+.scanner-chip { top: 164px; color: #d9c66d; }
 
 .home-bed-fade {
   position: fixed;
@@ -301,7 +302,7 @@
   .tracking-grid { grid-template-columns: 1fr; }
   .tutorial-entry dl > div { grid-template-columns: 1fr; gap: 2px; }
   .home-marker-chip,
-  .scanner-chip { right: 10px; }
+  .scanner-chip { left: 10px; right: auto; }
 }
 
 .home-transfer-grid {

@@ -139,6 +139,7 @@ let unsavedPlaySeconds = 0;
 let tutorialCheckAccumulator = 0;
 let audio = null;
 let beforeUnloadSaved = false;
+let panelTutorialReminder = null;
 const transportCredits = new Map();
 
 function makeId(prefix = 'id') {
@@ -359,8 +360,36 @@ function handlePointerLockChange(locked) {
 
 function handleWorldKey(code) {
   if (!started) return;
-  if (code === 'KeyO' && !currentPanel && !world.buildMode) {
-    openPanel('guide');
+  if (code === 'KeyO') {
+    if (currentPanel === 'guide') {
+      closePanelAndResume();
+      return;
+    }
+    if (!currentPanel && !world.buildMode) openPanel('guide');
+    return;
+  }
+  if (code === 'KeyB') {
+    if (currentPanel === 'build') {
+      closePanelAndResume();
+      return;
+    }
+    if (!currentPanel && !dismantleMode) {
+      recordTutorialEvent(game, 'buildMenuOpened', true);
+      advanceTutorial();
+      openPanel('build');
+    }
+    return;
+  }
+  if (code === 'Tab') {
+    if (currentPanel === 'inventory') {
+      closePanelAndResume();
+      return;
+    }
+    if (!currentPanel && !dismantleMode) {
+      recordTutorialEvent(game, 'inventoryOpened', true);
+      advanceTutorial();
+      openPanel('inventory');
+    }
     return;
   }
   if (code === 'KeyF' && !currentPanel && !world.buildMode) {
@@ -368,8 +397,6 @@ function handleWorldKey(code) {
     return;
   }
   if (code === 'KeyE' && !currentPanel && !world.buildMode && !dismantleMode) world.interact();
-  if (code === 'KeyB' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'buildMenuOpened', true); advanceTutorial(); openPanel('build'); }
-  if (code === 'Tab' && !currentPanel && !dismantleMode) { recordTutorialEvent(game, 'inventoryOpened', true); advanceTutorial(); openPanel('inventory'); }
 }
 
 function setDismantleMode(enabled) {
@@ -391,10 +418,12 @@ function openPanel(name, data = null) {
   if (name === 'build') {
     renderBuildMenu();
     ui.buildPanel.hidden = false;
+    ensurePanelTutorialReminder(ui.buildPanel, 'B');
   }
   if (name === 'inventory') {
     renderInventory();
     ui.inventoryPanel.hidden = false;
+    ensurePanelTutorialReminder(ui.inventoryPanel, 'Tab');
   }
   if (name === 'machine') {
     selectedMachineId = data?.id || selectedMachineId;
@@ -408,8 +437,43 @@ function openPanel(name, data = null) {
   }
 }
 
+function ensurePanelTutorialReminder(panel, toggleKey) {
+  const card = panel?.querySelector('.panel-card');
+  if (!card) return;
+  if (!panelTutorialReminder) {
+    panelTutorialReminder = document.createElement('aside');
+    panelTutorialReminder.className = 'panel-tutorial-reminder';
+    panelTutorialReminder.setAttribute('aria-label', '現在のチュートリアル目標');
+    panelTutorialReminder.innerHTML = `
+      <div class="panel-tutorial-reminder__meta">
+        <span>CURRENT TUTORIAL</span>
+        <strong data-panel-tutorial-progress></strong>
+      </div>
+      <h3 data-panel-tutorial-title></h3>
+      <p data-panel-tutorial-body></p>
+      <small><kbd data-panel-toggle-key></kbd> をもう一度押して閉じる</small>
+    `;
+  }
+  const header = card.querySelector('.panel-header');
+  if (panelTutorialReminder.parentElement !== card) {
+    if (header) header.insertAdjacentElement('afterend', panelTutorialReminder);
+    else card.prepend(panelTutorialReminder);
+  }
+  panelTutorialReminder.querySelector('[data-panel-toggle-key]').textContent = toggleKey;
+  panelTutorialReminder.hidden = false;
+  updatePanelTutorialReminder();
+}
+
+function updatePanelTutorialReminder(goal = homeTutorialObjective(game)) {
+  if (!panelTutorialReminder) return;
+  panelTutorialReminder.querySelector('[data-panel-tutorial-progress]').textContent = goal.progress;
+  panelTutorialReminder.querySelector('[data-panel-tutorial-title]').textContent = `${goal.kind}: ${goal.title}`;
+  panelTutorialReminder.querySelector('[data-panel-tutorial-body]').textContent = goal.body;
+}
+
 function hidePanels() {
   for (const panel of [ui.pause, ui.buildPanel, ui.inventoryPanel, ui.machinePanel, ui.guidePanel, ui.settingsPanel]) panel.hidden = true;
+  if (panelTutorialReminder) panelTutorialReminder.hidden = true;
 }
 
 function closePanelAndResume() {
@@ -1058,6 +1122,7 @@ function renderTutorial() {
   ui.tutorialTitle.textContent = `${goal.kind}: ${goal.title}`;
   ui.tutorialBody.textContent = goal.body;
   ui.tutorialProgress.textContent = goal.progress;
+  updatePanelTutorialReminder(goal);
 }
 
 function renderHud() {
