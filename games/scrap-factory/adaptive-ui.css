@@ -1,0 +1,273 @@
+/* Contextual Industrial / Adaptive Density gameplay HUD. */
+
+.hud__top-left {
+  gap: 6px;
+}
+
+.area-plate {
+  min-width: 0;
+  padding: 7px 10px;
+  border-left-width: 2px;
+  background: rgb(16 20 21 / 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.area-plate span,
+.economy-strip span {
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.area-plate strong {
+  font-size: 0.8rem;
+}
+
+.economy-strip {
+  border: 0;
+  background: transparent;
+  backdrop-filter: none;
+  gap: 6px;
+}
+
+.economy-strip > .hud-stat {
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid rgb(215 223 216 / 0.14);
+  background: rgb(16 20 21 / 0.72);
+  backdrop-filter: blur(5px);
+}
+
+.economy-strip > .hud-stat:last-child {
+  border-right: 1px solid rgb(215 223 216 / 0.14);
+}
+
+.hud-stat strong {
+  margin-top: 1px;
+  font-size: 0.86rem;
+}
+
+.hud-stat--capacity.is-near-full {
+  border-color: rgb(213 161 91 / 0.52);
+  box-shadow: inset 2px 0 var(--warn);
+}
+
+.objective-panel {
+  width: min(310px, calc(100% - 40px));
+  padding: 11px 13px 12px;
+  border-top-width: 1px;
+  background: rgb(16 20 21 / 0.76);
+  backdrop-filter: blur(6px);
+}
+
+.objective-panel h2 {
+  margin-top: 7px;
+  font-size: 0.94rem;
+}
+
+.objective-panel p {
+  font-size: 0.76rem;
+}
+
+.hud__bottom-left {
+  gap: 4px;
+}
+
+.hud-key {
+  min-height: 38px;
+  padding: 5px 7px;
+  border-color: rgb(255 255 255 / 0.09);
+  background: rgb(16 20 21 / 0.66);
+  font-size: 0.62rem;
+  backdrop-filter: blur(5px);
+}
+
+.hud-key kbd {
+  min-width: 25px;
+  padding: 3px 5px;
+}
+
+.hud-key--secondary {
+  display: none !important;
+}
+
+/* The old right-side key strip duplicated the command rail. Adaptive UI keeps
+   one compact command surface and switches to mode-specific help when needed. */
+.shortcut-bar {
+  display: none !important;
+}
+
+.build-hint {
+  left: 50%;
+  right: auto;
+  bottom: 20px;
+  width: min(680px, calc(100% - 40px));
+  min-width: 0;
+  transform: translateX(-50%);
+  gap: 5px;
+  padding: 11px 13px 10px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-left: 3px solid var(--accent);
+  background: rgb(16 20 21 / 0.86);
+  box-shadow: 0 14px 34px rgb(0 0 0 / 0.26);
+  backdrop-filter: blur(7px);
+}
+
+.build-hint > span {
+  font-size: 0.63rem;
+}
+
+.build-hint > strong {
+  font-size: 0.95rem;
+}
+
+.build-hint > small {
+  font-size: 0.7rem;
+}
+
+.adaptive-build-context {
+  display: grid;
+  grid-template-columns: auto auto minmax(180px, 1fr) auto;
+  gap: 1px;
+  margin: 3px -2px 1px;
+  border: 1px solid rgb(255 255 255 / 0.09);
+  background: rgb(255 255 255 / 0.04);
+}
+
+.adaptive-build-context > div {
+  min-width: 0;
+  padding: 7px 9px;
+  border-right: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.adaptive-build-context > div:last-child {
+  border-right: 0;
+}
+
+.adaptive-build-context span {
+  display: block;
+  color: #8f9992;
+  font-size: 0.58rem;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+}
+
+.adaptive-build-context strong {
+  display: block;
+  margin-top: 2px;
+  color: #e2e6e1;
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.adaptive-build-context__flow strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adaptive-build-context [data-build-status-wrap].is-valid {
+  box-shadow: inset 2px 0 var(--good);
+}
+
+.adaptive-build-context [data-build-status-wrap].is-valid strong {
+  color: #a9d3b0;
+}
+
+.adaptive-build-context [data-build-status-wrap].is-invalid {
+  box-shadow: inset 2px 0 var(--danger);
+}
+
+.adaptive-build-context [data-build-status-wrap].is-invalid strong {
+  color: #e5aaa3;
+}
+
+/* Factory progression is a reference action in normal factory work, not an
+   exploration overlay. The JS layer hides it outside the base. */
+.progression-hud {
+  top: 126px;
+  min-width: 104px;
+  background: rgb(16 20 21 / 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.final-phase-hud {
+  background: rgb(16 20 21 / 0.78) !important;
+  backdrop-filter: blur(6px) !important;
+}
+
+@media (max-width: 900px) {
+  .hud__bottom-left {
+    left: 12px;
+    bottom: 12px;
+  }
+
+  .build-hint {
+    bottom: 12px;
+    width: min(620px, calc(100% - 24px));
+  }
+
+  .adaptive-build-context {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adaptive-build-context > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .adaptive-build-context > div:nth-child(-n+2) {
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  }
+}
+
+@media (max-width: 620px) {
+  .objective-panel {
+    right: 12px;
+    top: 12px;
+    width: min(290px, calc(100% - 24px));
+  }
+
+  .hud__top-left {
+    top: 12px;
+    left: 12px;
+  }
+
+  .hud-key span {
+    display: none;
+  }
+
+  .hud-key {
+    min-width: 38px;
+    justify-content: center;
+  }
+
+  .adaptive-build-context {
+    grid-template-columns: 1fr;
+  }
+
+  .adaptive-build-context > div,
+  .adaptive-build-context > div:nth-child(2) {
+    border-right: 0;
+    border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  }
+
+  .adaptive-build-context > div:last-child {
+    border-bottom: 0;
+  }
+
+  .adaptive-build-context__flow strong {
+    white-space: normal;
+  }
+}
+
+@media (max-height: 680px) {
+  .build-hint {
+    bottom: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .adaptive-build-context > div {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+}
