@@ -245,8 +245,8 @@
   letter-spacing: .05em;
   pointer-events: none;
 }
-.home-marker-chip { top: 124px; }
-.scanner-chip { top: 156px; color: #d9c66d; }
+.home-marker-chip { top: 132px; }
+.scanner-chip { top: 164px; color: #d9c66d; }
 
 .home-bed-fade {
   position: fixed;
