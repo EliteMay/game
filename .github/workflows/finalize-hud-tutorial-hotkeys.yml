@@ -1,0 +1,52 @@
+name: Finalize HUD Tutorial Hotkey Fix
+
+on:
+  push:
+    branches:
+      - fix/hud-tutorial-hotkeys
+    paths:
+      - .github/workflows/finalize-hud-tutorial-hotkeys.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - name: Record browser and visual verification
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('WORK_REPORT.md')
+          s = p.read_text()
+          old = "- Repeated action-key events are ignored for `B` / `Tab` / `O` / `F` to prevent hold-to-flicker behavior."
+          new = old + "\n- Chromium Browser Smoke Run `34000578539`: success at 1536×864. `B` / `Tab` / `O` open-close toggles, Pointer Lock restore, contextual Tutorial visibility, and HOME/Contract non-overlap were verified.\n- Screenshot review: Build panel keeps the current Tutorial directly below its header without obscuring the equipment list; HOME marker has clear separation from the upper HUD."
+          if old not in s:
+              raise SystemExit('WORK_REPORT verification anchor not found')
+          if 'Chromium Browser Smoke Run `34000578539`' not in s:
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Remove temporary workflows
+        run: |
+          rm -f .github/workflows/apply-hud-tutorial-hotkeys.yml
+          rm -f .github/workflows/apply-hud-tutorial-hotkeys-v2.yml
+          rm -f .github/workflows/hud-tutorial-browser-smoke.yml
+          rm -f .github/workflows/finalize-hud-tutorial-hotkeys.yml
+      - name: Validate clean final tree
+        run: |
+          npm run validate
+          git diff --check
+          test "$(find .github/workflows -maxdepth 1 -type f -printf '%f\n' | sort | tr '\n' ' ')" = "pages.yml validate.yml "
+      - name: Commit final state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: finalize HUD tutorial hotkey fix"
+          git push
