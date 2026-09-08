@@ -72,6 +72,10 @@ function runtimeWorld() {
   return window.__scrapFactoryRuntime?.world || null;
 }
 
+function runtimeGame() {
+  return window.__scrapFactoryRuntime?.getGame?.() || null;
+}
+
 function ensureStylesheet() {
   if (document.querySelector('link[data-factory-management]')) return;
   const link = document.createElement('link');
@@ -238,7 +242,8 @@ function startToastObserver() {
 }
 
 function updateSnapshots() {
-  const { root, game } = readSave();
+  const { root, game: savedGame } = readSave();
+  const game = runtimeGame() || savedGame;
   const live = liveValues();
   state.latestRoot = root;
   state.latestGame = game;
@@ -722,6 +727,8 @@ function setDiagnostics(enabled, focusId = null) {
     return;
   }
 
+  state.factory = analyzeFactory(runtimeGame() || state.latestGame || {});
+  state.latestGame = runtimeGame() || state.latestGame;
   syncDiagnosticLabels();
   if (!state.diagnosticFrame) state.diagnosticFrame = requestAnimationFrame(diagnosticAnimationLoop);
 }
