@@ -2,10 +2,11 @@
 
 ## 要件定義ステータス
 
-- Status: **要件定義完了（Home / Player Upgrade / Tutorial強化要件統合済み）**
+- Status: **要件定義完了（Home / Player Upgrade / Tutorial強化 / UI・Visual要件統合済み）**
 - Completed: 2026-09-06
-- Visual Requirements Updated: 2026-09-05
+- Visual Requirements Updated: 2026-09-08
 - Home / Player Convenience / Tutorial Requirements Updated: 2026-09-06
+- UI / HUD Requirements Updated: 2026-09-08
 - 対象: Game Hub / Game 01 `Scrap Factory`
 - このファイルを Scrap Factory のゲーム内容・進行・探索・自動化・Home / Player Upgrade・Tutorial・Visual Direction・制作Phaseに関する要件の正本とする。
 - 実装詳細は現行 `SPEC.md`、現行挙動はRepository上の実装を照合する。
@@ -1775,36 +1776,457 @@ PC / Guideから任意目標を1つPinでき、Main Goalは別枠で維持する
 
 # UI / HUD
 
+## UI Design Principle
+
+UI全体は **World-first + Diagnostic-on-demand** を基本方針とする。
+
+- 3D Canvas / 3D Worldを常に最優先し、通常時HUDをWeb Dashboardのように埋めない。
+- 情報密度は `通常Gameplay < Interaction / Build < Factory Overlay < Full Management Panel` の順に上げる。
+- 普段は静かにし、Playerが対象を見る・建てる・診断する・管理画面を開く等のIntentが発生したときだけ必要情報を増やす。
+- UI装飾よりGameplay情報を優先し、Visual Priorityは `3D World > Gameplay Information > UI Decoration` とする。
+- 状態名だけではなく、行動判断に必要な原因 / 不足 / 対処を確認可能にする。
+- 既存UIを全面破棄するGreenfield Redesignにはせず、機能責務を整理しながら段階的に統合する。
+
+## Normal HUD
+
+通常Gameplayで常時または準常時表示する情報は次に限定する。
+
+- Crosshair。
+- Main Goal。画面左上等の端へ小さく置き、原則1〜2行にする。
+- HP等、その場の行動判断に必要なPlayer State。危険がない状況で不要なStatusを増やさない。
+- Backpack容量は満杯に近い / Item取得不可 / Secure Case操作等、判断が必要な状況を中心に表示する。
+- Material Tracking / Optional Pinを有効にしている場合のみ追跡情報を表示し、Main Goalより視覚優先度を下げる。
+- HOME Marker等、Settingsで明示的に有効なWorld Navigation補助。
+
+通常時に常時表示しないもの:
+
+- Cash。
+- Lifetime Revenue。
+- Zone名。
+- Factory全体Power / Production / Drone / Storage Statistics。
+- WASD等のStatic Shortcut Bar。
+- BUILD / PACK / DISMANTLE / GUIDE / MENU等を常に並べる操作ボタン列。
+
+Cash / RevenueはInventory、Factory Management、PC等の判断が必要な画面で確認可能にする。新Areaへ入った等、Zone名自体が意味を持つ瞬間は一時表示してよい。
+
+## Main Goal
+
+- Main Goalは常に最優先し、画面端へ小さく固定する。
+- 通常状態ではTitle + 1〜2行程度、必要なら `2 / 3` 等の進捗だけを添える。
+- Objective変更時は一時的に展開して更新内容を伝え、その後通常サイズへ戻す。
+- Detailed Tutorial、長い説明、複数Optional GoalをMain Goal欄へ詰め込まない。
+- Optional GoalはPC / Guideから1つだけPin可能とし、Main Goalと同じ視覚強度にしない。
+- Goalの詳細な「やり方」は `O` Guide / PC Tutorial Libraryへ分離する。
+
+## Interaction Prompt
+
+照準付近のInteraction Promptは、**何を見ているか → 何ができるか → 必要ならなぜできないか** の順で一瞬で読める構造とする。
+
+表示要素:
+
+- Target Name。
+- Primary Action + Key。
+- Action不可 / 問題ありの場合だけ短いStatus / Reason。
+
+例:
+
+```text
+CRUSHER
+E  開く
+
+NO POWER
+```
+
 原則:
 
-- 3D Canvasを主役にする。
-- 常時HUDを増やしすぎない。
-- Factory / ExplorationでObjective表示を切り替える。
-- 状態だけでなく問題原因を表示する。
-- 通知は大量発生時に集約する。
+- PromptはCrosshairの近くまたは少し下に表示する。
+- 見ている対象だけを表示し、視線を外したら速やかに消す。
+- Primary Actionは原則1つを強く見せる。
+- Secondary Actionは本当に必要な対象のみ追加する。
+- Machineの細かな統計や大量の素材数はPromptへ詰め込まずMachine Panelへ分離する。
+- Action不可の場合でも理由がPlayer判断に重要なら隠さない。
 
-常時 / 状況別:
+## Inventory / Backpack UI
 
-- 現在Objective
-- Cash
-- Backpack Slot / Secure Case等の必要情報
-- 必要時のHP
-- Crosshair / Interaction Marker
-- Static Shortcut Bar（設定で非表示可）
-- 必要時のScanner / Material Tracking / Next Goal
+通常Inventoryは **左: Backpack / 右: Hand Craft** の2カラムを基本とする。
 
-PC Upgrade取得一覧をHUDへ常時並べない。
+Backpack:
 
-- Scanner使用時だけScanner情報。
-- Secure Case操作時だけ容量情報。
-- Material Tracking中だけ追跡対象。
-- Factory Network LinkはPC画面内で接続状態を表示。
+- Slot Grid。
+- Item image / icon、Name、Quantity。
+- 選択Itemだけ詳細を展開。
+- `使用数 / 最大Slot` を明確に表示。
+- 満杯に近い場合は容量警告を出す。
 
-Build / Dismantle専用情報はMode中だけ表示。
+Hand Craft:
 
-詳細統計はFactory Managementへ分離。
+- Recipe一覧。
+- 必要素材 / 所持数。
+- Craft可否。
+- 不足している場合は不足理由。
+- 売値等、Craft判断に必要な情報のみ。
 
-Pause Menuに探索中の即時 `Return to Factory` / `Return Home` は置かない。
+原則:
+
+- InventoryにFactory Power / Drone / Conveyor / Factory全体Statisticsを混ぜない。
+- CashはInventory内で確認可能にしてよい。
+- 長いTutorial本文は置かない。
+- Drag操作だけを必須にせず、Keyboard / Clickで主要操作を完結可能にする。
+
+Home Storage / Factory Storage等を直接操作する場合は、Backpackとの **2ペインStorage UI** を許容する。
+
+- Backpack ↔ Storageを直接移動可能。
+- Shift + Click等の高速移動を許容。
+- `Move All` / Quick Deposit等は既存Item保護Contractを守る。
+- 両側の容量を表示。
+- 容量超過 / 除外Itemを勝手に捨てない。
+
+## Build Mode UI
+
+Build Modeは通常HUDとは別の情報状態として扱い、**3D Placement PreviewをUIの中心**にする。
+
+Build中に確認可能にするもの:
+
+- 選択中Building / Machine名。
+- Cost / 必要素材と利用可能数。
+- 設置可否。
+- Invalid理由。
+- 現在向き。
+- Input / Output。
+- Conveyor搬送方向。
+- Snap Point / 接続候補。
+- 設置 / 回転 / 終了等、Build中だけ必要な操作。
+
+原則:
+
+- 設置可否は3D Previewでも明確にし、色だけでなくText / Icon / Shape等を併用する。
+- `設置不可` だけで終わらず、Overlap / 範囲外 / 接続不可 / 素材不足等の理由を短く示す。
+- Conveyorは搬送方向ArrowをPreview上で明確にし、始点 / 終点、Machine Input / Output、Snap方向を設置前に判断可能にする。
+- Quick Build / 1〜5等のShortcutはBuild Mode中だけ表示し、通常HUDへ常駐させない。
+- `B` で最初に開くBuild SelectorはProduction / Logistics / Power等のカテゴリで探しやすくする。
+- 一度Machineを選択した後は大型Panelを閉じ、3D Placementへ視界を戻す。
+- 慣れたPlayerはQuick Build等でSelectorを毎回開かず建築可能にする。
+- Dismantle専用情報もDismantle Mode中だけ表示する。
+
+## Factory Diagnostic Overlay
+
+通常HUDへ工場全体の状態を常時並べず、必要時に **Factory Diagnostic Overlay** を開いて3D World上で問題を探せるようにする。
+
+Overlayで確認可能にする候補:
+
+- Machine Running / Idle / Blocked / Error。
+- Input不足。
+- Output Full / Back Pressure。
+- Power不足。
+- Recipe未設定。
+- Conveyor Direction / Flow。
+- Machine Input / Output。
+- Storage Full。
+- Drone Route異常。
+- 必要に応じたPower / Logistics / Drone系の表示切替。
+
+原則:
+
+- 正常状態は控えめ、Warning / Errorほど視覚優先度を上げる。
+- `Green / Yellow / Red` 等の色だけに依存せずIcon + Text + Colorを組み合わせる。
+- Factory全体へ影響するCritical IssueはOverlayを開いていなくてもAlert可能。
+- Overlayは **問題を探す** ための機能とし、細かな設定や長い説明を詰め込まない。
+- Overlay上の対象からMachine Panel / Management詳細へ移れるようにする方向を許容する。
+- Overlay操作Keyは既存Controlと衝突しないものを実装段階で確定し、必要ならKey Bind対象にする。
+
+## Machine Panel
+
+Machine Interactionで詳細操作する場合は、3D Object表面の小さなButtonを直接押させるのではなく、**読みやすいScreen-space Panel** を基本とする。
+
+Machine Panelの役割:
+
+- Machine Name / Recipe / Status。
+- Input / Output Buffer。
+- 稼働 / 停止理由。
+- 対処に必要な情報。
+- 投入 / 回収 / Recipe変更 / Rotate等、そのMachineに必要なAction。
+
+原則:
+
+- 1台のMachineを操作するための画面に限定し、Factory全体Statisticsを混ぜない。
+- `停止中` のみではなく `電力不足` / `Output Full` 等の原因を表示する。
+- Machine PanelのためにCameraを大きく強制移動しない。
+- World-space ScreenをVisual Feedbackとして置くことは可能だが、主要操作を小さな3D Screenだけに依存させない。
+
+## Factory / Automation Management UI
+
+Factory Managementは通常HUDと逆に、**工場全体を分析する高密度画面**として扱う。
+
+情報階層は `Overview → Problems / Flow → Detail` を基本とする。
+
+Overviewで優先するSummary:
+
+- Running / Stopped Machine数。
+- Production Summary。
+- Power Supply / Demand。
+- Storage / Logisticsの主要状態。
+- Drone / Automation稼働状態。
+- Critical / Warning Problem数。
+- 必要な場合のCash / Revenue。
+
+主要Section候補:
+
+- Overview。
+- Machines / Production。
+- Power。
+- Logistics / Storage。
+- Automation / Drone。
+- Problems / Alerts。
+- Orders。
+- Production Planner。
+
+Final tab数は機能の重複を整理して統合可能だが、全情報を1画面へ詰め込まない。
+
+Problems:
+
+- 同種Alertを集約する。
+- 対象Machine / System、原因、影響範囲、必要なら対処を確認可能にする。
+- Problemから対象をWorldでLocate / Highlightできる方向を維持する。
+
+Production:
+
+- 単純な大量Graphより、`Input → Machine → Output` とThroughput / Bottleneckの流れを優先する。
+- Bottleneckでは低Efficiencyという結果だけでなく不足Resource / Full Output / Power等の原因を説明する。
+
+Automation:
+
+- Drone Route / Recipe / Storage Upgrade / Final Automation等を整理する。
+- Factory ManagementからFactoryを自動設計・自動建設しない。
+
+役割を次のように分離する。
+
+```text
+Normal HUD
+→ 今プレイするための最小情報
+
+Factory Overlay
+→ 問題がどこにあるか探す
+
+Factory Management
+→ 工場全体を分析・管理する
+
+Machine Panel
+→ 1台の設備を確認・操作する
+```
+
+## PC / Home UI
+
+PCは3D World内の端末として存在するが、操作UIは **大きなScreen-space Industrial OS** とする。
+
+- `E` でPCへ入り、CameraをMonitorへ短く寄せてPlayer移動を停止する。
+- Mouse操作前提の読みやすいPanelを開く。
+- `Esc` で通常Gameplayへ戻る。
+- 3D Monitor内の小さいButtonを主要操作にしない。
+- PC / Workbench / Storage UI中もFactory Simulationは継続する。
+
+PC HomeはPlayer / Home側のDashboardとして、Main Goal、Player Upgrade、Home Storage、Tutorial Library等への入口を整理する。
+
+Factory情報を表示する場合は **読み取り専用のSummary** に限定し、Factory Management / Automation Consoleの役割を奪わない。Factory Network Link等の既存Progression Contractが必要な情報は、そのUnlock前に勝手に遠隔参照可能にしない。
+
+PC Visual:
+
+- Dark industrial OS。
+- 左Navigation + 大きなContent Area等、Mouseで読みやすいLayoutを許容。
+- HUDより情報密度を上げてよい。
+- Status Chip / Table / Listを中心にし、巨大Cardを大量に並べるSaaS Dashboard風にはしない。
+
+Player Upgrade UIでは必ず次を同時に判断可能にする。
+
+- 現在段階。
+- Upgrade後の効果。
+- Cost。
+- 不足素材 / Blueprint条件。
+
+## Tutorial / Guide UI
+
+`O` GuideとPC Tutorial Libraryは同じContent Source of Truthを使うが、役割を分ける。
+
+`O` Guide:
+
+- World内で素早く確認する軽量Guide。
+- Current Main Goal。
+- 今必要なControls。
+- 現在Systemに関連する短いTutorial / Tip。
+- よくあるProblemへの短い診断。
+
+PC Tutorial Library:
+
+- Homeでじっくり読む詳細Manual。
+- Basics / Exploration / Inventory / Home / Building / Logistics / Power / Production / Drone / Advanced Automation等のカテゴリ。
+- 目的、操作、理由、成功条件、配置例、Problem / Diagnosis等を必要に応じて詳しく表示する。
+
+Context Help:
+
+- 新System初回、初めて必要になった場面、Stuck判定等を中心に表示する。
+- 毎回同じPopupを強制表示しない。
+- `O` から詳細へ移れる。
+
+Main GoalとTutorialは混同しない。
+
+```text
+Main Goal
+= 今何を達成すべきか
+
+Tutorial
+= それをどう行うか
+```
+
+## Notifications / Alerts
+
+通知は意味と重要度で表示方法を分ける。
+
+### Info
+
+対象:
+
+- Item取得。
+- Craft完了。
+- Unlock。
+- Recipe / Tutorial追加。
+- 軽いGoal進行。
+
+数秒で消え、連続同種通知は `Iron Scrap ×12` 等へ集約する。
+
+### Warning
+
+対象:
+
+- Backpack残量低下。
+- Storage Full。
+- 一部Factory停止。
+- Drone Route等の注意が必要な問題。
+
+Gameplayを塞がず、Playerが必要なら詳細を開けるようにする。
+
+### Critical
+
+対象:
+
+- Factory Grid全体のPower Failure。
+- Mega Factory / Final Automation停止。
+- 主要Progressionへ大きく影響するSystem Failure。
+
+Criticalは通常HUDでも一時的に強く知らせ、Factory Overlay / Management等の次の確認先へつなげる。
+
+原則:
+
+- Machine台数分の同一Alertを連打しない。
+- `8 Machines affected` 等へ集約する。
+- Interaction ErrorはInteraction付近、Build ErrorはBuild UI、Objective UpdateはGoal付近等、意味と次に見る場所を一致させる。
+- 全通知を1つのToast Stackへ押し込まない。
+
+## Pause Menu / Settings UI
+
+Pause Menuは簡潔に保つ。
+
+優先順:
+
+1. Resume / ゲームに戻る。
+2. Settings。
+3. Guide。
+4. Save。
+5. Game Hubへ戻る。
+
+原則:
+
+- Resumeを最も強いPrimary Actionにする。
+- `Esc` 再入力でも安全に戻れる。
+- Game Hubへ戻る等の離脱Actionは誤操作しにくい位置へ置く。
+- Factory Statisticsや長文説明をPause Menuへ詰め込まない。
+- 既存Contractどおり探索中の即時 `Return to Factory` / `Return Home` は置かない。
+
+Settingsは機能が存在する範囲で次のカテゴリに整理する。
+
+- Gameplay。
+- Graphics。
+- Audio。
+- Controls。
+- Accessibility。
+
+Audio System未実装段階で空の設定項目を大量に出さない。
+
+GraphicsのPerformance Modeは描画負荷だけを下げ、Factory Simulation結果を変更しない。
+
+AccessibilityではColorだけに状態を依存せず、Factory Overlay / Alert等でIcon + Text + Colorを併用する。
+
+## UI Visual Language
+
+Worldの **Stylized Industrial Realism** と整合する、実用的なIndustrial Terminal系UIとする。
+
+Base:
+
+- Dark neutral background / panel。
+- 強いGlow / Glassmorphism / 大量Blurを常用しない。
+- Borderは細く、Shadowは必要最低限。
+- Radiusは小さめにし、丸いCardを何重にも重ねるWeb SaaS風UIにしない。
+- Section分離は余白 / Divider / Typographyを優先する。
+
+Accentは意味を持たせる。
+
+- Industrial Yellow: Primary Action / Active / Build Direction / Conveyor Direction等。
+- Green: Success / Running。
+- Amber: Warning。
+- Red: Error / Critical。
+- Muted Blue等: Information。
+
+色は最終Visual Tuningで調整可能だが、色だけを唯一の意味表現にしない。
+
+Typography:
+
+- 小さい英字Labelは `STATUS` / `INPUT` / `OUTPUT` / `BUILD MODE` 等のSystem Categoryに利用可能。
+- 設備名、Main Goal、Error内容、操作判断等の主要情報は日本語で理解可能にする。
+- 雰囲気目的で英語を増やしすぎず、Tutorial Language Contractを維持する。
+
+HUD:
+
+- Panel枠で四隅を埋めない。
+- 背景が必要なら薄いBacking程度に留める。
+
+Animation:
+
+- Panel Open / Close、Objective Update、Warning、Button Feedback、Build Preview等の意味のあるTransitionへ限定する。
+- 常時Glow / Pulse / Background Animation等の装飾を中心にしない。
+- Reduce MotionでCamera / UI Transition / Motionを削減可能にする。
+
+Icon:
+
+- Iconは補助としてTextと併用する。
+- Iconだけを理解しないと操作できる状態にしない。
+
+## Current UI Migration Direction
+
+既存UIから次を維持 / 整理する。
+
+KEEP:
+
+- Crosshair。
+- Contextual Interaction Prompt。
+- Inventoryを別Panelで開く構造。
+- Machine InteractionでScreen-space Panelを開く構造。
+- Build / Dismantle専用Hint。
+- Main Goal / Objective。
+
+FIX:
+
+- Notificationsを重要度別 + 集約型へ整理。
+- Machine / Factory ProblemをStatusだけでなく原因まで表示。
+- Backpack容量等を状況依存表示へ寄せる。
+- Build情報を2D説明だけでなく3D Preview / Direction / Snap中心へ寄せる。
+
+REMOVE / DEPRECATE FROM NORMAL HUD:
+
+- Cash常時表示。
+- Lifetime Revenue常時表示。
+- Zone常時表示。
+- Static Shortcut Bar。
+- BUILD / PACK / DISMANTLE / GUIDE / MENU等の重複常時操作列。
+
+既存機能自体を削除する意味ではなく、必要な画面 / Mode / Contextへ移動して3D Worldを主役に戻す。
 
 # Difficulty / Accessibility / Settings
 
@@ -3044,6 +3466,26 @@ Existing Save:
 - Existing Factory Layout / Rank / Inventory / Main Clear / Achievementを維持。
 - Home固定位置と既存Buildingの衝突で既存設備を削除しない。
 
+## UI / HUD Completion
+
+最低限次をDesktop Browserで確認する。
+
+- 通常HUDでCash / Lifetime Revenue / Zone / Static Shortcut Bar等の重複常時情報が3D Viewを占有しない。
+- Main Goalが常に見失いにくく、Optional PinがMain Goalと競合しない。
+- Interaction PromptでTarget / Primary Action / Problem Reasonを即座に判断可能。
+- Inventory / Hand Craftが役割分離され、Storage操作時のItem移動でItem lossがない。
+- Build Modeで設置可否 / Invalid理由 / Input / Output / Conveyor方向 / Cost / 操作を設置前に判断可能。
+- Factory Overlayで問題箇所をWorld上から見つけられる。
+- Factory ManagementでOverview → Problem / Flow → Detailの順に原因へ到達可能。
+- Machine Panelで単体設備の状態 / 原因 / Actionを確認可能。
+- PC / Home UIがFactory Managementの役割を奪わず、Player / Home / Tutorial管理を読みやすく行える。
+- Tutorial / GuideがMain Goalと混同されず、`O` Quick GuideとPC Manualが同じContent Sourceを使う。
+- NotificationがInfo / Warning / Criticalで意味のある強度差を持ち、同種大量通知が集約される。
+- Pause / SettingsがKeyboard + Mouseで迷わず操作でき、探索帰還Contractを迂回しない。
+- Status / Error / Directionを色だけに依存せずIcon / Text / Shape等でも理解可能。
+- UI Scale / Text Size / Reduce Motion等のAccessibility設定が主要UIへ反映される。
+- 実装後の主Viewport Screenshot Reviewで3D WorldがUIより視覚的に優先されている。
+
 ## Visual Quality Completion
 
 長期Visual完成では最低限次を満たす。
@@ -3115,5 +3557,9 @@ Existing Save:
 - Material / Decal数
 - Hero Asset detail量
 - Visual Detail / Effect量
+- UI Accent色の最終値
+- Panel / HUDの余白・Radius・Borderの具体値
+- Factory Overlayの操作Key / 表示Filter構成
+- Build Selectorの最終Category / Quick Build割当
 
-これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性、Gameplay Readability、PC UpgradeのOptional性、Slot-based Backpackを変更しない。
+これらを調整する際も、確定済みの中心Loop、探索＋自動化、戦闘を主役にしない方針、Save互換性、Gameplay Readability、PC UpgradeのOptional性、Slot-based Backpack、World-first + Diagnostic-on-demand UI方針を変更しない。
