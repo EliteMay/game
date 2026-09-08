@@ -9,5 +9,6 @@ import './post-clear-optimization-ui.js';
 import './adaptive-ui.js';
 import './bilingual-ui.js';
 import './phase7-settings.js';
+import './pause-notification-ui.js';
 import './phase7-world-runtime.js';
 export * from './progression-ui-v4.js';
