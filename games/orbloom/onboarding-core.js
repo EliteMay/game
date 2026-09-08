@@ -1,7 +1,7 @@
 import { RESOURCES, generatorCost } from './config.js';
 import { planetEvolutionStatus } from './core.js';
 
-export const ONBOARDING_VERSION = 3;
+export const ONBOARDING_VERSION = 4;
 export const ONBOARDING_TOTAL_STEPS = 7;
 
 const n = (value) => Math.max(0, Number(value || 0));
@@ -25,9 +25,9 @@ export function getOnboardingStep(state, context = {}) {
         step: 5,
         total: ONBOARDING_TOTAL_STEPS,
         target: 'water-generator',
-        verb: 'CLICK',
-        title: '新しい資源を動かす',
-        body: 'Planet EvolutionでWaterが解放された。上の WATER を押して最初のGeneratorを起動しよう。新資源も「作る → 再投資 → 加速」は同じ。',
+        verb: 'TAP',
+        title: 'Waterの自動生産を起動する',
+        body: '画面上の WATER カードをタップ。最初のGenerator（自動生産装置）を買うと、Waterが毎秒勝手に増え始める。',
         progress: clamp01(n(state.resources?.water) / Math.max(1, waterCost)),
         progressLabel: `Water ${whole(state.resources?.water)} / ${waterCost}`,
       };
@@ -44,9 +44,9 @@ export function getOnboardingStep(state, context = {}) {
           step: 6,
           total: ONBOARDING_TOTAL_STEPS,
           target: context.scanResourceTarget || 'scan',
-          verb: context.scanResourceTarget ? 'UPGRADE' : 'WAIT',
+          verb: context.scanResourceTarget ? 'TAP' : 'WAIT',
           title: 'Life Scanの資源を貯める',
-          body: '左下の SCAN FOR LIFE に必要コストが出ている。上の同じ資源Generatorを強化して、コストまで貯めよう。貯まればSCANが押せるようになる。',
+          body: 'SCAN FOR LIFE に必要な資源を貯めよう。画面上の対象資源カードをタップすると自動生産を強化できる。',
           progress: 0,
           progressLabel: context.scanCostLabel ? `SCAN COST · ${context.scanCostLabel}` : 'SCAN costまで資源を増やす',
         };
@@ -57,9 +57,9 @@ export function getOnboardingStep(state, context = {}) {
         step: 6,
         total: ONBOARDING_TOTAL_STEPS,
         target: 'scan',
-        verb: 'CLICK',
+        verb: 'TAP',
         title: '最初のSpeciesを発見する',
-        body: '準備できた。SCAN FOR LIFE を押そう。Speciesは発見しただけでは終わりではなく、Biomeへ配置すると自動生産や補助効果が働く。',
+        body: '準備できた。SCAN FOR LIFE をタップしよう。SpeciesはBiomeへ配置すると、自動生産や補助効果が働く。',
         progress: 1,
         progressLabel: 'Life Scan Ready',
       };
@@ -71,9 +71,9 @@ export function getOnboardingStep(state, context = {}) {
         step: 7,
         total: ONBOARDING_TOTAL_STEPS,
         target: 'species-placement',
-        verb: 'PLACE',
+        verb: 'SELECT',
         title: 'SpeciesをBiomeへ配置する',
-        body: '発見したSpeciesの UNASSIGNED を押してBiomeを選ぼう。配置されたSpeciesは育ちながら生産や補助を行う。得意Biomeならさらに強くなる。',
+        body: '発見したSpeciesの UNASSIGNED をタップしてBiomeを選ぼう。配置するとSpeciesが育ち、生産や補助を始める。',
         progress: 0,
         progressLabel: '1体をBiomeへ配置',
       };
@@ -86,7 +86,7 @@ export function getOnboardingStep(state, context = {}) {
       target: 'management',
       verb: 'NEXT',
       title: '基本ループはこれでOK',
-      body: '作る → Generatorへ再投資 → Planet Evolution → 新資源 → Species配置、が基本。ここからは左の NEXT OBJECTIVE を次のゴールにして進めればOK。ResearchとExpeditionも進化に合わせて順番に解放される。',
+      body: '作る → 自動生産を買う → 強化する → Planet Evolution → 新資源 → Species配置、が基本。ここからは左の NEXT OBJECTIVE を次のゴールにして進めればOK。',
       progress: 1,
       progressLabel: '基本ループ習得',
       complete: true,
@@ -100,9 +100,9 @@ export function getOnboardingStep(state, context = {}) {
         step: 1,
         total: ONBOARDING_TOTAL_STEPS,
         target: 'manual',
-        verb: 'CLICK',
-        title: 'まずMatterを作る',
-        body: '左下の GENERATE MATTER を押そう。まず10 Matter集める。数字が増えることだけ確認すればOK。',
+        verb: 'TAP',
+        title: 'まず10 Matter作る',
+        body: '左下の GENERATE MATTER をタップ。Matterが10になるまで押そう。今は数字が増えることだけ分かればOK。',
         progress: clamp01(matter / firstMatterCost),
         progressLabel: `Matter ${whole(matter)} / ${firstMatterCost}`,
       };
@@ -113,11 +113,11 @@ export function getOnboardingStep(state, context = {}) {
       step: 2,
       total: ONBOARDING_TOTAL_STEPS,
       target: 'matter-generator',
-      verb: 'CLICK',
-      title: '最初の自動化を買う',
-      body: '上の MATTER 欄は表示だけじゃなくGenerator購入ボタン。押すとMatterが毎秒自動で増え始める。',
+      verb: 'TAP',
+      title: '10 Matterで「自動生産」を買う',
+      body: '画面上の緑で目立っている MATTER カードをタップ。これがGenerator（自動生産装置）の購入。買うと、もう押さなくてもMatterが毎秒増える。',
       progress: 1,
-      progressLabel: `購入費 ${firstMatterCost} Matter`,
+      progressLabel: `MATTERカードをタップ · 購入費 ${firstMatterCost} Matter`,
     };
   }
 
@@ -129,13 +129,13 @@ export function getOnboardingStep(state, context = {}) {
       step: 3,
       total: ONBOARDING_TOTAL_STEPS,
       target: canBuy ? 'matter-generator' : 'manual',
-      verb: canBuy ? 'CLICK' : 'BOOST',
-      title: canBuy ? `Matter GeneratorをLv.${matterLevel + 1}へ` : '増えたMatterを再投資する',
+      verb: canBuy ? 'TAP' : 'BOOST',
+      title: canBuy ? `自動生産をLv.${matterLevel + 1}へ強化` : '次の自動生産強化まで貯める',
       body: canBuy
-        ? 'Generatorが作ったMatterをそのままGeneratorへ戻す。これを繰り返すほど増える速度が上がる。'
-        : `Matterはもう自動で増えている。待ってもいいし、GENERATE MATTERで加速して次の${nextCost} Matterを貯めよう。`,
+        ? '画面上の MATTER カードをもう一度タップ。増えたMatterを自動生産へ戻すほど、毎秒の増加量が大きくなる。'
+        : `Matterはもう自動で増えている。待ってもいいし、GENERATE MATTERを押して次の${nextCost} Matterまで加速してもいい。`,
       progress: clamp01(matterLevel / 4),
-      progressLabel: `Generator Lv.${matterLevel} / 4 · 次 ${nextCost}`,
+      progressLabel: `自動生産 Lv.${matterLevel} / 4 · 次 ${nextCost} Matter`,
     };
   }
 
@@ -146,9 +146,9 @@ export function getOnboardingStep(state, context = {}) {
       step: 4,
       total: ONBOARDING_TOTAL_STEPS,
       target: 'evolve',
-      verb: 'CLICK',
+      verb: 'TAP',
       title: '惑星そのものを進化させる',
-      body: '条件が揃った。左の PLANET EVOLUTION を押そう。見た目が変わるだけじゃなく、WaterとOceanという新しい成長軸が解放される。',
+      body: '条件が揃った。左の PLANET EVOLUTION をタップしよう。WaterとOceanという新しい成長軸が解放される。',
       progress: 1,
       progressLabel: 'Evolution Ready',
     };
@@ -162,7 +162,7 @@ export function getOnboardingStep(state, context = {}) {
     target: 'manual',
     verb: 'BOOST',
     title: '最初のPlanet Evolutionまで貯める',
-    body: `左の NEXT OBJECTIVE が次の大目標。Matterを${targetMatter}まで増やそう。自動生成に任せても、手動で加速してもいい。`,
+    body: `左の NEXT OBJECTIVE が次の大目標。Matterを${targetMatter}まで増やそう。自動生産に任せても、手動で加速してもいい。`,
     progress: clamp01(matter / Math.max(1, targetMatter)),
     progressLabel: `Matter ${whole(matter)} / ${targetMatter}`,
   };
