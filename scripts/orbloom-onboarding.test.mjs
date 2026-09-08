@@ -24,13 +24,24 @@ for (const relative of [
 const html = fs.readFileSync(path.join(root, 'games/orbloom/index.html'), 'utf8');
 const onboardingJs = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.js'), 'utf8');
 const onboardingCss = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.css'), 'utf8');
+const onboardingResearch = fs.readFileSync(path.join(root, 'games/orbloom/ONBOARDING_RESEARCH.md'), 'utf8');
 assert.ok(html.includes('./onboarding.css'), 'Orbloom must load onboarding.css');
 assert.ok(html.includes('./onboarding.js'), 'Orbloom must load onboarding.js');
 assert.ok(onboardingJs.includes('TAP → 自動生産を購入'), 'Generator cards must expose a clear tap-to-buy action');
-assert.ok(onboardingJs.includes("vw <= 620"), 'Onboarding must include a mobile-specific coach placement path');
+assert.ok(onboardingJs.includes('onboarding-pointer'), 'Onboarding must render a direct pointer at the real target');
+assert.ok(onboardingJs.includes('ここをタップ'), 'Touch onboarding must label the exact target in Japanese');
+assert.ok(onboardingJs.includes('scrollIntoView'), 'Off-screen tutorial targets must be brought into view');
+assert.ok(onboardingJs.includes('is-onboarding-live-target'), 'The real DOM target must receive an active tutorial state');
+assert.ok(onboardingJs.includes('vw <= 620'), 'Onboarding must include a mobile-specific coach placement path');
 assert.ok(onboardingCss.includes('.resource-cell.is-generator-ready'), 'Affordable generator cards must have a visible ready state');
+assert.ok(onboardingCss.includes('.onboarding-pointer__hand'), 'Touch onboarding must visually render a finger cue');
+assert.match(onboardingCss, /\.onboarding-mask\{[^}]*pointer-events:auto/, 'Dimmed non-target regions must intercept accidental taps');
+assert.ok(onboardingResearch.includes('Idle Planet Miner'), 'Onboarding research must include Idle Planet Miner');
+assert.ok(onboardingResearch.includes('Cell to Singularity'), 'Onboarding research must include Cell to Singularity');
+assert.ok(onboardingResearch.includes('Egg, Inc.'), 'Onboarding research must include Egg, Inc.');
+assert.ok(onboardingResearch.includes('Idle Miner Tycoon'), 'Onboarding research must include Idle Miner Tycoon');
 
-assert.equal(ONBOARDING_VERSION, 4);
+assert.equal(ONBOARDING_VERSION, 5);
 assert.equal(ONBOARDING_TOTAL_STEPS, 7);
 
 const fresh = createDefaultSave();
@@ -38,6 +49,7 @@ let step = getOnboardingStep(fresh);
 assert.equal(step.id, 'manual-matter');
 assert.equal(step.target, 'manual');
 assert.equal(step.step, 1);
+assert.match(step.body, /ここをタップ/);
 
 fresh.resources.matter = generatorCost('matter', 0);
 step = getOnboardingStep(fresh);
@@ -45,6 +57,8 @@ assert.equal(step.id, 'first-generator');
 assert.equal(step.target, 'matter-generator');
 assert.match(step.title, /自動生産/);
 assert.match(step.body, /Generator（自動生産装置）/);
+assert.match(step.body, /ここをタップ/);
+assert.equal(step.body.includes('画面上'), false, 'First Generator must not depend on relative screen-position wording');
 assert.equal(step.verb, 'TAP');
 
 fresh.generators.matter = 1;
@@ -87,6 +101,7 @@ step = getOnboardingStep(fresh);
 assert.equal(step.id, 'water-generator');
 assert.equal(step.target, 'water-generator');
 assert.match(step.body, /自動生産装置/);
+assert.equal(step.body.includes('画面上'), false, 'Water Generator must not depend on relative screen-position wording');
 
 fresh.generators.water = 1;
 step = getOnboardingStep(fresh, { scanReady: false, scanCostLabel: 'H₂O 452', scanResourceTarget: 'water-generator' });
