@@ -1,14 +1,14 @@
 import { RESOURCES, generatorCost } from './config.js';
 import { planetEvolutionStatus } from './core.js';
 
-export const ONBOARDING_VERSION = 2;
-export const ONBOARDING_TOTAL_STEPS = 5;
+export const ONBOARDING_VERSION = 3;
+export const ONBOARDING_TOTAL_STEPS = 7;
 
 const n = (value) => Math.max(0, Number(value || 0));
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value || 0)));
 const whole = (value) => Math.floor(n(value));
 
-export function getOnboardingStep(state) {
+export function getOnboardingStep(state, context = {}) {
   if (!state) return null;
 
   const matter = n(state.resources?.matter);
@@ -33,6 +33,52 @@ export function getOnboardingStep(state) {
       };
     }
 
+    const species = Object.values(state.species || {});
+    const discovered = species.filter((entry) => entry?.discovered).length;
+    const placed = species.filter((entry) => entry?.discovered && entry?.biomeId).length;
+
+    if (discovered < 1) {
+      if (!context.scanReady) {
+        return {
+          id: 'prepare-life-scan',
+          step: 6,
+          total: ONBOARDING_TOTAL_STEPS,
+          target: context.scanResourceTarget || 'scan',
+          verb: context.scanResourceTarget ? 'UPGRADE' : 'WAIT',
+          title: 'Life Scanの資源を貯める',
+          body: '左下の SCAN FOR LIFE に必要コストが出ている。上の同じ資源Generatorを強化して、コストまで貯めよう。貯まればSCANが押せるようになる。',
+          progress: 0,
+          progressLabel: context.scanCostLabel ? `SCAN COST · ${context.scanCostLabel}` : 'SCAN costまで資源を増やす',
+        };
+      }
+
+      return {
+        id: 'life-scan',
+        step: 6,
+        total: ONBOARDING_TOTAL_STEPS,
+        target: 'scan',
+        verb: 'CLICK',
+        title: '最初のSpeciesを発見する',
+        body: '準備できた。SCAN FOR LIFE を押そう。Speciesは発見しただけでは終わりではなく、Biomeへ配置すると自動生産や補助効果が働く。',
+        progress: 1,
+        progressLabel: 'Life Scan Ready',
+      };
+    }
+
+    if (placed < 1) {
+      return {
+        id: 'place-species',
+        step: 7,
+        total: ONBOARDING_TOTAL_STEPS,
+        target: 'species-placement',
+        verb: 'PLACE',
+        title: 'SpeciesをBiomeへ配置する',
+        body: '発見したSpeciesの UNASSIGNED を押してBiomeを選ぼう。配置されたSpeciesは育ちながら生産や補助を行う。得意Biomeならさらに強くなる。',
+        progress: 0,
+        progressLabel: '1体をBiomeへ配置',
+      };
+    }
+
     return {
       id: 'complete',
       step: ONBOARDING_TOTAL_STEPS,
@@ -40,7 +86,7 @@ export function getOnboardingStep(state) {
       target: 'management',
       verb: 'NEXT',
       title: '基本ループはこれでOK',
-      body: '右のBIOMESでRocky / Oceanを育て、左の NEXT OBJECTIVE を次のゴールとして進めればOK。Species・Research・Expeditionは進化に合わせて順番に使う。',
+      body: '作る → Generatorへ再投資 → Planet Evolution → 新資源 → Species配置、が基本。ここからは左の NEXT OBJECTIVE を次のゴールにして進めればOK。ResearchとExpeditionも進化に合わせて順番に解放される。',
       progress: 1,
       progressLabel: '基本ループ習得',
       complete: true,

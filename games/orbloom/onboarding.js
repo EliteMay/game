@@ -4,7 +4,7 @@ import {
   getOnboardingStep,
 } from './onboarding-core.js';
 
-const STORAGE_KEY = 'elitemay-orbloom-onboarding-v2';
+const STORAGE_KEY = 'elitemay-orbloom-onboarding-v3';
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -65,7 +65,7 @@ function buildTutorialUi() {
     <div class="onboarding-target-ring" aria-hidden="true"><span>CLICK</span></div>
     <section class="onboarding-coach" aria-live="polite" aria-label="Orbloomチュートリアル">
       <header class="onboarding-coach__header">
-        <span class="onboarding-step-label">GUIDE 1 / 5</span>
+        <span class="onboarding-step-label">GUIDE 1 / 7</span>
         <button class="onboarding-skip" type="button">SKIP</button>
       </header>
       <h2></h2>
@@ -130,9 +130,10 @@ function buildHelpUi() {
         <li><span>02</span><div><strong>上の資源パネルを押してGeneratorを買う</strong><small>資源欄は表示だけではなく購入ボタン。Generatorが自動生産する。</small></div></li>
         <li><span>03</span><div><strong>増えた資源を再投資する</strong><small>Generatorを強化すると /s が伸び、次の購入が速くなる。</small></div></li>
         <li><span>04</span><div><strong>条件が揃ったらPlanet Evolution</strong><small>左の条件を満たすと、新資源・Biome・Systemが順番に解放される。</small></div></li>
-        <li><span>05</span><div><strong>新しいSystemも同じ成長へ戻す</strong><small>Biome・Species・Research・Expeditionは惑星の生産と進化を強くする。</small></div></li>
+        <li><span>05</span><div><strong>Life ScanでSpeciesを見つける</strong><small>SCAN FOR LIFEのコストを貯め、発見したSpeciesをBiomeへ配置する。</small></div></li>
+        <li><span>06</span><div><strong>新しいSystemも同じ成長へ戻す</strong><small>Biome・Species・Research・Expeditionは惑星の生産と進化を強くする。</small></div></li>
       </ol>
-      <div class="onboarding-help-tip"><strong>覚えるのはこれだけ</strong><span>作る → 買う → 自動化 → 再投資 → 進化 → 新しいものを育てる</span></div>
+      <div class="onboarding-help-tip"><strong>覚えるのはこれだけ</strong><span>作る → 買う → 自動化 → 再投資 → 進化 → 発見して配置 → また加速</span></div>
       <div class="onboarding-help-actions">
         <button class="secondary-button" type="button" data-guide-resume>現在地点のガイドを表示</button>
         <button class="primary-button" type="button" data-help-close>ゲームに戻る</button>
@@ -178,7 +179,13 @@ function tick() {
     return;
   }
 
-  const step = getOnboardingStep(state);
+  const scan = $('#scan-life');
+  const scanCostLabel = $('#scan-cost')?.textContent?.trim() || '';
+  const step = getOnboardingStep(state, {
+    scanReady: Boolean(scan && !scan.disabled),
+    scanCostLabel,
+    scanResourceTarget: scanResourceTarget(scanCostLabel),
+  });
   if (!step) {
     layer.hidden = true;
     return;
@@ -189,7 +196,7 @@ function tick() {
 
 function renderStep(step) {
   currentStep = step;
-  const signature = [step.id, step.title, step.body, step.progressLabel, step.complete ? '1' : '0'].join('|');
+  const signature = [step.id, step.title, step.body, step.progressLabel, step.target, step.verb, step.complete ? '1' : '0'].join('|');
   layer.hidden = false;
 
   if (signature !== currentSignature) {
@@ -269,9 +276,21 @@ function tutorialTarget(id) {
   if (id === 'manual') return $('#manual-matter');
   if (id === 'matter-generator') return $('.resource-cell[data-id="matter"]');
   if (id === 'water-generator') return $('.resource-cell[data-id="water"]');
+  if (id === 'oxygen-generator') return $('.resource-cell[data-id="oxygen"]');
+  if (id === 'energy-generator') return $('.resource-cell[data-id="energy"]');
+  if (id === 'scan') return $('#scan-life');
+  if (id === 'species-placement') return $('[data-species-biome]') || $('.dock-tabs [data-tab="species"]');
   if (id === 'evolve') return $('#evolve-planet');
   if (id === 'management') return $('.management-dock');
   return $('.stage-panel');
+}
+
+function scanResourceTarget(label) {
+  if (label.startsWith('MAT')) return 'matter-generator';
+  if (label.startsWith('H₂O')) return 'water-generator';
+  if (label.startsWith('O₂')) return 'oxygen-generator';
+  if (label.startsWith('ENG')) return 'energy-generator';
+  return null;
 }
 
 function setBox(node, left, top, width, height) {

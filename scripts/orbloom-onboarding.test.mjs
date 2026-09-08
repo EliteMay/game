@@ -25,8 +25,8 @@ const html = fs.readFileSync(path.join(root, 'games/orbloom/index.html'), 'utf8'
 assert.ok(html.includes('./onboarding.css'), 'Orbloom must load onboarding.css');
 assert.ok(html.includes('./onboarding.js'), 'Orbloom must load onboarding.js');
 
-assert.equal(ONBOARDING_VERSION, 2);
-assert.equal(ONBOARDING_TOTAL_STEPS, 5);
+assert.equal(ONBOARDING_VERSION, 3);
+assert.equal(ONBOARDING_TOTAL_STEPS, 7);
 
 const fresh = createDefaultSave();
 let step = getOnboardingStep(fresh);
@@ -80,9 +80,26 @@ assert.equal(step.id, 'water-generator');
 assert.equal(step.target, 'water-generator');
 
 fresh.generators.water = 1;
-step = getOnboardingStep(fresh);
+step = getOnboardingStep(fresh, { scanReady: false, scanCostLabel: 'H₂O 452', scanResourceTarget: 'water-generator' });
+assert.equal(step.id, 'prepare-life-scan');
+assert.equal(step.step, 6);
+assert.equal(step.target, 'water-generator');
+
+step = getOnboardingStep(fresh, { scanReady: true, scanCostLabel: 'H₂O 452', scanResourceTarget: 'water-generator' });
+assert.equal(step.id, 'life-scan');
+assert.equal(step.target, 'scan');
+
+fresh.species.dustmite.discovered = true;
+step = getOnboardingStep(fresh, { scanReady: false });
+assert.equal(step.id, 'place-species');
+assert.equal(step.step, 7);
+assert.equal(step.target, 'species-placement');
+
+fresh.species.dustmite.biomeId = 'rocky';
+step = getOnboardingStep(fresh, { scanReady: false });
 assert.equal(step.id, 'complete');
 assert.equal(step.complete, true);
+assert.equal(step.step, 7);
 
 const partial = createDefaultSave();
 partial.planetStage = 1;
