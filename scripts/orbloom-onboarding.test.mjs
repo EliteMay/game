@@ -22,10 +22,15 @@ for (const relative of [
 }
 
 const html = fs.readFileSync(path.join(root, 'games/orbloom/index.html'), 'utf8');
+const onboardingJs = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.js'), 'utf8');
+const onboardingCss = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.css'), 'utf8');
 assert.ok(html.includes('./onboarding.css'), 'Orbloom must load onboarding.css');
 assert.ok(html.includes('./onboarding.js'), 'Orbloom must load onboarding.js');
+assert.ok(onboardingJs.includes('TAP → 自動生産を購入'), 'Generator cards must expose a clear tap-to-buy action');
+assert.ok(onboardingJs.includes("vw <= 620"), 'Onboarding must include a mobile-specific coach placement path');
+assert.ok(onboardingCss.includes('.resource-cell.is-generator-ready'), 'Affordable generator cards must have a visible ready state');
 
-assert.equal(ONBOARDING_VERSION, 3);
+assert.equal(ONBOARDING_VERSION, 4);
 assert.equal(ONBOARDING_TOTAL_STEPS, 7);
 
 const fresh = createDefaultSave();
@@ -38,6 +43,9 @@ fresh.resources.matter = generatorCost('matter', 0);
 step = getOnboardingStep(fresh);
 assert.equal(step.id, 'first-generator');
 assert.equal(step.target, 'matter-generator');
+assert.match(step.title, /自動生産/);
+assert.match(step.body, /Generator（自動生産装置）/);
+assert.equal(step.verb, 'TAP');
 
 fresh.generators.matter = 1;
 fresh.resources.matter = 0;
@@ -78,6 +86,7 @@ assert.equal(starter.rewards.length, 0, 'Starter reward must not be farmable');
 step = getOnboardingStep(fresh);
 assert.equal(step.id, 'water-generator');
 assert.equal(step.target, 'water-generator');
+assert.match(step.body, /自動生産装置/);
 
 fresh.generators.water = 1;
 step = getOnboardingStep(fresh, { scanReady: false, scanCostLabel: 'H₂O 452', scanResourceTarget: 'water-generator' });
