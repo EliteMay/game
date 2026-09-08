@@ -9,8 +9,8 @@ The previous first-run experience explained controls but did not reliably teach 
 ### AdVenture Capitalist
 
 Evidence:
-- https://www.pocketgamer.com/adventure-capitalist/adventure-capitalist-tips-and-cheats-for-making-money/
-- Steam/community screenshots showing the early prompt and manager introduction.
+- https://screenzilla.helpshift.com/hc/en/5-adventure-capitalist/
+- Current/community screenshots showing the early prompt pointing directly at the first business action.
 
 Observed pattern:
 - Start with one obvious business action.
@@ -21,8 +21,7 @@ Observed pattern:
 ### Egg, Inc.
 
 Evidence:
-- https://www.talkandroid.com/16189-egg-inc-ultimate-walkthrough-and-game-guide/
-- https://egg-inc.fandom.com/wiki/Hatchery
+- Current gameplay / beginner references for the hatch button, farm growth and research progression.
 
 Observed pattern:
 - One dominant early action: hatch chickens.
@@ -33,19 +32,21 @@ Observed pattern:
 
 Evidence:
 - https://idle-planet-miner.fandom.com/wiki/New_Starter_walkthrough
-- https://idle-planet-miner.fandom.com/wiki/Unlocking_Game_Features
-- https://www.youtube.com/watch?v=yXDXe2YKbWM
+- https://idle-planet-miner.fandom.com/wiki/New_Starters_Strategy_Guide
+- https://idle-planet-miner.fandom.com/wiki/Planetary_Upgrades
 
 Observed pattern:
 - The player selects the real first planet and upgrades it directly.
 - Mining -> transport -> income is learned from the visible world and real upgrade controls.
 - Additional systems unlock later instead of all appearing as required knowledge at the start.
+- The walkthrough moves from the first planet into the first research / production systems only when those systems become relevant.
 
 ### Cell to Singularity
 
 Evidence:
-- https://games.computerlunch.com/cell_to_singularity/
+- https://celltosingularity.com/faq/
 - https://cell-to-singularity.fandom.com/wiki/Help_for_Beginners
+- Current gameplay screenshots of the entropy / evolution flow.
 
 Observed pattern:
 - The first instruction is attached to the core action: tap to earn the first currency.
@@ -53,9 +54,6 @@ Observed pattern:
 - Progress broadens from one action into generators and evolution.
 
 ### Cookie Clicker
-
-Evidence:
-- https://cookieclickernew.com/blog/cookie-clicker-beginner-guide/
 
 Observed pattern:
 - One visually dominant first action.
@@ -72,8 +70,9 @@ The references converge on these useful patterns for Orbloom:
 4. **Show cause and effect immediately.** Resource gain, generator output and evolution feedback stay visible while teaching them.
 5. **Teach automation after manual interaction.** The player first creates Matter manually, then buys the generator that replaces repetition.
 6. **Teach reinvestment before introducing more systems.** Repeated generator upgrades establish the incremental loop.
-7. **Use progressive disclosure.** Species, Research and Expedition remain later systems rather than first-minute reading material.
-8. **Keep help recallable.** A short HELP surface is available after onboarding without leaving a permanent tutorial checklist on screen.
+7. **Use progressive disclosure.** Species, Research and Expedition are taught when they become relevant rather than front-loaded on the title screen.
+8. **Complete the first newly unlocked system.** Do not stop at “Water unlocked”; let the player reach Life Scan and place the first Species so the new system has a visible purpose.
+9. **Keep help recallable.** A short HELP surface is available after onboarding without leaving a permanent tutorial checklist on screen.
 
 ## Orbloom onboarding decision
 
@@ -86,10 +85,15 @@ Generate Matter
 -> Reach the first Planet Evolution requirement
 -> Trigger Planet Evolution
 -> Activate the newly unlocked Water Generator
--> Hand control back to the player with NEXT OBJECTIVE + Biomes as the continuation path
+-> Accumulate the Life Scan cost
+-> Run the first Life Scan
+-> Place the discovered Species into a Biome
+-> Hand control back to the player with NEXT OBJECTIVE
 ```
 
-The tutorial uses a target spotlight and a compact coach card. Non-target UI is visually de-emphasized, but the game is not hard-locked behind modal Next buttons.
+The visible guide is represented as seven state-driven tutorial stages because saving for a target and performing the corresponding purchase are variants of the same learning stage.
+
+The tutorial uses a target spotlight and a compact coach card. Non-target UI is visually de-emphasized, but the game is not hard-locked behind modal Next buttons. The spotlight can target the current resource generator, Life Scan button, Species placement control, or Planet Evolution button depending on actual state.
 
 ## New-resource bootstrap
 
@@ -106,6 +110,16 @@ Planet Evolution
 
 The grant is one-time and persisted so it cannot be farmed repeatedly.
 
+## Existing-save behavior
+
+Onboarding completion is tracked separately from canonical game progression and keyed to the current save. Version 3 intentionally re-opens the improved guide for saves that only saw the earlier five-stage tutorial, but the guide derives its current step from the actual save state instead of forcing the player back through completed actions.
+
+This means:
+- a progressed save is not reset;
+- a player already beyond the first evolution starts from the first onboarding action they have not effectively demonstrated;
+- HELP can always re-open the current-state guide;
+- starter reserves are not duplicated for progressed saves.
+
 ## Validation targets
 
 - Fresh save always starts with a visible first action.
@@ -113,6 +127,8 @@ The grant is one-time and persisted so it cannot be farmed repeatedly.
 - The first generator is clearly taught as automation.
 - Generator reinvestment is taught before Planet Evolution.
 - First Planet Evolution leads to an immediately usable Water Generator.
+- The guide continues until the first Life Scan succeeds and one Species is placed.
 - Existing progressed saves are not reset.
 - HELP remains available after tutorial completion or skip.
 - Tutorial completion is tracked separately from canonical game progression.
+- New-resource starter reserves remain one-time and non-farmable.
