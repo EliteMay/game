@@ -81,7 +81,7 @@ function createHudContextStack() {
     management.dataset.hudManagement = 'true';
     management.innerHTML = `
       <button class="hud-management__toggle" type="button" data-hud-management-toggle aria-expanded="false" aria-controls="hud-management-tray">
-        <span>MANAGEMENT（管理）</span>
+        <span>管理</span>
         <strong data-management-alert hidden>0</strong>
       </button>
       <div id="hud-management-tray" class="hud-management__tray" data-hud-management-tray hidden></div>
@@ -135,13 +135,13 @@ function ensureHudComposition() {
 
 function categoryLabel(category) {
   const labels = {
-    production: 'PRODUCTION / 生産',
-    logistics: 'LOGISTICS / 物流',
-    power: 'POWER / 電力',
-    automation: 'AUTOMATION / 自動化',
-    storage: 'STORAGE / 保管',
+    production: 'PRODUCTION',
+    logistics: 'LOGISTICS',
+    power: 'POWER',
+    automation: 'AUTOMATION',
+    storage: 'STORAGE',
   };
-  return labels[String(category || '').toLowerCase()] || `${String(category || 'OTHER').toUpperCase()} / 設備`;
+  return labels[String(category || '').toLowerCase()] || String(category || 'OTHER').toUpperCase();
 }
 
 function prepareBuildHint() {
@@ -392,6 +392,8 @@ function parsePrompt(source, currentGame) {
     [/^(.+?)で持ち物を売却$/, '売却'],
     [/^(.+?)を設定$/, '設定'],
     [/^(.+?)を開く$/, '開く'],
+    [/^(.+?)を閉じる$/, '閉じる'],
+    [/^(.+?)を使う$/, '使う'],
     [/^(.+?)を拾う$/, '拾う'],
     [/^(.+?)を撤去\s*\/\s*(.+)$/, '撤去'],
   ];
