@@ -1,4 +1,4 @@
-import { BUILDINGS, BUILD_MENU_ORDER, HAND_CRAFTS, SAVE_KEY } from './config.js';
+import { BUILDINGS, BUILD_MENU_ORDER, HAND_CRAFTS } from './config.js';
 import { finalPhaseStatus } from './final-phase.js';
 import {
   PLAYABLE_MAX_RANK,
@@ -12,35 +12,24 @@ import {
   rankProgress,
   researchState,
 } from './progression.js';
-import { getRuntimeGame } from './storage.js';
+import { getRuntimeGame, persistRuntimeGame } from './storage.js';
 
 const STYLE_HREF = './progression.css';
 const state = { panel: null, authoritativeProgression: null };
 
-function readRoot() {
-  try { return JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); }
-  catch { return null; }
-}
-
 function readGame() {
-  const root = readRoot();
-  const game = root?.games?.['scrap-factory'];
-  if (!game) return { root, game: null };
+  const game = getRuntimeGame();
+  if (!game) return { game: null };
   game.progression = normalizeProgression(state.authoritativeProgression || game.progression, game);
-  return { root, game };
+  return { game };
 }
 
-function writeProgression(root, game) {
-  if (!root || !game?.progression) return false;
+function writeProgression(game) {
+  if (!game?.progression) return false;
   try {
     state.authoritativeProgression = structuredClone(game.progression);
-    const next = structuredClone(root);
-    next.games ??= {};
-    next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: state.authoritativeProgression };
-    next.revision = Math.max(1, Number(next.revision || 0) + 1);
-    next.updatedAt = new Date().toISOString();
-    localStorage.setItem(SAVE_KEY, JSON.stringify(next));
-    return true;
+    game.progression = structuredClone(state.authoritativeProgression);
+    return Boolean(persistRuntimeGame());
   } catch (error) {
     console.error('Progression save failed', error);
     return false;
@@ -49,15 +38,11 @@ function writeProgression(root, game) {
 
 function enforceAuthoritativeProgression() {
   if (!state.authoritativeProgression) return;
-  const root = readRoot();
-  const currentGame = root?.games?.['scrap-factory'];
-  if (!root || !currentGame) return;
+  const game = getRuntimeGame();
+  if (!game) return;
   try {
-    const next = structuredClone(root);
-    next.games['scrap-factory'] = { ...next.games['scrap-factory'], progression: state.authoritativeProgression };
-    next.revision = Math.max(1, Number(next.revision || 0) + 1);
-    next.updatedAt = new Date().toISOString();
-    localStorage.setItem(SAVE_KEY, JSON.stringify(next));
+    game.progression = structuredClone(state.authoritativeProgression);
+    persistRuntimeGame();
   } catch (error) {
     console.warn('Progression final merge failed', error);
   }
@@ -237,7 +222,7 @@ function renderPanel() {
     const currentGame = readGame();
     if (!currentGame.game) return;
     const result = claimRankUp(currentGame.game);
-    if (result.changed && writeProgression(currentGame.root, currentGame.game)) window.location.reload();
+    if (result.changed && writeProgression(currentGame.game)) window.location.reload();
   });
 
   content.querySelectorAll('[data-research]').forEach((button) => {
@@ -245,7 +230,7 @@ function renderPanel() {
       const currentGame = readGame();
       if (!currentGame.game) return;
       const result = completeResearch(currentGame.game, button.dataset.research);
-      if (result.changed && writeProgression(currentGame.root, currentGame.game)) window.location.reload();
+      if (result.changed && writeProgression(currentGame.game)) window.location.reload();
     });
   });
 }
