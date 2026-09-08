@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { BUILD_MENU_ORDER } from '../games/scrap-factory/config.js';
 import { analyzeFactory, CHALLENGES, challengeState, planProduction } from '../games/scrap-factory/factory-management.js';
+
+const [featurePack, managementCss] = await Promise.all([
+  readFile(new URL('../games/scrap-factory/feature-pack.js', import.meta.url), 'utf8'),
+  readFile(new URL('../games/scrap-factory/factory-management.css', import.meta.url), 'utf8'),
+]);
 
 assert.deepEqual(
   BUILD_MENU_ORDER.slice(0, 5),
@@ -33,6 +39,11 @@ assert.ok(factory.activeMachines >= 1);
 assert.ok(factory.alerts.some((alert) => alert.title.includes('行き止まり')), 'dead-end conveyor should be reported');
 assert.ok(factory.alerts.some((alert) => alert.title.includes('出力が滞留')), 'blocked crusher output should be reported');
 assert.equal(factory.storageCapacity, 840, 'seven Small Storages should expose 840 total capacity');
+assert.ok(Array.isArray(factory.diagnostics), 'factory analyzer should expose per-building diagnostics');
+assert.equal(factory.diagnostics.length, factory.totalBuildings, 'every building should have one primary diagnostic state');
+assert.equal(factory.diagnostics.find((entry) => entry.buildingId === 'crusher')?.severity, 'warn', 'blocked production should become a warning diagnostic');
+assert.equal(factory.diagnostics.find((entry) => entry.buildingId === 'dead-belt')?.status, '行き止まり', 'logistics diagnosis should reuse analyzer causes');
+assert.equal(factory.diagnosticProblemCount, factory.diagnostics.filter((entry) => entry.severity !== 'ok').length);
 
 const logisticsFactory = analyzeFactory({
   buildings: [
@@ -77,6 +88,18 @@ assert.equal(capacityFactory.power.enabled, true);
 assert.equal(capacityFactory.power.demand, 18);
 assert.equal(capacityFactory.power.batteryStored, 500);
 assert.equal(capacityFactory.power.batteryCapacity, 960);
+assert.equal(capacityFactory.diagnostics.find((entry) => entry.buildingId === 'small-full')?.severity, 'warn');
+
+const uncoveredPower = analyzeFactory({
+  progression: { progressionRank: 4 },
+  buildings: [
+    { id: 'far-crusher', type: 'crusher', x: 30, z: 30, rotation: 0, input: { metal_scrap: 1 }, output: {} },
+  ],
+});
+const powerDiagnostic = uncoveredPower.diagnostics.find((entry) => entry.buildingId === 'far-crusher');
+assert.equal(powerDiagnostic?.severity, 'warn', 'unpowered consumers must be warning diagnostics');
+assert.match(powerDiagnostic?.status || '', /NO POWER/, 'diagnostics must explain the power cause instead of only saying stopped');
+assert.match(powerDiagnostic?.detail || '', /Power Pole|Factory Grid/, 'power diagnostics must include a next-check hint');
 
 const ironPlan = planProduction('iron_ingot', 20);
 const smelter = ironPlan.lines.find((line) => line.kind === 'machine' && line.machine === 'smelter');
@@ -86,4 +109,17 @@ assert.ok(smelter && smelter.machines > 0);
 assert.ok(crusher && crusher.machines > 0);
 assert.equal(raw?.rate, 20);
 
-console.log('Factory management tests passed');
+assert.match(featurePack, /KeyV/, 'factory diagnostics must have a keyboard toggle');
+assert.match(featurePack, /factory-diagnostic-overlay/, 'diagnostics must render as an on-demand gameplay overlay');
+assert.match(featurePack, /data-locate-building/, 'Problems must be able to hand off to world location diagnostics');
+assert.match(featurePack, /\.project\(world\.camera\)/, 'diagnostic labels must project real 3D building positions through the current camera');
+assert.match(featurePack, /DIAGNOSTIC_WARN_LIMIT/, 'diagnostic overlay must cap warning label density');
+assert.match(featurePack, /DIAGNOSTIC_HEALTHY_RANGE/, 'healthy diagnostic labels must be proximity-limited');
+assert.match(featurePack, /data-tab="problems"/, 'factory management must expose a dedicated Problems view');
+assert.match(featurePack, /data-tab="production"/, 'factory management must expose a dedicated Production view');
+assert.doesNotMatch(featurePack, /Factory Management追加/, 'normal sessions should not announce implementation-history toasts');
+assert.match(managementCss, /\.factory-diagnostic-overlay\s*\{[\s\S]*pointer-events:\s*none;/, 'diagnostic overlay must not block first-person input');
+assert.match(managementCss, /\.diagnostic-label--warn/, 'warning diagnostics must have a distinct non-color-only state class');
+assert.match(managementCss, /\.problem-row__icon/, 'problem severity must include an icon/text channel rather than color only');
+
+console.log('Factory management and diagnostic tests passed');
