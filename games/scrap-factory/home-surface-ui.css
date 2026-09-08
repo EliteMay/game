@@ -1,0 +1,281 @@
+/* Home / Guide surface hierarchy.
+   The PC is the detailed Home/Player hub. O stays a short in-play quick guide. */
+
+.home-pc-dashboard-panel {
+  z-index: 74;
+}
+
+.home-pc-dashboard-card {
+  width: min(1080px, 96vw);
+  max-height: min(820px, 92vh);
+  overflow: hidden;
+  border: 1px solid rgb(212 181 74 / 0.28);
+  border-top: 3px solid var(--accent);
+  background: #171c1d;
+  box-shadow: 0 24px 72px rgb(0 0 0 / 0.5);
+}
+
+.home-pc-dashboard-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 22px 26px 18px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.09);
+  background: linear-gradient(180deg, #202627, #191f20);
+}
+
+.home-pc-dashboard-header h2 {
+  margin: 3px 0 7px;
+  font-size: clamp(1.65rem, 3vw, 2.5rem);
+  letter-spacing: -0.035em;
+}
+
+.home-pc-dashboard-header p:last-child {
+  max-width: 700px;
+  margin: 0;
+  color: #aeb8b5;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.home-pc-dashboard-content {
+  max-height: calc(92vh - 114px);
+  overflow: auto;
+  padding: 22px 26px 28px;
+}
+
+.home-pc-priority {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: center;
+  padding: 16px 18px;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgb(212 181 74 / 0.09), rgb(31 37 38 / 0.7));
+}
+
+.home-pc-priority > div {
+  min-width: 0;
+}
+
+.home-pc-priority span,
+.home-pc-summary span,
+.home-pc-action span,
+.home-pc-system-split span {
+  display: block;
+  color: #c3aa50;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.home-pc-priority strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1rem;
+}
+
+.home-pc-priority p {
+  margin: 6px 0 3px;
+  color: #c0c8c4;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.home-pc-priority small {
+  color: #8f9994;
+  font-size: 0.66rem;
+  line-height: 1.45;
+}
+
+.home-pc-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.home-pc-summary article {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #373f40;
+  background: #202627;
+}
+
+.home-pc-summary strong {
+  display: block;
+  margin-top: 5px;
+  color: #edf0ea;
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-pc-summary small {
+  color: #84908a;
+  font-size: 0.58rem;
+}
+
+.home-pc-action-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.home-pc-action {
+  position: relative;
+  min-height: 132px;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  padding: 14px 15px;
+  border: 1px solid #394142;
+  background: #202627;
+  color: #e8ece6;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-pc-action:hover,
+.home-pc-action:focus-visible {
+  border-color: rgb(212 181 74 / 0.55);
+  background: #272e2f;
+  outline: none;
+}
+
+.home-pc-action strong {
+  margin-top: 4px;
+  font-size: 0.88rem;
+}
+
+.home-pc-action small {
+  max-width: 30ch;
+  color: #9ca6a1;
+  font-size: 0.68rem;
+  line-height: 1.45;
+}
+
+.home-pc-action em {
+  position: absolute;
+  right: 10px;
+  bottom: 9px;
+  max-width: calc(100% - 20px);
+  overflow: hidden;
+  color: #d7c46e;
+  font-size: 0.58rem;
+  font-style: normal;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-pc-system-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.home-pc-system-split > div {
+  display: grid;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid #343c3d;
+  background: #181e1f;
+}
+
+.home-pc-system-split strong {
+  color: #dce1dc;
+  font-size: 0.73rem;
+}
+
+.home-pc-system-split small {
+  color: #8e9993;
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+/* O is intentionally compact: current goal, controls, factory tools, Home path. */
+#guide-panel [data-quick-guide="true"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#guide-panel [data-quick-guide="true"] .guide-section {
+  min-height: 0;
+}
+
+#guide-panel [data-quick-guide="true"] .quick-guide-goal {
+  border-left-color: var(--accent);
+  background: rgb(212 181 74 / 0.06);
+}
+
+#guide-panel [data-quick-guide="true"] .quick-guide-detail {
+  border-left-color: #687a74;
+}
+
+#guide-panel [data-quick-guide="true"] p {
+  margin-bottom: 0;
+}
+
+/* Existing Workbench keeps 1-item precision and gains a fast ALL action. */
+#home-system-panel .home-transfer-grid article button[data-home-transfer-all] {
+  min-width: 48px;
+  border-color: rgb(212 181 74 / 0.46);
+  background: #39331f;
+  color: #f0dc86;
+  font-weight: 850;
+}
+
+#home-system-panel .home-transfer-grid article > button:not([data-home-transfer-all]) {
+  min-width: 34px;
+}
+
+@media (max-width: 900px) {
+  .home-pc-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .home-pc-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .home-pc-dashboard-card {
+    width: 100%;
+    max-height: calc(100vh - 20px);
+  }
+
+  .home-pc-dashboard-header {
+    padding: 16px;
+  }
+
+  .home-pc-dashboard-content {
+    max-height: calc(100vh - 104px);
+    padding: 14px 16px 18px;
+  }
+
+  .home-pc-priority {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .home-pc-priority .primary-action {
+    justify-self: start;
+  }
+
+  .home-pc-action-grid,
+  .home-pc-summary,
+  .home-pc-system-split,
+  #guide-panel [data-quick-guide="true"] {
+    grid-template-columns: 1fr;
+  }
+
+  .home-pc-action {
+    min-height: 112px;
+  }
+}

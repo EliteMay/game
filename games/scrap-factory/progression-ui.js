@@ -4,6 +4,7 @@
 import './phase5c-automation-ui.js';
 import './final-phase-ui.js';
 import './home-runtime.js';
+import './home-surface-ui.js';
 import './post-clear-optimization-ui.js';
 import './adaptive-ui.js';
 import './bilingual-ui.js';
