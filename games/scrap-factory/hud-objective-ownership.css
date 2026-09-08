@@ -1,0 +1,24 @@
+/* Final HUD composition ownership.
+   Management is part of the upper-left context stack, so it must participate in
+   normal grid flow instead of escaping that stack with fixed positioning. */
+
+.hud-context-stack > .hud-management {
+  position: relative !important;
+  inset: auto !important;
+  width: 100% !important;
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  pointer-events: auto;
+}
+
+.hud-context-stack > .hud-management .hud-management__toggle {
+  position: relative;
+  min-width: 118px;
+  max-width: 100%;
+}
+
+.hud-context-stack > .hud-management .hud-management__tray {
+  width: min(246px, 100%);
+  max-width: 100%;
+}
