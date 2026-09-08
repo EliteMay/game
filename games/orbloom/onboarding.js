@@ -5,7 +5,7 @@ import {
   getOnboardingStep,
 } from './onboarding-core.js';
 
-const STORAGE_KEY = 'elitemay-orbloom-onboarding-v4';
+const STORAGE_KEY = 'elitemay-orbloom-onboarding-v5';
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -16,6 +16,9 @@ let layer = null;
 let card = null;
 let ring = null;
 let ringLabel = null;
+let pointer = null;
+let pointerHand = null;
+let pointerLabel = null;
 let progressBar = null;
 let progressLabel = null;
 let stepLabel = null;
@@ -26,6 +29,8 @@ let masks = [];
 let helpPanel = null;
 let pendingRewards = [];
 let resourceObserver = null;
+let activeTarget = null;
+let wrongTapTimer = null;
 
 boot();
 
@@ -52,7 +57,7 @@ function boot() {
 
 function tuneBootScreen() {
   const note = $('.boot-note');
-  if (note) note.textContent = '最初の操作からゲーム内で1つずつ案内します。スマホでは緑に光る場所をタップしてください。';
+  if (note) note.textContent = '最初の操作から1つずつ案内します。指マークと「ここをタップ」が次に触る場所です。';
 }
 
 function buildTutorialUi() {
@@ -66,6 +71,10 @@ function buildTutorialUi() {
     <div class="onboarding-mask onboarding-mask--right" aria-hidden="true"></div>
     <div class="onboarding-mask onboarding-mask--bottom" aria-hidden="true"></div>
     <div class="onboarding-target-ring" aria-hidden="true"><span>TAP</span></div>
+    <div class="onboarding-pointer" aria-hidden="true">
+      <span class="onboarding-pointer__hand">👇</span>
+      <strong>ここをタップ</strong>
+    </div>
     <section class="onboarding-coach" aria-live="polite" aria-label="Orbloomチュートリアル">
       <header class="onboarding-coach__header">
         <span class="onboarding-step-label">GUIDE 1 / 7</span>
@@ -83,6 +92,9 @@ function buildTutorialUi() {
   masks = [...layer.querySelectorAll('.onboarding-mask')];
   ring = layer.querySelector('.onboarding-target-ring');
   ringLabel = ring.querySelector('span');
+  pointer = layer.querySelector('.onboarding-pointer');
+  pointerHand = layer.querySelector('.onboarding-pointer__hand');
+  pointerLabel = pointer.querySelector('strong');
   card = layer.querySelector('.onboarding-coach');
   progressBar = layer.querySelector('.onboarding-progress i');
   progressLabel = layer.querySelector('.onboarding-progress-label');
@@ -91,17 +103,19 @@ function buildTutorialUi() {
   copy = layer.querySelector('.onboarding-copy');
   completeButton = layer.querySelector('.onboarding-complete');
 
+  masks.forEach((mask) => mask.addEventListener('pointerdown', wrongTargetFeedback));
+
   layer.querySelector('.onboarding-skip').addEventListener('click', () => {
     const state = runtime.getState();
     writeRecord(state, 'skipped');
-    layer.hidden = true;
+    hideGuide();
     showToast('チュートリアルをスキップしました。HELPからいつでも確認できます。');
   });
 
   completeButton.addEventListener('click', () => {
     const state = runtime.getState();
     writeRecord(state, 'complete');
-    layer.hidden = true;
+    hideGuide();
     showToast('基本ループを覚えました。次はNEXT OBJECTIVEへ。', 'success');
   });
 }
@@ -127,12 +141,12 @@ function buildHelpUi() {
         <div><p class="panel-kicker">HOW TO PLAY</p><h2 id="how-to-play-title">Orbloomの基本ループ</h2></div>
         <button class="close-button" type="button" data-help-close>×</button>
       </header>
-      <p class="onboarding-help-lead">迷ったら、左の <strong>NEXT OBJECTIVE</strong> を次のゴールにする。</p>
+      <p class="onboarding-help-lead">ガイド中は <strong>指マーク + 「ここをタップ」</strong> が次に触る場所。迷ったらHELPから現在地点のガイドを出せる。</p>
       <ol class="onboarding-loop-list">
         <li><span>01</span><div><strong>資源を作る</strong><small>最初だけGENERATE MATTERをタップしてMatterを作る。</small></div></li>
         <li><span>02</span><div><strong>MATTERカードをタップして自動生産を買う</strong><small>Generator = 自動生産装置。買うとMatterが毎秒勝手に増える。</small></div></li>
         <li><span>03</span><div><strong>同じカードをタップして自動生産を強化</strong><small>強化するほど /s が伸び、次の購入が速くなる。</small></div></li>
-        <li><span>04</span><div><strong>条件が揃ったらPlanet Evolution</strong><small>左の条件を満たすと、新資源・Biome・Systemが順番に解放される。</small></div></li>
+        <li><span>04</span><div><strong>条件が揃ったらPlanet Evolution</strong><small>条件を満たすと、新資源・Biome・Systemが順番に解放される。</small></div></li>
         <li><span>05</span><div><strong>Life ScanでSpeciesを見つける</strong><small>SCAN FOR LIFEのコストを貯め、発見したSpeciesをBiomeへ配置する。</small></div></li>
         <li><span>06</span><div><strong>新しいSystemも同じ成長へ戻す</strong><small>Biome・Species・Research・Expeditionは惑星の生産と進化を強くする。</small></div></li>
       </ol>
@@ -147,7 +161,7 @@ function buildHelpUi() {
 
   button.addEventListener('click', () => {
     helpPanel.hidden = false;
-    layer.hidden = true;
+    hideGuide();
   });
   helpPanel.querySelectorAll('[data-help-close]').forEach((close) => close.addEventListener('click', () => {
     helpPanel.hidden = true;
@@ -213,7 +227,7 @@ function tick() {
   const blocked = !hud || hud.hidden || !bootScreen?.hidden || isBlockingOverlayOpen();
 
   if (record || blocked) {
-    if (layer) layer.hidden = true;
+    hideGuide();
     return;
   }
 
@@ -225,7 +239,7 @@ function tick() {
     scanResourceTarget: scanResourceTarget(scanCostLabel),
   });
   if (!step) {
-    layer.hidden = true;
+    hideGuide();
     return;
   }
 
@@ -244,8 +258,11 @@ function renderStep(step) {
     copy.textContent = step.body;
     progressLabel.textContent = step.progressLabel || '';
     progressBar.style.transform = `scaleX(${clamp(Number(step.progress || 0), 0, 1)})`;
-    ringLabel.textContent = step.verb || 'TAP';
+    ringLabel.textContent = step.verb === 'SELECT' ? 'SELECT' : 'TAP';
     completeButton.hidden = !step.complete;
+    pointerLabel.textContent = step.verb === 'SELECT' ? 'ここを選ぶ' : 'ここをタップ';
+    pointer.hidden = !isActionStep(step);
+    requestAnimationFrame(() => ensureTargetVisible(step.target));
   } else {
     progressBar.style.transform = `scaleX(${clamp(Number(step.progress || 0), 0, 1)})`;
     progressLabel.textContent = step.progressLabel || '';
@@ -258,6 +275,7 @@ function positionTutorial() {
   if (!layer || layer.hidden || !currentStep) return;
   const target = tutorialTarget(currentStep.target);
   if (!target) return;
+  activateTarget(target);
 
   const rect = target.getBoundingClientRect();
   const vw = window.innerWidth;
@@ -265,18 +283,21 @@ function positionTutorial() {
   const visible = rect.bottom > 0 && rect.top < vh && rect.right > 0 && rect.left < vw;
 
   if (!visible) {
+    pointer.hidden = true;
     ring.hidden = true;
-    masks.forEach((mask) => { mask.hidden = true; });
+    setBox(masks[0], 0, 0, vw, vh);
+    masks.slice(1).forEach((mask) => { mask.hidden = true; });
     card.style.left = '10px';
     card.style.top = '10px';
     card.style.width = `${Math.min(390, vw - 20)}px`;
+    ensureTargetVisible(currentStep.target);
     return;
   }
 
   ring.hidden = false;
   masks.forEach((mask) => { mask.hidden = false; });
 
-  const pad = 7;
+  const pad = window.innerWidth <= 620 ? 9 : 7;
   const left = clamp(rect.left - pad, 0, vw);
   const top = clamp(rect.top - pad, 0, vh);
   const right = clamp(rect.right + pad, 0, vw);
@@ -287,6 +308,13 @@ function positionTutorial() {
   setBox(masks[2], right, top, Math.max(0, vw - right), Math.max(0, bottom - top));
   setBox(masks[3], 0, bottom, vw, Math.max(0, vh - bottom));
   setBox(ring, left, top, Math.max(0, right - left), Math.max(0, bottom - top));
+
+  if (isActionStep(currentStep)) {
+    pointer.hidden = false;
+    positionPointer(rect, vw, vh);
+  } else {
+    pointer.hidden = true;
+  }
 
   const cardWidth = Math.min(390, vw - 24);
   card.style.width = `${cardWidth}px`;
@@ -320,6 +348,69 @@ function positionTutorial() {
 
   card.style.left = `${cardLeft}px`;
   card.style.top = `${cardTop}px`;
+}
+
+function positionPointer(rect, vw, vh) {
+  if (!pointer || pointer.hidden) return;
+  const width = pointer.offsetWidth || 132;
+  const height = pointer.offsetHeight || 70;
+  const below = rect.top < height + 24;
+  const center = rect.left + rect.width / 2;
+  const left = clamp(center - width / 2, 6, Math.max(6, vw - width - 6));
+  const top = below
+    ? clamp(rect.bottom + 8, 6, Math.max(6, vh - height - 6))
+    : clamp(rect.top - height - 8, 6, Math.max(6, vh - height - 6));
+
+  pointer.classList.toggle('is-below', below);
+  pointerHand.textContent = below ? '👆' : '👇';
+  pointer.style.left = `${left}px`;
+  pointer.style.top = `${top}px`;
+}
+
+function ensureTargetVisible(id) {
+  const target = tutorialTarget(id);
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const margin = 24;
+  const fullyUsable = rect.top >= margin && rect.bottom <= window.innerHeight - margin;
+  if (fullyUsable) return;
+  target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+}
+
+function activateTarget(target) {
+  if (activeTarget === target) return;
+  deactivateTarget();
+  activeTarget = target;
+  activeTarget.classList.add('is-onboarding-live-target');
+}
+
+function deactivateTarget() {
+  activeTarget?.classList.remove('is-onboarding-live-target');
+  activeTarget = null;
+}
+
+function hideGuide() {
+  if (layer) layer.hidden = true;
+  deactivateTarget();
+}
+
+function wrongTargetFeedback() {
+  if (!currentStep || !isActionStep(currentStep) || !pointer || pointer.hidden) return;
+  clearTimeout(wrongTapTimer);
+  pointer.classList.remove('is-wrong-tap');
+  card.classList.remove('is-wrong-tap');
+  requestAnimationFrame(() => {
+    pointer.classList.add('is-wrong-tap');
+    card.classList.add('is-wrong-tap');
+  });
+  wrongTapTimer = setTimeout(() => {
+    pointer.classList.remove('is-wrong-tap');
+    card.classList.remove('is-wrong-tap');
+  }, 360);
+}
+
+function isActionStep(step) {
+  return Boolean(step && !step.complete && !['WAIT', 'NEXT'].includes(step.verb));
 }
 
 function tutorialTarget(id) {
