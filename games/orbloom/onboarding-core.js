@@ -133,14 +133,17 @@ export function applyUnlockStarterResources(state) {
     const resource = RESOURCES[id];
     if (!resource || Number(state.planetStage || 0) < resource.unlockStage || state.unlockRewards[id]) continue;
 
-    const alreadyStarted = n(state.generators?.[id]) > 0 || n(state.resources?.[id]) > 0;
     state.unlockRewards[id] = true;
     changed = true;
 
-    if (alreadyStarted) continue;
+    if (n(state.generators?.[id]) > 0) continue;
 
-    const amount = generatorCost(id, 0);
-    state.resources[id] = n(state.resources?.[id]) + amount;
+    const firstCost = generatorCost(id, 0);
+    const current = n(state.resources?.[id]);
+    const amount = Math.max(0, firstCost - current);
+    if (amount <= 0) continue;
+
+    state.resources[id] = current + amount;
     rewards.push({ id, name: resource.name, amount });
   }
 
