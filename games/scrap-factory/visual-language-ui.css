@@ -1,0 +1,322 @@
+/* Scrap Factory visual language: restrained industrial utility surfaces.
+   World-first means UI contrast is spent on decisions, not decoration. */
+
+:root {
+  --sf-surface-deep: #111617;
+  --sf-surface: #1a2021;
+  --sf-surface-raised: #222829;
+  --sf-surface-hover: #293031;
+  --sf-line: rgb(218 225 219 / 0.14);
+  --sf-line-strong: rgb(218 225 219 / 0.26);
+  --sf-text: #edf0ea;
+  --sf-muted: #99a39d;
+  --sf-dim: #717b75;
+  --sf-accent: #d4b74f;
+  --sf-accent-soft: rgb(212 183 79 / 0.09);
+  --sf-good: #79b982;
+  --sf-warn: #d5a15b;
+  --sf-danger: #c3685f;
+  --sf-panel-shadow: 0 22px 64px rgb(0 0 0 / 0.46);
+}
+
+::selection {
+  background: rgb(212 183 79 / 0.28);
+  color: #fff8d7;
+}
+
+/* Hard-edged, layered steel surfaces replace unrelated card treatments. */
+[data-industrial-surface="true"] {
+  border: 1px solid var(--sf-line-strong) !important;
+  border-top: 3px solid var(--sf-accent) !important;
+  border-radius: 0 !important;
+  background: var(--sf-surface) !important;
+  box-shadow: var(--sf-panel-shadow) !important;
+}
+
+[data-industrial-header="true"] {
+  border-bottom: 1px solid var(--sf-line) !important;
+  background: linear-gradient(180deg, rgb(39 46 47 / 0.82), rgb(26 32 33 / 0.12));
+}
+
+.panel-kicker,
+.eyebrow,
+.factory-management-header .panel-kicker,
+.home-system-header .panel-kicker,
+.home-pc-dashboard-header .panel-kicker {
+  color: var(--sf-accent);
+  font-size: 0.65rem;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.panel-header h2,
+.factory-management-header h2,
+.home-system-header h2,
+.home-pc-dashboard-header h2,
+.exploration-secure-card h2 {
+  color: var(--sf-text);
+  font-weight: 850;
+  line-height: 1.06;
+}
+
+/* Controls: yellow is reserved for primary choice; neutral actions stay steel. */
+.primary-action {
+  border: 1px solid rgb(236 210 104 / 0.56);
+  border-radius: 0;
+  background: var(--sf-accent);
+  color: #171913;
+  box-shadow: inset 0 -2px rgb(96 82 26 / 0.22);
+}
+
+.primary-action:hover:not(:disabled) {
+  background: #e0c35b;
+  border-color: #f1d675;
+}
+
+.secondary-action,
+.icon-button,
+.text-action,
+.home-transfer-grid button,
+.preset-list button,
+.exploration-case-list button {
+  border-radius: 0;
+}
+
+.secondary-action,
+.icon-button {
+  border-color: var(--sf-line);
+  background: var(--sf-surface-raised);
+  color: #dfe4df;
+}
+
+.secondary-action:hover:not(:disabled),
+.icon-button:hover:not(:disabled) {
+  border-color: var(--sf-line-strong);
+  background: var(--sf-surface-hover);
+}
+
+.danger-action {
+  border-radius: 0;
+  border-color: rgb(195 104 95 / 0.42);
+  background: rgb(74 42 39 / 0.58);
+  color: #edc0bb;
+}
+
+.danger-action:hover:not(:disabled) {
+  border-color: rgb(210 120 111 / 0.62);
+  background: rgb(84 46 43 / 0.72);
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  filter: saturate(0.45);
+}
+
+kbd {
+  border-radius: 0;
+  border-color: rgb(221 227 220 / 0.22);
+  border-bottom-color: rgb(221 227 220 / 0.34);
+  background: #282e2f;
+  color: #f2eed9;
+  box-shadow: inset 0 -1px rgb(0 0 0 / 0.24);
+}
+
+/* Forms use the same steel input grammar across Settings, planners, and terminals. */
+select,
+input[type="text"],
+input[type="search"],
+input[type="number"] {
+  border-radius: 0 !important;
+  border-color: var(--sf-line-strong) !important;
+  background: #171c1d !important;
+  color: var(--sf-text) !important;
+}
+
+select:hover,
+input[type="text"]:hover,
+input[type="search"]:hover,
+input[type="number"]:hover {
+  border-color: rgb(218 225 219 / 0.38) !important;
+}
+
+/* Navigation should read as one rail, not a row of unrelated buttons. */
+.factory-tabs,
+.home-system-tabs {
+  border-bottom-color: var(--sf-line);
+  background: #14191a;
+}
+
+.factory-tabs button,
+.home-system-tabs button {
+  color: var(--sf-muted);
+}
+
+.factory-tabs button.is-active,
+.home-system-tabs button.is-active {
+  color: #f3edcf;
+  border-bottom-color: var(--sf-accent);
+  background: var(--sf-accent-soft);
+}
+
+/* Dense management cards: quieter containers, stronger data. */
+.management-stat,
+.management-section,
+.problem-row,
+.production-machine-row,
+.automation-console-section,
+.automation-route-row,
+.automation-recipe-row,
+.home-summary-row article,
+.home-section,
+.upgrade-card,
+.tutorial-entry,
+.home-pc-summary article,
+.home-pc-action {
+  border-radius: 0 !important;
+  border-color: var(--sf-line) !important;
+  background: var(--sf-surface-raised) !important;
+  box-shadow: none !important;
+}
+
+.management-stat strong,
+.home-summary-row strong,
+.home-pc-summary strong {
+  color: var(--sf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.management-stat span,
+.management-section__head span,
+.home-section__head span,
+.home-pc-action span,
+.upgrade-card__top span {
+  color: #bca64f;
+}
+
+.management-help,
+.management-stat small,
+.home-section > p,
+.home-pc-action small,
+.upgrade-card p,
+.tutorial-entry dd {
+  color: var(--sf-muted);
+}
+
+.problem-row--warn,
+.diagnostic-label--warn,
+.toast[data-notification-tone="warn"] {
+  border-left-color: var(--sf-danger) !important;
+}
+
+.upgrade-card.is-owned,
+.challenge-row.is-complete,
+.diagnostic--ok {
+  border-color: rgb(121 185 130 / 0.32) !important;
+}
+
+/* Normal play HUD stays translucent but not glassy or card-heavy. */
+.hud-context-stack .objective-panel,
+.area-plate,
+.hud-stat,
+.interaction-prompt,
+.build-hint,
+.dismantle-hint,
+.hud-management__toggle,
+.hud-management__tray,
+.factory-diagnostic-overlay__header,
+.diagnostic-label,
+.home-marker-chip,
+.scanner-chip,
+.toast {
+  border-radius: 0 !important;
+  backdrop-filter: blur(4px);
+}
+
+.hud-context-stack .objective-panel {
+  background: linear-gradient(90deg, rgb(15 19 20 / 0.82), rgb(15 19 20 / 0.46));
+}
+
+.interaction-prompt {
+  background: linear-gradient(180deg, rgb(14 18 19 / 0.82), rgb(14 18 19 / 0.48));
+}
+
+.crosshair span {
+  background: rgb(244 241 218 / 0.92);
+  box-shadow: 0 0 2px #000, 0 0 7px rgb(0 0 0 / 0.22);
+}
+
+/* Selected/active states use a narrow signal rather than filling whole surfaces. */
+.inventory-slot[aria-pressed="true"],
+.tracking-grid button.is-active,
+.home-pc-action:focus-visible {
+  border-color: rgb(212 183 79 / 0.52) !important;
+  box-shadow: inset 3px 0 var(--sf-accent) !important;
+}
+
+.inventory-slot.is-empty {
+  background: #1a1f20 !important;
+  border-color: rgb(218 225 219 / 0.09) !important;
+}
+
+/* Scrollbars remain visible in long management sessions without dominating. */
+.panel-card,
+.factory-management-card,
+.home-system-content,
+.home-pc-dashboard-content,
+.factory-management-content,
+.codex-list,
+.session-log,
+.factory-alert-list {
+  scrollbar-color: #50595a #171c1d;
+  scrollbar-width: thin;
+}
+
+.panel-card::-webkit-scrollbar,
+.factory-management-card::-webkit-scrollbar,
+.home-system-content::-webkit-scrollbar,
+.home-pc-dashboard-content::-webkit-scrollbar,
+.factory-management-content::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+.panel-card::-webkit-scrollbar-thumb,
+.factory-management-card::-webkit-scrollbar-thumb,
+.home-system-content::-webkit-scrollbar-thumb,
+.home-pc-dashboard-content::-webkit-scrollbar-thumb,
+.factory-management-content::-webkit-scrollbar-thumb {
+  background: #50595a;
+  border: 2px solid #171c1d;
+}
+
+/* Focus remains obvious for keyboard users while matching the industrial language. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #ead269;
+  outline-offset: 2px;
+}
+
+@media (max-width: 760px) {
+  [data-industrial-header="true"] {
+    background: #1d2324;
+  }
+
+  .panel-kicker,
+  .eyebrow {
+    letter-spacing: 0.12em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary-action,
+  .secondary-action,
+  .home-pc-action,
+  .factory-tabs button,
+  .home-system-tabs button {
+    transition: none !important;
+  }
+}
