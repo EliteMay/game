@@ -10,7 +10,7 @@ const [entry, surface, css] = await Promise.all([
 assert.match(entry, /import '\.\/home-surface-ui\.js';/, 'stable progression entrypoint must load the Home surface hierarchy');
 assert.match(surface, /HOME PC \/ PLAYER HUB/, 'PC must open through a Home/player dashboard rather than dropping directly into upgrades');
 assert.match(surface, /data-pc-target="tutorial"/, 'PC dashboard must expose the detailed Tutorial Library');
-assert.match(surface, /data-pc-target="workbench"/, 'PC dashboard must expose exploration preparation/workbench');
+assert.match(surface, /dashboardAction\('workbench'/, 'PC dashboard must expose exploration preparation/workbench');
 assert.match(surface, /Factoryの診断と管理は <kbd>V<\/kbd> \/ <kbd>P<\/kbd>/, 'PC must keep Factory diagnostics/management as separate world tools');
 assert.match(surface, /layout\.dataset\.homeLibrary = 'true'/, 'O guide must block the legacy full-library renderer');
 assert.match(surface, /FIELD QUICK GUIDE/, 'O guide must identify itself as a quick in-play guide');
