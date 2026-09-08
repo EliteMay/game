@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071018">
+  <meta name="description" content="小さな岩塊をStable Living Worldへ育てる3D incremental / idle growth game。">
+  <title>Orbloom | Game Hub</title>
+  <link rel="stylesheet" href="./orbloom.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <main class="game-shell" aria-label="Orbloom">
+    <canvas id="planet-canvas" aria-label="回転・ズームできるOrbloomの3D惑星"></canvas>
+
+    <section id="boot-screen" class="boot-screen">
+      <div class="boot-orbit" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="boot-content">
+        <p class="eyebrow">GAME 02 / LIVING PLANET INCREMENTAL</p>
+        <h1>ORBLOOM</h1>
+        <p class="boot-lead">増やす。育てる。進化させる。<br>冷えた岩塊から、生命が循環する惑星へ。</p>
+        <div class="boot-goal">
+          <span>PRIMARY GOAL</span>
+          <strong>Create a Stable Living World</strong>
+        </div>
+        <div class="boot-controls" aria-label="主要操作">
+          <span><kbd>DRAG</kbd> 惑星を回転</span>
+          <span><kbd>WHEEL</kbd> ズーム</span>
+          <span><kbd>SPACE</kbd> Matter生成</span>
+          <span><kbd>1–4</kbd> 管理タブ</span>
+        </div>
+        <button id="start-game" class="primary-button" type="button">惑星を育てる</button>
+        <p class="boot-note">Autosave / Offline Progress対応。大きな進化だけはあなたが決めます。</p>
+      </div>
+    </section>
+
+    <section id="hud" class="hud" hidden>
+      <header class="top-bar">
+        <a class="game-mark" href="../../index.html" aria-label="Game Hubへ戻る">
+          <span>02</span><strong>ORBLOOM</strong>
+        </a>
+        <div id="resource-strip" class="resource-strip" aria-label="資源"></div>
+        <div class="top-actions">
+          <button id="save-now" class="icon-action" type="button">SAVE</button>
+          <button id="open-settings" class="icon-action" type="button">SETTINGS</button>
+        </div>
+      </header>
+
+      <aside class="stage-panel" aria-label="惑星進行">
+        <p id="stage-kicker" class="panel-kicker">A WORLD WITHOUT LIFE</p>
+        <div class="stage-title-row">
+          <span id="stage-index">01 / 07</span>
+          <h2 id="stage-name">Dead Rock</h2>
+        </div>
+        <p id="stage-description" class="stage-description"></p>
+        <div class="objective-block">
+          <span>NEXT OBJECTIVE</span>
+          <strong id="objective-text">Matterを生成する</strong>
+        </div>
+        <div id="evolution-requirements" class="requirement-list"></div>
+        <button id="evolve-planet" class="evolve-button" type="button">PLANET EVOLUTION</button>
+      </aside>
+
+      <aside class="management-dock" aria-label="惑星管理">
+        <nav class="dock-tabs" aria-label="管理タブ">
+          <button class="is-active" data-tab="biomes" type="button"><span>01</span>BIOMES</button>
+          <button data-tab="species" type="button"><span>02</span>SPECIES</button>
+          <button data-tab="research" type="button"><span>03</span>RESEARCH</button>
+          <button data-tab="expedition" type="button"><span>04</span>EXPEDITION</button>
+        </nav>
+        <div class="dock-heading">
+          <div><p id="dock-kicker">PLANET SURFACE</p><h2 id="dock-title">Biomes</h2></div>
+          <span id="dock-status">01 SYSTEM</span>
+        </div>
+        <div id="panel-content" class="panel-content"></div>
+      </aside>
+
+      <div class="bottom-actions">
+        <button id="manual-matter" class="matter-button" type="button">
+          <span>GENERATE</span><strong>MATTER</strong><small><kbd>SPACE</kbd></small>
+        </button>
+        <button id="scan-life" class="scan-button" type="button">
+          <span>SCAN</span><strong>FOR LIFE</strong><small id="scan-cost">LOCKED</small>
+        </button>
+      </div>
+
+      <div class="planet-hint">DRAG TO ROTATE · WHEEL TO ZOOM · CLICK SURFACE TO INSPECT BIOME</div>
+    </section>
+
+    <section id="settings-panel" class="overlay-panel" hidden aria-label="Orbloom設定">
+      <div class="dialog-card">
+        <header><div><p class="panel-kicker">ORBLOOM</p><h2>Settings & Save</h2></div><button class="close-button" data-close="settings" type="button">×</button></header>
+        <label class="setting-row"><span><strong>Reduced Motion</strong><small>自動回転・不要な演出を減らす</small></span><input id="setting-motion" type="checkbox"></label>
+        <label class="setting-row"><span><strong>Graphics</strong><small>星・描画解像度を調整</small></span><select id="setting-quality"><option value="high">High</option><option value="low">Low</option></select></label>
+        <label class="setting-row"><span><strong>Sound</strong><small>効果音の音量</small></span><input id="setting-volume" type="range" min="0" max="1" step="0.05"></label>
+        <div class="save-actions">
+          <button id="export-save" class="secondary-button" type="button">セーブを書き出す</button>
+          <label class="secondary-button file-button">セーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label>
+          <button id="reset-save" class="danger-button" type="button">セーブをリセット</button>
+        </div>
+        <a class="hub-link" href="../../index.html">Game Hubへ戻る →</a>
+      </div>
+    </section>
+
+    <section id="offline-panel" class="overlay-panel" hidden aria-label="Offline進行結果">
+      <div class="dialog-card dialog-card--result">
+        <p class="panel-kicker">WELCOME BACK</p>
+        <h2>惑星は成長を続けていました</h2>
+        <p id="offline-summary"></p>
+        <button class="primary-button" data-close="offline" type="button">結果を受け取る</button>
+      </div>
+    </section>
+
+    <section id="evolution-panel" class="evolution-panel" hidden aria-live="polite">
+      <div class="evolution-rings" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div>
+        <p id="evolution-kicker">PLANET EVOLUTION</p>
+        <h2 id="evolution-title">Primitive Planet</h2>
+        <p id="evolution-copy"></p>
+        <button id="evolution-close" class="primary-button" type="button">新しい世界を見る</button>
+      </div>
+    </section>
+
+    <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
+  </main>
+  <script type="module" src="./game.js"></script>
+</body>
+</html>
