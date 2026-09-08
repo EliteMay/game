@@ -187,17 +187,32 @@ function migrate(parsed) {
   };
 }
 
-export function loadRootSave() {
+export function loadRootSave({ preferRuntime = true } = {}) {
   const raw = localStorage.getItem(SAVE_KEY);
-  if (!raw) return makeDefaultRootSave();
-  try {
-    return migrate(JSON.parse(raw));
-  } catch (error) {
-    console.warn('Save load failed. Falling back to defaults.', error);
-    const recoveryKey = `${SAVE_KEY}-recovery-${Date.now()}`;
-    try { localStorage.setItem(recoveryKey, raw); } catch { /* best effort */ }
-    return makeDefaultRootSave();
+  let loaded;
+  if (!raw) loaded = makeDefaultRootSave();
+  else {
+    try {
+      loaded = migrate(JSON.parse(raw));
+    } catch (error) {
+      console.warn('Save load failed. Falling back to defaults.', error);
+      const recoveryKey = `${SAVE_KEY}-recovery-${Date.now()}`;
+      try { localStorage.setItem(recoveryKey, raw); } catch { /* best effort */ }
+      loaded = makeDefaultRootSave();
+    }
   }
+
+  // During an active session the in-memory game object is newer than the last
+  // autosave. Any feature that asks for a root snapshot must therefore see the
+  // live game instead of an older localStorage copy, otherwise writing that
+  // snapshot back can roll the session backwards.
+  if (preferRuntime && runtimeGameRef && !resetPendingReload) {
+    return {
+      ...loaded,
+      games: { ...loaded.games, 'scrap-factory': runtimeGameRef },
+    };
+  }
+  return loaded;
 }
 
 export function saveRootSave(root) {
@@ -212,7 +227,7 @@ export function saveRootSave(root) {
 }
 
 export function loadGameSave() {
-  const root = loadRootSave();
+  const root = loadRootSave({ preferRuntime: false });
   const game = normalizeGame(root.games?.['scrap-factory']);
   runtimeRootRef = root;
   runtimeGameRef = game;
@@ -224,7 +239,7 @@ export function getRuntimeGame() {
 }
 
 export function saveGameSave(root, game) {
-  if (resetPendingReload) return loadRootSave();
+  if (resetPendingReload) return loadRootSave({ preferRuntime: false });
   const nextRoot = {
     ...root,
     games: { ...root.games, 'scrap-factory': normalizeGame(game) },

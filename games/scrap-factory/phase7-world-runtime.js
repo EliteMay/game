@@ -17,6 +17,30 @@ const NON_BLOCKING_LOGISTICS = new Set([
   'conveyor', 'conveyor_mk2', 'conveyor_mk3', 'splitter', 'merger', 'smart_sorter', 'priority_splitter', 'overflow_splitter',
 ]);
 
+const SOLID_YARD_PROPS = Object.freeze([
+  ['barrel-base-1', -16, -17, 0.85, 0.85],
+  ['barrel-base-2', -10, -17, 0.85, 0.85],
+  ['barrel-base-3', -16, 16, 0.85, 0.85],
+  ['barrel-base-4', -8, 16, 0.85, 0.85],
+  ['spool-base', -17, 10, 1.55, 1.2],
+  ['tires-base', -18.2, 6.7, 1.15, 1.15],
+  ['floodlight-1', -17, -18, 0.5, 0.5],
+  ['floodlight-2', 17, -18, 0.5, 0.5],
+  ['floodlight-3', -17, 18, 0.5, 0.5],
+  ['floodlight-4', 17, 18, 0.5, 0.5],
+  ['gantry-post-north', 23, -6.1, 0.8, 0.8],
+  ['gantry-post-south', 23, 6.1, 0.8, 0.8],
+  ['tires-yard-1', 42, 15, 1.2, 1.2],
+  ['tires-yard-2', 62, -18, 1.2, 1.2],
+  ['tires-yard-3', 76, 18, 1.2, 1.2],
+  ['barrel-yard-1', 32, 19, 0.9, 0.9],
+  ['barrel-yard-2', 55, 20, 0.9, 0.9],
+  ['barrel-yard-3', 72, -19, 1.05, 1.05],
+  ['barrel-yard-4', 84, 3, 0.9, 0.9],
+  ['spool-yard-1', 45, -17, 1.55, 1.2],
+  ['spool-yard-2', 68, 17, 1.55, 1.2],
+]);
+
 function makeTemplateHost() {
   return {
     scene: new THREE.Scene(),
@@ -34,6 +58,21 @@ function disposeRoot(root) {
     const materials = Array.isArray(node.material) ? node.material : [node.material];
     for (const material of materials) material?.dispose?.();
   });
+}
+
+function ensureSolidYardPropColliders(world) {
+  if (!Array.isArray(world?.staticColliders)) return;
+  const existing = new Set(world.staticColliders.map((entry) => entry.phase7PropColliderId).filter(Boolean));
+  for (const [id, x, z, width, depth] of SOLID_YARD_PROPS) {
+    if (existing.has(id)) continue;
+    world.staticColliders.push({
+      minX: x - width / 2,
+      maxX: x + width / 2,
+      minZ: z - depth / 2,
+      maxZ: z + depth / 2,
+      phase7PropColliderId: id,
+    });
+  }
 }
 
 function buildEnhancedMesh(building) {
@@ -119,6 +158,7 @@ function patchProductionWorld(runtime) {
   if (!world || !game || world.userData?.phase7ProductionPatched) return false;
   world.userData ??= {};
   world.userData.phase7ProductionPatched = true;
+  ensureSolidYardPropColliders(world);
 
   let bulkLoading = false;
   const originalAddBuilding = world.addBuilding.bind(world);
