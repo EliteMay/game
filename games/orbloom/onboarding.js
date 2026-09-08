@@ -1,10 +1,11 @@
+import { generatorCost } from './config.js';
 import {
   ONBOARDING_VERSION,
   applyUnlockStarterResources,
   getOnboardingStep,
 } from './onboarding-core.js';
 
-const STORAGE_KEY = 'elitemay-orbloom-onboarding-v3';
+const STORAGE_KEY = 'elitemay-orbloom-onboarding-v4';
 const $ = (selector) => document.querySelector(selector);
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -24,6 +25,7 @@ let completeButton = null;
 let masks = [];
 let helpPanel = null;
 let pendingRewards = [];
+let resourceObserver = null;
 
 boot();
 
@@ -37,6 +39,7 @@ function boot() {
   tuneBootScreen();
   buildTutorialUi();
   buildHelpUi();
+  watchResourceButtons();
   window.addEventListener('resize', positionTutorial);
   window.addEventListener('scroll', positionTutorial, { passive: true });
   window.addEventListener('keydown', (event) => {
@@ -49,7 +52,7 @@ function boot() {
 
 function tuneBootScreen() {
   const note = $('.boot-note');
-  if (note) note.textContent = '最初の操作からゲーム内で1つずつ案内します。実際に操作すると次へ進みます。';
+  if (note) note.textContent = '最初の操作からゲーム内で1つずつ案内します。スマホでは緑に光る場所をタップしてください。';
 }
 
 function buildTutorialUi() {
@@ -62,7 +65,7 @@ function buildTutorialUi() {
     <div class="onboarding-mask onboarding-mask--left" aria-hidden="true"></div>
     <div class="onboarding-mask onboarding-mask--right" aria-hidden="true"></div>
     <div class="onboarding-mask onboarding-mask--bottom" aria-hidden="true"></div>
-    <div class="onboarding-target-ring" aria-hidden="true"><span>CLICK</span></div>
+    <div class="onboarding-target-ring" aria-hidden="true"><span>TAP</span></div>
     <section class="onboarding-coach" aria-live="polite" aria-label="Orbloomチュートリアル">
       <header class="onboarding-coach__header">
         <span class="onboarding-step-label">GUIDE 1 / 7</span>
@@ -126,14 +129,14 @@ function buildHelpUi() {
       </header>
       <p class="onboarding-help-lead">迷ったら、左の <strong>NEXT OBJECTIVE</strong> を次のゴールにする。</p>
       <ol class="onboarding-loop-list">
-        <li><span>01</span><div><strong>資源を作る</strong><small>最初だけGENERATE MATTERで手動生成。</small></div></li>
-        <li><span>02</span><div><strong>上の資源パネルを押してGeneratorを買う</strong><small>資源欄は表示だけではなく購入ボタン。Generatorが自動生産する。</small></div></li>
-        <li><span>03</span><div><strong>増えた資源を再投資する</strong><small>Generatorを強化すると /s が伸び、次の購入が速くなる。</small></div></li>
+        <li><span>01</span><div><strong>資源を作る</strong><small>最初だけGENERATE MATTERをタップしてMatterを作る。</small></div></li>
+        <li><span>02</span><div><strong>MATTERカードをタップして自動生産を買う</strong><small>Generator = 自動生産装置。買うとMatterが毎秒勝手に増える。</small></div></li>
+        <li><span>03</span><div><strong>同じカードをタップして自動生産を強化</strong><small>強化するほど /s が伸び、次の購入が速くなる。</small></div></li>
         <li><span>04</span><div><strong>条件が揃ったらPlanet Evolution</strong><small>左の条件を満たすと、新資源・Biome・Systemが順番に解放される。</small></div></li>
         <li><span>05</span><div><strong>Life ScanでSpeciesを見つける</strong><small>SCAN FOR LIFEのコストを貯め、発見したSpeciesをBiomeへ配置する。</small></div></li>
         <li><span>06</span><div><strong>新しいSystemも同じ成長へ戻す</strong><small>Biome・Species・Research・Expeditionは惑星の生産と進化を強くする。</small></div></li>
       </ol>
-      <div class="onboarding-help-tip"><strong>覚えるのはこれだけ</strong><span>作る → 買う → 自動化 → 再投資 → 進化 → 発見して配置 → また加速</span></div>
+      <div class="onboarding-help-tip"><strong>覚えるのはこれだけ</strong><span>作る → 自動生産を買う → 強化 → 進化 → 発見して配置 → また加速</span></div>
       <div class="onboarding-help-actions">
         <button class="secondary-button" type="button" data-guide-resume>現在地点のガイドを表示</button>
         <button class="primary-button" type="button" data-help-close>ゲームに戻る</button>
@@ -157,9 +160,44 @@ function buildHelpUi() {
   });
 }
 
+function watchResourceButtons() {
+  const strip = $('#resource-strip');
+  if (!strip) return;
+  const refresh = () => decorateGeneratorButtons(runtime?.getState());
+  resourceObserver?.disconnect();
+  resourceObserver = new MutationObserver(refresh);
+  resourceObserver.observe(strip, { childList: true, subtree: true });
+  refresh();
+}
+
+function decorateGeneratorButtons(state) {
+  if (!state) return;
+  document.querySelectorAll('.resource-cell[data-id]').forEach((button) => {
+    if (button.disabled) return;
+    const id = button.dataset.id;
+    const level = Math.max(0, Math.floor(Number(state.generators?.[id] || 0)));
+    const cost = generatorCost(id, level);
+    const amount = Math.max(0, Number(state.resources?.[id] || 0));
+    const short = button.querySelector('span b')?.textContent?.trim() || id.toUpperCase();
+    const small = button.querySelector('small');
+    if (!small) return;
+
+    const originalRate = small.textContent.split('·')[0].trim();
+    const label = level === 0
+      ? `TAP → 自動生産を購入 · ${short} ${cost}`
+      : `${originalRate} · TAP → 自動生産 Lv.${level + 1} · ${short} ${cost}`;
+    if (small.textContent !== label) small.textContent = label;
+
+    button.classList.add('is-generator-action');
+    button.classList.toggle('is-generator-ready', amount >= cost);
+    button.setAttribute('aria-label', `${short} ${Math.floor(amount)}。タップで自動生産レベル${level + 1}を購入。必要${cost}。`);
+  });
+}
+
 function tick() {
   if (!runtime) return;
   const state = runtime.getState();
+  decorateGeneratorButtons(state);
   const starter = applyUnlockStarterResources(state);
   if (starter.changed) {
     runtime.save();
@@ -206,7 +244,7 @@ function renderStep(step) {
     copy.textContent = step.body;
     progressLabel.textContent = step.progressLabel || '';
     progressBar.style.transform = `scaleX(${clamp(Number(step.progress || 0), 0, 1)})`;
-    ringLabel.textContent = step.verb || 'CLICK';
+    ringLabel.textContent = step.verb || 'TAP';
     completeButton.hidden = !step.complete;
   } else {
     progressBar.style.transform = `scaleX(${clamp(Number(step.progress || 0), 0, 1)})`;
@@ -229,9 +267,9 @@ function positionTutorial() {
   if (!visible) {
     ring.hidden = true;
     masks.forEach((mask) => { mask.hidden = true; });
-    card.style.left = '12px';
-    card.style.top = '12px';
-    card.style.width = `${Math.min(390, vw - 24)}px`;
+    card.style.left = '10px';
+    card.style.top = '10px';
+    card.style.width = `${Math.min(390, vw - 20)}px`;
     return;
   }
 
@@ -255,6 +293,18 @@ function positionTutorial() {
   card.style.left = '12px';
   card.style.top = '12px';
   const cardHeight = card.offsetHeight || 220;
+
+  if (vw <= 620) {
+    const mobileLeft = Math.max(10, (vw - Math.min(cardWidth, vw - 20)) / 2);
+    const mobileTop = rect.top < vh * .52
+      ? Math.max(10, vh - cardHeight - 10)
+      : 10;
+    card.style.left = `${mobileLeft}px`;
+    card.style.top = `${clamp(mobileTop, 10, Math.max(10, vh - cardHeight - 10))}px`;
+    card.style.width = `${Math.min(cardWidth, vw - 20)}px`;
+    return;
+  }
+
   let cardTop = bottom + 14;
   if (cardTop + cardHeight > vh - 12) cardTop = top - cardHeight - 14;
   if (cardTop < 12) cardTop = 12;
