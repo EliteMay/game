@@ -4,11 +4,15 @@ import { analyzeFactory, CHALLENGES, challengeState, formatDuration, planProduct
 const META_KEY = 'scrap-factory-management-v1';
 const POLL_MS = 1000;
 const LOG_LIMIT = 80;
+const DIAGNOSTIC_WARN_LIMIT = 24;
+const DIAGNOSTIC_INFO_LIMIT = 10;
+const DIAGNOSTIC_HEALTHY_LIMIT = 6;
+const DIAGNOSTIC_HEALTHY_RANGE = 12;
 
 const state = {
   meta: loadMeta(),
   panel: null,
-  activeTab: 'console',
+  activeTab: 'overview',
   logs: [],
   startedAt: Date.now(),
   startRevenue: null,
@@ -18,6 +22,11 @@ const state = {
   factory: null,
   revenueNow: 0,
   cashNow: 0,
+  diagnosticOverlay: null,
+  diagnosticEnabled: false,
+  diagnosticFocusId: null,
+  diagnosticLabels: new Map(),
+  diagnosticFrame: 0,
 };
 
 function loadMeta() {
@@ -59,6 +68,14 @@ function liveValues() {
   };
 }
 
+function runtimeWorld() {
+  return window.__scrapFactoryRuntime?.world || null;
+}
+
+function runtimeGame() {
+  return window.__scrapFactoryRuntime?.getGame?.() || null;
+}
+
 function ensureStylesheet() {
   if (document.querySelector('link[data-factory-management]')) return;
   const link = document.createElement('link');
@@ -74,12 +91,20 @@ function createUi() {
   const hud = document.querySelector('#hud');
   if (!shell || !hud || document.querySelector('#factory-management-panel')) return;
 
+  const diagnosticButton = document.createElement('button');
+  diagnosticButton.id = 'factory-diagnostics-hud';
+  diagnosticButton.className = 'factory-diagnostics-hud';
+  diagnosticButton.type = 'button';
+  diagnosticButton.innerHTML = '<kbd>V</kbd><span>DIAGNOSTICS</span><strong id="diagnostic-problem-count" hidden>0</strong>';
+  diagnosticButton.addEventListener('click', () => toggleDiagnostics());
+  hud.append(diagnosticButton);
+
   const hudButton = document.createElement('button');
   hudButton.id = 'factory-management-hud';
   hudButton.className = 'factory-management-hud';
   hudButton.type = 'button';
   hudButton.innerHTML = '<kbd>P</kbd><span>FACTORY</span><strong id="factory-alert-count">0</strong>';
-  hudButton.addEventListener('click', () => openManagement('console'));
+  hudButton.addEventListener('click', () => openManagement('overview'));
   hud.append(hudButton);
 
   const pin = document.createElement('aside');
@@ -87,6 +112,21 @@ function createUi() {
   pin.className = 'factory-challenge-pin';
   pin.hidden = true;
   hud.append(pin);
+
+  const diagnosticOverlay = document.createElement('aside');
+  diagnosticOverlay.id = 'factory-diagnostic-overlay';
+  diagnosticOverlay.className = 'factory-diagnostic-overlay';
+  diagnosticOverlay.hidden = true;
+  diagnosticOverlay.setAttribute('aria-label', '工場診断オーバーレイ');
+  diagnosticOverlay.innerHTML = `
+    <header class="factory-diagnostic-overlay__header">
+      <div><span>FACTORY DIAGNOSTICS</span><strong data-diagnostic-summary>問題を確認中</strong></div>
+      <small><kbd>V</kbd> CLOSE</small>
+    </header>
+    <div class="factory-diagnostic-overlay__layer" data-diagnostic-layer></div>
+  `;
+  shell.append(diagnosticOverlay);
+  state.diagnosticOverlay = diagnosticOverlay;
 
   const panel = document.createElement('section');
   panel.id = 'factory-management-panel';
@@ -99,14 +139,16 @@ function createUi() {
         <div>
           <p class="panel-kicker">FACTORY OS / MANAGEMENT</p>
           <h2>工場管理コンソール</h2>
-          <p>統計・警告・チャレンジ・生産計画・Codexを1か所で確認できます。</p>
+          <p>工場全体を概要 → 問題 → 生産の順で確認し、必要な場所だけ詳しく調べます。</p>
         </div>
         <button id="close-factory-management" class="icon-button" type="button" aria-label="工場管理を閉じる">×</button>
       </header>
       <nav class="factory-tabs" aria-label="工場管理タブ">
-        <button type="button" data-tab="console">コンソール</button>
-        <button type="button" data-tab="challenges">チャレンジ</button>
+        <button type="button" data-tab="overview">概要</button>
+        <button type="button" data-tab="problems">問題</button>
+        <button type="button" data-tab="production">生産</button>
         <button type="button" data-tab="planner">生産計画</button>
+        <button type="button" data-tab="challenges">チャレンジ</button>
         <button type="button" data-tab="codex">Codex</button>
         <button type="button" data-tab="log">ログ</button>
       </nav>
@@ -145,8 +187,9 @@ function acquireOverlayCarrier() {
   return true;
 }
 
-function openManagement(tab = 'console') {
+function openManagement(tab = 'overview') {
   if (!state.panel) return;
+  setDiagnostics(false);
   if (!state.panel.hidden) {
     state.activeTab = tab;
     renderPanel();
@@ -199,7 +242,8 @@ function startToastObserver() {
 }
 
 function updateSnapshots() {
-  const { root, game } = readSave();
+  const { root, game: savedGame } = readSave();
+  const game = runtimeGame() || savedGame;
   const live = liveValues();
   state.latestRoot = root;
   state.latestGame = game;
@@ -211,6 +255,7 @@ function updateSnapshots() {
   updateChallenges();
   renderHudExtras();
   if (!state.panel?.hidden) renderPanel();
+  if (state.diagnosticEnabled) syncDiagnosticLabels();
 }
 
 function updateChallenges() {
@@ -227,11 +272,19 @@ function updateChallenges() {
 }
 
 function renderHudExtras() {
+  const warnings = state.factory?.diagnostics?.filter((entry) => entry.severity === 'warn').length || 0;
+  const problems = state.factory?.diagnosticProblemCount || 0;
+
   const alertCount = document.querySelector('#factory-alert-count');
   if (alertCount) {
-    const warns = state.factory?.alerts?.filter((alert) => alert.severity === 'warn').length || 0;
-    alertCount.textContent = String(warns);
-    alertCount.hidden = warns === 0;
+    alertCount.textContent = String(warnings);
+    alertCount.hidden = warnings === 0;
+  }
+
+  const diagnosticCount = document.querySelector('#diagnostic-problem-count');
+  if (diagnosticCount) {
+    diagnosticCount.textContent = String(problems);
+    diagnosticCount.hidden = problems === 0;
   }
 
   const pin = document.querySelector('#factory-challenge-pin');
@@ -269,52 +322,129 @@ function summaryCard(label, value, note = '') {
   return `<article class="management-stat"><span>${label}</span><strong>${value}</strong>${note ? `<small>${note}</small>` : ''}</article>`;
 }
 
-function renderConsole() {
+function severityOrder(severity) {
+  if (severity === 'warn') return 0;
+  if (severity === 'info') return 1;
+  return 2;
+}
+
+function diagnosticIcon(severity) {
+  if (severity === 'warn') return '!';
+  if (severity === 'info') return 'i';
+  return '✓';
+}
+
+function renderOverview() {
   const game = state.latestGame || {};
   const factory = state.factory || analyzeFactory(game);
-  const alerts = factory.alerts || [];
   const power = factory.power || {};
-  const typeRows = Object.entries(factory.counts || {})
-    .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => `<div><span>${BUILDINGS[type]?.name || type}</span><strong>${count}</strong></div>`)
-    .join('') || '<p class="management-empty">設備がありません。</p>';
-  const alertRows = alerts.slice(0, 12).map((alert) => `
-    <article class="factory-alert factory-alert--${alert.severity}">
-      <strong>${alert.title}</strong><span>${alert.detail}</span>
-    </article>
-  `).join('') || '<p class="management-empty">現在検出できる問題はありません。</p>';
+  const production = factory.production || {};
+  const machineTotal = Number(factory.activeMachines || 0) + Number(factory.waitingMachines || 0);
+  const warnings = (factory.diagnostics || []).filter((entry) => entry.severity === 'warn').length;
   const storageNote = factory.storageCapacity > 0 ? `満杯 ${factory.storageFull || 0}台` : 'Storage未設置';
   const powerNote = !power.enabled ? 'Rank 4で有効' : power.status === 'shortage' ? `ALERT / 範囲外 ${power.uncovered || 0}` : `余力 ${Math.floor(power.reserve || 0)}`;
-  const batteryCard = Number(power.batteryCapacity || 0) > 0
-    ? summaryCard('Battery', `${Math.floor(power.batteryStored || 0)} / ${Math.floor(power.batteryCapacity || 0)}`)
-    : '';
+  const throughput = `${Number(production.routeSupportedPerMinute || 0).toFixed(1)} / ${Number(production.theoreticalPerMinute || 0).toFixed(1)}`;
+  const problemRows = (factory.diagnostics || [])
+    .filter((entry) => entry.severity !== 'ok')
+    .sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity))
+    .slice(0, 6)
+    .map((entry) => `
+      <article class="factory-alert factory-alert--${entry.severity}">
+        <strong>${entry.name}: ${entry.status}</strong><span>${entry.detail}</span>
+      </article>
+    `).join('') || '<p class="management-empty">現在、診断対象の問題はありません。</p>';
 
   return `
-    <section class="management-stat-grid">
-      ${summaryCard('現在資金', `$${Math.floor(state.cashNow).toLocaleString('ja-JP')}`)}
-      ${summaryCard('累計売上', `$${Math.floor(state.revenueNow).toLocaleString('ja-JP')}`)}
-      ${summaryCard('今セッション売上/分', `$${revenuePerMinute().toFixed(1)}`)}
-      ${summaryCard('設置設備', factory.totalBuildings, `自作 ${factory.playerBuilt}`)}
-      ${summaryCard('稼働可能', factory.activeMachines, `素材待ち ${factory.waitingMachines}`)}
-      ${summaryCard('設備内アイテム', factory.bufferedItems)}
-      ${summaryCard('Storage', `${factory.storageUsed || 0} / ${factory.storageCapacity || 0}`, storageNote)}
-      ${summaryCard('Power 供給/需要', `${Math.floor(power.generation || 0)} / ${Math.floor(power.demand || 0)}`, powerNote)}
-      ${batteryCard}
-      ${summaryCard('発見アイテム', (game.discoveredItems || []).length, `${Object.keys(ITEMS).length}種類中`)}
-      ${summaryCard('プレイ時間', formatDuration(game.playTimeSeconds || 0))}
+    <section class="management-stat-grid management-stat-grid--overview">
+      ${summaryCard('MACHINES', `${factory.activeMachines} / ${machineTotal}`, `稼働可能 / 対象 ${machineTotal}`)}
+      ${summaryCard('PROBLEMS', factory.diagnosticProblemCount || 0, `Warning ${warnings}`)}
+      ${summaryCard('PRODUCTION', throughput, '搬送対応 / 理論 個/分')}
+      ${summaryCard('POWER', `${Math.floor(power.generation || 0)} / ${Math.floor(power.demand || 0)}`, powerNote)}
+      ${summaryCard('STORAGE', `${factory.storageUsed || 0} / ${factory.storageCapacity || 0}`, storageNote)}
+      ${summaryCard('CASH', `$${Math.floor(state.cashNow).toLocaleString('ja-JP')}`, `累計 $${Math.floor(state.revenueNow).toLocaleString('ja-JP')}`)}
     </section>
     <div class="management-two-column">
       <section class="management-section">
-        <div class="management-section__head"><div><span>FACTORY HEALTH</span><h3>工場アラート</h3></div><strong>${alerts.length}</strong></div>
-        <p class="management-help">素材不足、物流の行き止まり、Storage満杯、Power不足をまとめて確認できます。満杯StorageはBack Pressureで上流を止め、Itemを消失させません。</p>
-        <div class="factory-alert-list">${alertRows}</div>
+        <div class="management-section__head"><div><span>FACTORY HEALTH</span><h3>優先して見る問題</h3></div><strong>${factory.diagnosticProblemCount || 0}</strong></div>
+        <p class="management-help">原因を先に確認し、場所を探すときは「問題」タブの LOCATE または <kbd>V</kbd> 診断Overlayを使います。</p>
+        <div class="factory-alert-list">${problemRows}</div>
       </section>
       <section class="management-section">
-        <div class="management-section__head"><div><span>ASSET SUMMARY</span><h3>設備構成</h3></div></div>
-        <div class="factory-count-list">${typeRows}</div>
-        <div class="management-tip"><strong>クイック建築</strong><span><kbd>1</kbd> 粉砕 / <kbd>2</kbd> 精錬 / <kbd>3</kbd> コンベア / <kbd>4</kbd> 倉庫 / <kbd>5</kbd> 販売</span></div>
+        <div class="management-section__head"><div><span>OPERATING PICTURE</span><h3>工場の状態</h3></div></div>
+        <div class="factory-health-list">
+          <div><span>Machine utilization</span><strong>${Math.round(Number(production.utilization || 0) * 100)}%</strong></div>
+          <div><span>Logistics nodes</span><strong>${factory.logisticsNodes || 0}</strong></div>
+          <div><span>Logistics capacity</span><strong>${Number(factory.logisticsCapacity || 0).toFixed(1)}/秒</strong></div>
+          <div><span>Bottlenecks</span><strong>${production.bottleneckCount || 0}</strong></div>
+          <div><span>Buffered items</span><strong>${factory.bufferedItems || 0}</strong></div>
+          <div><span>Session revenue/min</span><strong>$${revenuePerMinute().toFixed(1)}</strong></div>
+        </div>
       </section>
     </div>
+  `;
+}
+
+function renderProblems() {
+  const factory = state.factory || analyzeFactory(state.latestGame || {});
+  const systemAlerts = (factory.alerts || []).filter((alert) => !alert.buildingId);
+  const problems = (factory.diagnostics || [])
+    .filter((entry) => entry.severity !== 'ok')
+    .sort((a, b) => severityOrder(a.severity) - severityOrder(b.severity) || String(a.name).localeCompare(String(b.name)));
+
+  const systemRows = systemAlerts.map((alert) => `
+    <article class="problem-row problem-row--${alert.severity}">
+      <div class="problem-row__icon">${diagnosticIcon(alert.severity)}</div>
+      <div><span>SYSTEM</span><strong>${alert.title}</strong><small>${alert.detail}</small></div>
+    </article>
+  `).join('');
+
+  const rows = problems.map((entry) => `
+    <article class="problem-row problem-row--${entry.severity}">
+      <div class="problem-row__icon">${diagnosticIcon(entry.severity)}</div>
+      <div class="problem-row__body">
+        <span>${entry.type.toUpperCase()}</span>
+        <strong>${entry.name} — ${entry.status}</strong>
+        <small>${entry.detail}</small>
+      </div>
+      <button class="secondary-action" type="button" data-locate-building="${entry.buildingId}">LOCATE</button>
+    </article>
+  `).join('');
+
+  return `
+    <section class="management-section management-section--problems">
+      <div class="management-section__head"><div><span>PROBLEMS / DIAGNOSTICS</span><h3>原因から直す</h3></div><strong>${problems.length}</strong></div>
+      <p class="management-help">赤は生産停止やPower/物流の重大要因、灰色は素材待ちや改善候補です。LOCATEで管理画面を閉じ、3D診断Overlay上の対象を強調します。</p>
+      <div class="problem-list">${systemRows}${rows || '<p class="management-empty">現在、修正が必要な問題はありません。</p>'}</div>
+    </section>
+  `;
+}
+
+function renderProduction() {
+  const factory = state.factory || analyzeFactory(state.latestGame || {});
+  const production = factory.production || {};
+  const productionTypes = Object.entries(factory.counts || {})
+    .filter(([type]) => BUILDINGS[type]?.recipe)
+    .sort((a, b) => b[1] - a[1]);
+  const rows = productionTypes.map(([type, count]) => {
+    const def = BUILDINGS[type];
+    const recipe = def?.recipe ? RECIPES[def.recipe] : null;
+    const input = Object.entries(recipe?.input || {}).map(([id, n]) => `${ITEMS[id]?.short || ITEMS[id]?.name || id}×${n}`).join(' + ');
+    const output = Object.entries(recipe?.output || {}).map(([id, n]) => `${ITEMS[id]?.short || ITEMS[id]?.name || id}×${n}`).join(' + ');
+    return `<div class="production-machine-row"><span>${def?.name || type}</span><strong>${count}台</strong><small>${input} → ${output}</small></div>`;
+  }).join('') || '<p class="management-empty">生産設備がありません。</p>';
+
+  return `
+    <section class="management-stat-grid management-stat-grid--production">
+      ${summaryCard('THEORETICAL', `${Number(production.theoreticalPerMinute || 0).toFixed(1)}/分`, '設備の理論生産')}
+      ${summaryCard('ROUTE SUPPORTED', `${Number(production.routeSupportedPerMinute || 0).toFixed(1)}/分`, '現在の物流で支えられる量')}
+      ${summaryCard('UTILIZATION', `${Math.round(Number(production.utilization || 0) * 100)}%`, `素材待ち ${state.factory?.waitingMachines || 0}`)}
+      ${summaryCard('BOTTLENECKS', production.bottleneckCount || 0, `Smart Sorter ${production.smartSorters || 0}`)}
+    </section>
+    <section class="management-section">
+      <div class="management-section__head"><div><span>PRODUCTION FLOW</span><h3>生産設備構成</h3></div></div>
+      <p class="management-help">Graphを大量に並べるより、現在のRecipeとどこで能力が落ちているかを優先します。詳細な必要設備数は「生産計画」で逆算できます。</p>
+      <div class="production-machine-list">${rows}</div>
+    </section>
   `;
 }
 
@@ -419,7 +549,9 @@ function renderPanel() {
   state.panel.querySelectorAll('[data-tab]').forEach((button) => button.classList.toggle('is-active', button.dataset.tab === state.activeTab));
   const content = state.panel.querySelector('#factory-management-content');
   if (!content) return;
-  if (state.activeTab === 'console') content.innerHTML = renderConsole();
+  if (state.activeTab === 'overview' || state.activeTab === 'console') content.innerHTML = renderOverview();
+  else if (state.activeTab === 'problems') content.innerHTML = renderProblems();
+  else if (state.activeTab === 'production') content.innerHTML = renderProduction();
   else if (state.activeTab === 'challenges') content.innerHTML = renderChallenges();
   else if (state.activeTab === 'planner') content.innerHTML = renderPlanner();
   else if (state.activeTab === 'codex') content.innerHTML = renderCodex();
@@ -435,6 +567,14 @@ function bindPanelActions() {
       saveMeta();
       renderHudExtras();
       renderPanel();
+    });
+  });
+
+  state.panel?.querySelectorAll('[data-locate-building]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const buildingId = button.dataset.locateBuilding;
+      closeManagement();
+      setDiagnostics(true, buildingId);
     });
   });
 
@@ -460,8 +600,146 @@ function bindPanelActions() {
   });
 }
 
+function diagnosticDistance(entry) {
+  const world = runtimeWorld();
+  const building = state.latestGame?.buildings?.find((candidate) => candidate.id === entry.buildingId);
+  if (!building || !world?.player) return Number.POSITIVE_INFINITY;
+  return Math.hypot(Number(building.x || 0) - Number(world.player.x || 0), Number(building.z || 0) - Number(world.player.z || 0));
+}
+
+function diagnosticEntriesForOverlay() {
+  const diagnostics = state.factory?.diagnostics || [];
+  const warnings = diagnostics
+    .filter((entry) => entry.severity === 'warn')
+    .sort((a, b) => diagnosticDistance(a) - diagnosticDistance(b))
+    .slice(0, DIAGNOSTIC_WARN_LIMIT);
+  const info = diagnostics
+    .filter((entry) => entry.severity === 'info')
+    .sort((a, b) => diagnosticDistance(a) - diagnosticDistance(b))
+    .slice(0, DIAGNOSTIC_INFO_LIMIT);
+  const healthy = diagnostics
+    .filter((entry) => entry.severity === 'ok' && diagnosticDistance(entry) <= DIAGNOSTIC_HEALTHY_RANGE)
+    .sort((a, b) => diagnosticDistance(a) - diagnosticDistance(b))
+    .slice(0, DIAGNOSTIC_HEALTHY_LIMIT);
+
+  const entries = [...warnings, ...info, ...healthy];
+  if (state.diagnosticFocusId && !entries.some((entry) => entry.buildingId === state.diagnosticFocusId)) {
+    const focused = diagnostics.find((entry) => entry.buildingId === state.diagnosticFocusId);
+    if (focused) entries.unshift(focused);
+  }
+  return entries;
+}
+
+function syncDiagnosticLabels() {
+  if (!state.diagnosticOverlay || !state.diagnosticEnabled) return;
+  const layer = state.diagnosticOverlay.querySelector('[data-diagnostic-layer]');
+  const summary = state.diagnosticOverlay.querySelector('[data-diagnostic-summary]');
+  if (!layer || !summary) return;
+
+  const entries = diagnosticEntriesForOverlay();
+  const problemCount = state.factory?.diagnosticProblemCount || 0;
+  const warningCount = state.factory?.diagnostics?.filter((entry) => entry.severity === 'warn').length || 0;
+  summary.textContent = problemCount
+    ? `${problemCount} issues / ${warningCount} warning${warningCount === 1 ? '' : 's'}`
+    : 'NO ACTIVE ISSUES / 近距離設備のみ表示';
+
+  layer.replaceChildren();
+  state.diagnosticLabels.clear();
+  for (const entry of entries) {
+    const label = document.createElement('div');
+    label.className = `diagnostic-label diagnostic-label--${entry.severity}${entry.buildingId === state.diagnosticFocusId ? ' is-focused' : ''}`;
+    label.dataset.buildingId = entry.buildingId;
+    label.innerHTML = `
+      <span>${diagnosticIcon(entry.severity)} ${entry.name}</span>
+      <strong>${entry.status}</strong>
+      <small>${entry.detail}</small>
+    `;
+    layer.append(label);
+    state.diagnosticLabels.set(entry.buildingId, label);
+  }
+}
+
+function positionDiagnosticLabels() {
+  if (!state.diagnosticEnabled || !state.diagnosticOverlay || state.diagnosticOverlay.hidden) return;
+  const world = runtimeWorld();
+  const shell = document.querySelector('.game-shell');
+  if (!world?.camera || !world?.canvas || !world?.buildingMeshes || !shell) return;
+
+  const canvasRect = world.canvas.getBoundingClientRect();
+  const shellRect = shell.getBoundingClientRect();
+  const forward = world.camera.position.clone();
+  world.camera.getWorldDirection(forward);
+
+  for (const [buildingId, label] of state.diagnosticLabels) {
+    const mesh = world.buildingMeshes.get(buildingId);
+    if (!mesh) {
+      label.hidden = true;
+      continue;
+    }
+
+    const worldPosition = mesh.position.clone();
+    worldPosition.y += 2.35;
+    const toTarget = worldPosition.clone().sub(world.camera.position);
+    if (toTarget.dot(forward) <= 0) {
+      label.hidden = true;
+      continue;
+    }
+
+    const projected = worldPosition.clone().project(world.camera);
+    const visible = projected.z >= -1 && projected.z <= 1 && Math.abs(projected.x) <= 1.08 && Math.abs(projected.y) <= 1.08;
+    if (!visible) {
+      label.hidden = true;
+      continue;
+    }
+
+    const left = canvasRect.left - shellRect.left + (projected.x * 0.5 + 0.5) * canvasRect.width;
+    const top = canvasRect.top - shellRect.top + (-projected.y * 0.5 + 0.5) * canvasRect.height;
+    label.hidden = false;
+    label.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0) translate(-50%, -100%)`;
+  }
+}
+
+function diagnosticAnimationLoop() {
+  if (!state.diagnosticEnabled) {
+    state.diagnosticFrame = 0;
+    return;
+  }
+  positionDiagnosticLabels();
+  state.diagnosticFrame = requestAnimationFrame(diagnosticAnimationLoop);
+}
+
+function setDiagnostics(enabled, focusId = null) {
+  if (!state.diagnosticOverlay) return;
+  const next = Boolean(enabled);
+  if (next && (!gameplayReady() || otherOverlayOpen() || !state.panel?.hidden)) return;
+
+  state.diagnosticEnabled = next;
+  state.diagnosticFocusId = next ? focusId : null;
+  state.diagnosticOverlay.hidden = !next;
+  document.body.classList.toggle('factory-diagnostics-active', next);
+  document.querySelector('#factory-diagnostics-hud')?.setAttribute('aria-pressed', String(next));
+
+  if (!next) {
+    if (state.diagnosticFrame) cancelAnimationFrame(state.diagnosticFrame);
+    state.diagnosticFrame = 0;
+    state.diagnosticLabels.clear();
+    state.diagnosticOverlay.querySelector('[data-diagnostic-layer]')?.replaceChildren();
+    return;
+  }
+
+  state.factory = analyzeFactory(runtimeGame() || state.latestGame || {});
+  state.latestGame = runtimeGame() || state.latestGame;
+  syncDiagnosticLabels();
+  if (!state.diagnosticFrame) state.diagnosticFrame = requestAnimationFrame(diagnosticAnimationLoop);
+}
+
+function toggleDiagnostics() {
+  setDiagnostics(!state.diagnosticEnabled);
+}
+
 function quickBuild(index) {
   if (!gameplayReady() || otherOverlayOpen() || !state.panel?.hidden) return;
+  setDiagnostics(false);
   const buildButton = document.querySelector('#open-build-menu');
   if (!buildButton) return;
   buildButton.click();
@@ -488,10 +766,23 @@ function bindKeys() {
       return;
     }
 
+    if (state.diagnosticEnabled && event.code === 'Escape') {
+      event.preventDefault();
+      setDiagnostics(false);
+      return;
+    }
+
+    if (event.code === 'KeyV') {
+      if (!gameplayReady() || otherOverlayOpen()) return;
+      event.preventDefault();
+      toggleDiagnostics();
+      return;
+    }
+
     if (event.code === 'KeyP') {
       if (!gameplayReady() || otherOverlayOpen()) return;
       event.preventDefault();
-      openManagement('console');
+      openManagement('overview');
       return;
     }
 
@@ -513,7 +804,6 @@ function waitForGame() {
   bindKeys();
   updateSnapshots();
   window.setInterval(updateSnapshots, POLL_MS);
-  featureToast('Factory Management追加：Pで工場コンソール / 1〜5でクイック建築', 'info');
 }
 
 waitForGame();

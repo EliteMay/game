@@ -1,7 +1,7 @@
-.factory-management-hud {
+.factory-management-hud,
+.factory-diagnostics-hud {
   position: absolute;
   right: 20px;
-  top: 182px;
   min-height: 38px;
   display: inline-flex;
   align-items: center;
@@ -19,9 +19,15 @@
   backdrop-filter: blur(8px);
 }
 
-.factory-management-hud:hover { border-color: rgb(255 255 255 / 0.32); background: rgb(31 36 37 / 0.92); }
-.factory-management-hud strong { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; background: #a54d42; color: #fff; font-size: 0.62rem; }
-.factory-management-hud strong[hidden] { display: none; }
+.factory-diagnostics-hud { top: 136px; }
+.factory-management-hud { top: 182px; }
+.factory-management-hud:hover,
+.factory-diagnostics-hud:hover,
+.factory-diagnostics-hud[aria-pressed="true"] { border-color: rgb(255 255 255 / 0.32); background: rgb(31 36 37 / 0.92); }
+.factory-management-hud strong,
+.factory-diagnostics-hud strong { min-width: 18px; height: 18px; display: inline-grid; place-items: center; padding: 0 5px; background: #a54d42; color: #fff; font-size: 0.62rem; }
+.factory-management-hud strong[hidden],
+.factory-diagnostics-hud strong[hidden] { display: none; }
 
 .factory-challenge-pin {
   position: absolute;
@@ -37,6 +43,67 @@
 .factory-challenge-pin strong { display: block; margin-top: 3px; font-size: 0.78rem; }
 .factory-challenge-pin small { display: block; margin-top: 3px; color: #aeb5af; font-size: 0.65rem; }
 .factory-challenge-pin i { display: block; width: 100%; height: 3px; margin-top: 8px; background: linear-gradient(90deg, var(--accent) 0 var(--progress), #444a4b var(--progress) 100%); }
+
+.factory-diagnostic-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.factory-diagnostic-overlay__header {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 2;
+  min-width: min(440px, calc(100vw - 40px));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  transform: translateX(-50%);
+  padding: 8px 11px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-top: 2px solid var(--accent);
+  background: rgb(13 17 18 / 0.82);
+  backdrop-filter: blur(6px);
+}
+
+.factory-diagnostic-overlay__header div { min-width: 0; display: grid; gap: 2px; }
+.factory-diagnostic-overlay__header span { color: var(--accent); font-size: 0.58rem; font-weight: 900; letter-spacing: 0.12em; }
+.factory-diagnostic-overlay__header strong { overflow: hidden; color: #e1e5df; font-size: 0.72rem; text-overflow: ellipsis; white-space: nowrap; }
+.factory-diagnostic-overlay__header small { display: inline-flex; align-items: center; gap: 5px; color: #9ea69f; font-size: 0.58rem; white-space: nowrap; }
+.factory-diagnostic-overlay__header kbd { min-width: 24px; padding: 2px 5px; }
+
+.factory-diagnostic-overlay__layer { position: absolute; inset: 0; }
+
+.diagnostic-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: max-content;
+  max-width: 220px;
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px 7px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-left: 2px solid #697071;
+  background: rgb(15 19 20 / 0.76);
+  box-shadow: 0 5px 14px rgb(0 0 0 / 0.18);
+  backdrop-filter: blur(4px);
+  will-change: transform;
+}
+
+.diagnostic-label span { color: #9ba49d; font-size: 0.52rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+.diagnostic-label strong { color: #e3e7e1; font-size: 0.67rem; line-height: 1.2; }
+.diagnostic-label small { max-width: 34ch; color: #a8b0aa; font-size: 0.58rem; line-height: 1.3; }
+.diagnostic-label--warn { border-left-color: #c3685f; background: rgb(30 20 20 / 0.84); }
+.diagnostic-label--warn span, .diagnostic-label--warn strong { color: #e5aaa3; }
+.diagnostic-label--info { border-left-color: #a58c58; }
+.diagnostic-label--ok { opacity: 0.64; border-left-color: #6e9875; }
+.diagnostic-label--ok small { display: none; }
+.diagnostic-label.is-focused { z-index: 3; opacity: 1; border: 1px solid rgb(212 183 79 / 0.62); border-left: 3px solid var(--accent); box-shadow: 0 0 0 2px rgb(212 183 79 / 0.12), 0 8px 22px rgb(0 0 0 / 0.32); }
 
 .factory-management-panel {
   position: absolute;
@@ -71,19 +138,22 @@
 .factory-management-header p:last-child { max-width: 700px; margin: 8px 0 0; color: var(--muted); font-size: 0.82rem; line-height: 1.55; }
 
 .factory-tabs { display: flex; gap: 0; padding: 0 24px; border-bottom: 1px solid var(--line); background: #1a1f20; overflow-x: auto; }
-.factory-tabs button { min-height: 48px; padding: 0 18px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #9fa7a1; font: inherit; font-weight: 780; cursor: pointer; white-space: nowrap; }
+.factory-tabs button { min-height: 48px; padding: 0 16px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #9fa7a1; font: inherit; font-weight: 780; cursor: pointer; white-space: nowrap; }
 .factory-tabs button:hover { color: #eef0e9; }
 .factory-tabs button.is-active { border-bottom-color: var(--accent); color: #fff; background: rgb(212 183 79 / 0.07); }
 
 .factory-management-content { padding: 22px 24px 26px; }
 .management-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.management-stat-grid--overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.management-stat-grid--production { margin-bottom: 14px; }
 .management-stat { min-height: 102px; padding: 14px 15px; border: 1px solid #3d4445; background: #272d2e; }
 .management-stat span { display: block; color: #959d97; font-size: 0.64rem; font-weight: 850; letter-spacing: 0.09em; }
 .management-stat strong { display: block; margin-top: 8px; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
-.management-stat small { display: block; margin-top: 5px; color: #aab1ab; font-size: 0.68rem; }
+.management-stat small { display: block; margin-top: 5px; color: #aab1ab; font-size: 0.68rem; line-height: 1.35; }
 
 .management-two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 .management-section { padding: 16px; border: 1px solid #3d4445; background: #272d2e; }
+.management-section--problems { max-width: 920px; margin: 0 auto; }
 .management-section__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 11px; border-bottom: 1px solid #3a4142; }
 .management-section__head span { color: var(--accent); font-size: 0.59rem; font-weight: 900; letter-spacing: 0.12em; }
 .management-section__head h3 { margin: 3px 0 0; font-size: 1rem; }
@@ -97,6 +167,31 @@
 .factory-alert--info { border-left-color: #8b9b92; }
 .factory-alert strong { font-size: 0.78rem; }
 .factory-alert span { color: #a7afa9; font-size: 0.68rem; line-height: 1.45; }
+
+.factory-health-list,
+.production-machine-list { display: grid; }
+.factory-health-list > div,
+.production-machine-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; min-height: 44px; align-items: center; padding: 8px 0; border-bottom: 1px solid #373e3f; }
+.factory-health-list span,
+.production-machine-row span { color: #bbc1bb; font-size: 0.76rem; }
+.factory-health-list strong,
+.production-machine-row strong { color: #f0f1e9; font-size: 0.76rem; font-variant-numeric: tabular-nums; }
+.production-machine-row small { grid-column: 1 / -1; color: #8f9891; font-size: 0.65rem; line-height: 1.4; }
+
+.problem-list { display: grid; gap: 6px; }
+.problem-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 11px; align-items: center; min-height: 66px; padding: 10px 11px; border: 1px solid #3a4142; border-left: 3px solid #697071; background: #222829; }
+.problem-row--warn { border-left-color: #c3685f; background: #2a2222; }
+.problem-row--info { border-left-color: #9d885b; }
+.problem-row__icon { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #5a6262; color: #ccd1cc; font-size: 0.72rem; font-weight: 900; }
+.problem-row--warn .problem-row__icon { border-color: #9d5d56; color: #e4a49e; }
+.problem-row__body { min-width: 0; display: grid; gap: 3px; }
+.problem-row__body span,
+.problem-row > div:nth-child(2) > span { color: #8f9891; font-size: 0.56rem; font-weight: 900; letter-spacing: 0.1em; }
+.problem-row__body strong,
+.problem-row > div:nth-child(2) > strong { font-size: 0.8rem; }
+.problem-row__body small,
+.problem-row > div:nth-child(2) > small { color: #a3aba5; font-size: 0.67rem; line-height: 1.4; }
+.problem-row .secondary-action { min-width: 88px; padding: 8px 9px; font-size: 0.64rem; }
 
 .factory-count-list { display: grid; }
 .factory-count-list > div { display: flex; justify-content: space-between; gap: 16px; min-height: 40px; align-items: center; padding: 8px 0; border-bottom: 1px solid #373e3f; }
@@ -153,10 +248,14 @@
 .session-log-row span { color: #c6cbc6; font-size: 0.75rem; }
 
 @media (max-width: 900px) {
-  .management-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .management-stat-grid,
+  .management-stat-grid--overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .management-two-column { grid-template-columns: 1fr; }
   .challenge-row { grid-template-columns: 50px minmax(0, 1fr); }
   .challenge-row .secondary-action { grid-column: 2; justify-self: start; }
+  .problem-row { grid-template-columns: 30px minmax(0, 1fr); }
+  .problem-row .secondary-action { grid-column: 2; justify-self: start; }
+  .diagnostic-label { max-width: 190px; }
 }
 
 @media (max-width: 620px) {
@@ -164,9 +263,15 @@
   .factory-management-card { max-height: calc(100vh - 20px); }
   .factory-management-header, .factory-management-content { padding-left: 14px; padding-right: 14px; }
   .factory-tabs { padding: 0 10px; }
-  .management-stat-grid { grid-template-columns: 1fr 1fr; }
+  .management-stat-grid,
+  .management-stat-grid--overview { grid-template-columns: 1fr 1fr; }
   .planner-controls { grid-template-columns: 1fr; }
   .planner-line { grid-template-columns: 60px 1fr; }
   .planner-line em { grid-column: 2; }
   .factory-management-hud, .factory-challenge-pin { display: none; }
+  .factory-diagnostics-hud { top: 58px; right: 12px; min-width: 36px; padding: 6px; }
+  .factory-diagnostics-hud span { display: none; }
+  .factory-diagnostic-overlay__header { top: 10px; min-width: calc(100vw - 20px); }
+  .diagnostic-label small { display: none; }
+  .diagnostic-label { max-width: 155px; padding: 5px 6px; }
 }

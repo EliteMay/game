@@ -75,6 +75,110 @@ function recipeOutputRatePerMinute(recipe) {
   return Number(recipe.seconds || 0) > 0 ? amount * 60 / Number(recipe.seconds) : 0;
 }
 
+function severityRank(severity) {
+  if (severity === 'warn') return 2;
+  if (severity === 'info') return 1;
+  return 0;
+}
+
+function diagnosticForBuilding(building, alerts, power) {
+  const def = BUILDINGS[building.type];
+  const buildingAlerts = alerts
+    .filter((alert) => alert.buildingId === building.id)
+    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity));
+  const primary = buildingAlerts[0] || null;
+
+  if (power.enabled && power.unpoweredIds?.has(building.id)) {
+    const uncovered = power.uncoveredIds?.has(building.id);
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def?.name || building.type,
+      severity: 'warn',
+      status: uncovered ? 'NO POWER / 範囲外' : 'NO POWER / 供給不足',
+      detail: uncovered
+        ? 'Power Poleまたは給電範囲を確認してください。'
+        : `Factory Grid: ${Math.floor(power.generation || 0)}供給 / ${Math.floor(power.demand || 0)}需要`,
+      kind: 'power',
+    };
+  }
+
+  if (primary) {
+    const prefix = `${def?.name || building.type}: `;
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def?.name || building.type,
+      severity: primary.severity,
+      status: primary.title.startsWith(prefix) ? primary.title.slice(prefix.length) : primary.title,
+      detail: primary.detail,
+      kind: primary.kind || 'status',
+    };
+  }
+
+  const recipe = def?.recipe ? RECIPES[def.recipe] : null;
+  if (recipe) {
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def.name,
+      severity: 'ok',
+      status: Number(building.progress || 0) > 0 ? 'RUNNING' : 'READY',
+      detail: `${recipeOutputRatePerMinute(recipe).toFixed(1)}/分 理論生産`,
+      kind: 'production',
+    };
+  }
+
+  if (isStorageBuilding(building)) {
+    const used = storageAmount(building);
+    const capacity = storageCapacity(building);
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def?.name || building.type,
+      severity: 'ok',
+      status: 'STORAGE OK',
+      detail: `${used} / ${capacity}`,
+      kind: 'storage',
+    };
+  }
+
+  if (isLogisticsNode(building.type)) {
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def?.name || building.type,
+      severity: 'ok',
+      status: 'FLOW OK',
+      detail: `${logisticsThroughput(building.type).toFixed(1)}個/秒`,
+      kind: 'logistics',
+    };
+  }
+
+  if (Number(def?.powerGeneration || 0) > 0) {
+    const active = Number(building.powerFuelSeconds || 0) > 0;
+    return {
+      buildingId: building.id,
+      type: building.type,
+      name: def?.name || building.type,
+      severity: active ? 'ok' : 'info',
+      status: active ? 'GENERATING' : 'FUEL WAIT',
+      detail: active ? `${def.powerGeneration} Power` : '燃料を投入すると発電します',
+      kind: 'power',
+    };
+  }
+
+  return {
+    buildingId: building.id,
+    type: building.type,
+    name: def?.name || building.type,
+    severity: 'ok',
+    status: 'READY',
+    detail: def?.description || '',
+    kind: 'status',
+  };
+}
+
 export function analyzeFactory(game) {
   const buildings = Array.isArray(game?.buildings) ? game.buildings : [];
   const byCell = new Map(buildings.map((building) => [positionKey(building.x, building.z), building]));
@@ -193,6 +297,7 @@ export function analyzeFactory(game) {
     bottleneckCount += 1;
   }
 
+  const diagnostics = buildings.map((building) => diagnosticForBuilding(building, alerts, power));
   const machineTotal = activeMachines + waitingMachines;
   const utilization = machineTotal > 0 ? activeMachines / machineTotal : 0;
 
@@ -226,6 +331,8 @@ export function analyzeFactory(game) {
     },
     counts,
     alerts,
+    diagnostics,
+    diagnosticProblemCount: diagnostics.filter((entry) => entry.severity !== 'ok').length,
   };
 }
 
