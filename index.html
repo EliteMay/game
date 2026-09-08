@@ -7,6 +7,7 @@
   <meta name="description" content="完成度の高いブラウザゲームを1本ずつ追加していくGame Hub。">
   <title>Game Hub | EliteMay</title>
   <link rel="stylesheet" href="./css/hub.css">
+  <link rel="stylesheet" href="./css/hub-orbloom.css">
 </head>
 <body>
   <div class="hub-shell">
@@ -24,13 +25,13 @@
 
       <section class="rail-status" aria-label="Hub情報">
         <span>LIBRARY STATUS</span>
-        <strong>1 PLAYABLE</strong>
+        <strong>2 PLAYABLE</strong>
         <small>ゲームは完成度を優先し、1本ずつ追加。</small>
       </section>
 
       <div class="rail-actions">
-        <button id="export-save" type="button">セーブを書き出す</button>
-        <label class="file-action">セーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label>
+        <button id="export-save" type="button">Scrap Factoryセーブを書き出す</button>
+        <label class="file-action">Scrap Factoryセーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label>
       </div>
     </aside>
 
@@ -42,8 +43,8 @@
         </div>
         <div class="header-metrics" id="progress">
           <div><span>TOTAL PLAY</span><strong id="total-playtime">0m</strong></div>
-          <div><span>GAMES</span><strong>01</strong></div>
-          <div><span>ACHIEVEMENTS</span><strong id="hub-achievements">0 / 1</strong></div>
+          <div><span>GAMES</span><strong>02</strong></div>
+          <div><span>ACHIEVEMENTS</span><strong id="hub-achievements">0 / 2</strong></div>
         </div>
       </header>
 
@@ -71,32 +72,56 @@
         </div>
       </section>
 
+      <section class="orbloom-feature" aria-labelledby="orbloom-title">
+        <div class="orbloom-feature__planet" aria-hidden="true">
+          <div class="orbloom-orbit orbloom-orbit--a"></div>
+          <div class="orbloom-orbit orbloom-orbit--b"></div>
+          <div class="orbloom-planet"><i></i><b></b></div>
+          <span>GAME 02</span>
+        </div>
+        <div class="orbloom-feature__content">
+          <div class="game-meta"><span>PLAYABLE</span><span>3D INCREMENTAL</span><span>LIVING PLANET</span></div>
+          <h2 id="orbloom-title">Orbloom</h2>
+          <p>冷えた岩塊から始め、資源・Biome・Species・Research・Expeditionをつなげて、生命が循環するStable Living Worldへ育てる。</p>
+          <div class="save-summary save-summary--orbloom">
+            <div><span>WORLD</span><strong id="orbloom-stage">Dead Rock</strong></div>
+            <div><span>SPECIES</span><strong id="orbloom-species">0 / 12</strong></div>
+            <div><span>PLAY TIME</span><strong id="orbloom-playtime">0m</strong></div>
+            <div><span>STATUS</span><strong id="orbloom-status">GROWING</strong></div>
+          </div>
+          <div class="featured-game__actions">
+            <a class="launch-button launch-button--orbloom" href="./games/orbloom/index.html">PLAY ORBLOOM <span>→</span></a>
+            <span id="orbloom-last-played" class="last-played">未プレイ</span>
+          </div>
+        </div>
+      </section>
+
       <section id="roadmap" class="library-section" aria-labelledby="library-title">
         <div class="section-heading">
-          <div><p>LIBRARY</p><h2 id="library-title">次に増やすゲーム</h2></div>
+          <div><p>ROADMAP</p><h2 id="library-title">次に増やすゲーム</h2></div>
           <span>未完成ゲームは起動ボタンを出さない</span>
         </div>
         <div class="game-list">
           <article class="game-row">
-            <span class="game-row__index">02</span>
+            <span class="game-row__index">03</span>
             <div class="game-row__type">PRODUCTION</div>
             <div><h3>Chicken Drop</h3><p>生産ラインを強化して、ヒヨコを大量に送り込み利益を伸ばす物理系生産ゲーム。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">03</span>
+            <span class="game-row__index">04</span>
             <div class="game-row__type">BREEDING</div>
             <div><h3>Creature Ranch</h3><p>生物を育成・繁殖し、能力や個体差を見ながら理想の系統を作る。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">04</span>
+            <span class="game-row__index">05</span>
             <div class="game-row__type">FPS</div>
             <div><h3>Arena FPS</h3><p>短時間で繰り返せる、小規模マップの一人称シューティング。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">05</span>
+            <span class="game-row__index">06</span>
             <div class="game-row__type">SANDBOX</div>
             <div><h3>Block World</h3><p>採掘・クラフト・建築を軸にした3Dサンドボックス。長期候補。</p></div>
             <strong class="status-badge">LATER</strong>
@@ -105,7 +130,7 @@
       </section>
 
       <footer class="hub-footer">
-        <span>GAME HUB / BUILD 001</span>
+        <span>GAME HUB / BUILD 002</span>
         <a href="https://github.com/EliteMay/game">GitHub Repository</a>
       </footer>
     </main>
@@ -113,5 +138,6 @@
 
   <div id="hub-toast" class="hub-toast" hidden aria-live="polite"></div>
   <script type="module" src="./js/hub.js"></script>
+  <script type="module" src="./js/hub-orbloom.js"></script>
 </body>
 </html>
