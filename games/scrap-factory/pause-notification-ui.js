@@ -209,14 +209,68 @@ function ensureSettingsHierarchy() {
   }
 }
 
-function bindPauseEscape() {
+function visiblePanel(selector) {
+  const panel = document.querySelector(selector);
+  return panel && !panel.hidden ? panel : null;
+}
+
+function clickClose(panel, preferredSelector = null) {
+  if (!panel) return false;
+  const button = (preferredSelector ? panel.querySelector(preferredSelector) : null)
+    || panel.querySelector('button[aria-label*="閉じる"]')
+    || panel.querySelector('.icon-button');
+  if (!button) return false;
+  button.click();
+  return true;
+}
+
+function closeTopPanel() {
+  const routes = [
+    ['#home-pc-dashboard', '[data-home-dashboard-close]'],
+    ['#home-system-panel', '#close-home-system'],
+    ['#automation-panel', '[data-automation-close]'],
+    ['#factory-management-panel', '#close-factory-management'],
+    ['#progression-panel', '#close-progression'],
+    ['#transport-terminal-panel', null],
+    ['#settings-panel', '#close-settings'],
+    ['#guide-panel', '#close-guide'],
+    ['#machine-panel', '#close-machine'],
+    ['#inventory-panel', '#close-inventory'],
+    ['#build-panel', '#close-build'],
+    ['#objective-done', '#objective-done-close'],
+  ];
+  for (const [selector, closeSelector] of routes) {
+    const panel = visiblePanel(selector);
+    if (panel && clickClose(panel, closeSelector)) return true;
+  }
+
+  const pause = visiblePanel('#pause-panel');
+  if (pause) {
+    document.querySelector('#resume-game')?.click();
+    return true;
+  }
+  return false;
+}
+
+function closeTogglePanel(code) {
+  if (code === 'KeyB') return clickClose(visiblePanel('#build-panel'), '#close-build');
+  if (code === 'Tab') return clickClose(visiblePanel('#inventory-panel'), '#close-inventory');
+  if (code === 'KeyO') return clickClose(visiblePanel('#guide-panel'), '#close-guide');
+  if (code === 'KeyP') return clickClose(visiblePanel('#factory-management-panel'), '#close-factory-management');
+  return false;
+}
+
+function bindPanelKeyboard() {
   document.addEventListener('keydown', (event) => {
-    if (event.repeat || event.code !== 'Escape') return;
-    const pause = document.querySelector('#pause-panel');
-    if (!pause || pause.hidden) return;
+    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
+
+    let handled = false;
+    if (event.code === 'Escape') handled = closeTopPanel();
+    else handled = closeTogglePanel(event.code);
+
+    if (!handled) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    document.querySelector('#resume-game')?.click();
   }, true);
 }
 
@@ -234,7 +288,7 @@ function boot() {
   }
   state.runtime = window.__scrapFactoryRuntime;
   ensureStylesheet();
-  bindPauseEscape();
+  bindPanelKeyboard();
   update();
   window.setInterval(update, UPDATE_MS);
 }
