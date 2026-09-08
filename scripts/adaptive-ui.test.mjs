@@ -1,14 +1,20 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [entry, adaptive, css] = await Promise.all([
+const [entry, adaptive, css, ownership, ownershipCss] = await Promise.all([
   readFile(new URL('../games/scrap-factory/progression-ui.js', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/adaptive-ui.js', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/adaptive-ui.css', import.meta.url), 'utf8'),
+  readFile(new URL('../games/scrap-factory/hud-objective-ownership.js', import.meta.url), 'utf8'),
+  readFile(new URL('../games/scrap-factory/hud-objective-ownership.css', import.meta.url), 'utf8'),
 ]);
 
+assert.match(entry, /import '\.\/hud-objective-ownership\.js';[\s\S]*import '\.\/adaptive-ui\.js';/, 'objective ownership handoff must load before adaptive HUD');
 assert.match(entry, /import '\.\/adaptive-ui\.js';/, 'production progression entrypoint must load adaptive HUD');
 assert.doesNotMatch(adaptive, /MutationObserver/, 'adaptive HUD must not use broad MutationObserver patches');
+assert.doesNotMatch(ownership, /MutationObserver/, 'objective ownership handoff must remain a one-time deterministic DOM handoff');
+assert.match(ownership, /OBJECTIVE_NODE_IDS[\s\S]*tutorial-title[\s\S]*tutorial-body[\s\S]*tutorial-progress/, 'all visible objective text nodes must share the same final owner');
+assert.match(ownership, /current\.replaceWith\(next\)/, 'legacy core HUD references must be detached from the visible objective nodes');
 assert.match(adaptive, /AREA_BANNER_MS = 2200/, 'zone label should be transient rather than permanent');
 assert.match(adaptive, /OBJECTIVE_EXPAND_MS = 2600/, 'main goal detail should only expand briefly after an update');
 assert.match(adaptive, /cash\.hidden = true/, 'cash should leave the normal gameplay HUD');
@@ -41,7 +47,8 @@ assert.match(adaptive, /固定物と干渉/, 'invalid build placement should exp
 assert.match(adaptive, /プレイヤーに近すぎる/, 'invalid build placement should explain player collision risk');
 assert.match(css, /\.hud__bottom-left,[\s\S]*\.shortcut-bar\s*\{[\s\S]*display:\s*none !important;/, 'persistent duplicate command surfaces must be visually suppressed');
 assert.match(css, /\.hud-context-stack\s*\{[\s\S]*left:\s*18px;/, 'main goal stack should live on the upper-left');
-assert.match(css, /\.hud-management\s*\{[\s\S]*position:\s*fixed;[\s\S]*right:\s*18px;/, 'management disclosure should stay separate from the main goal');
+assert.match(ownershipCss, /\.hud-context-stack > \.hud-management\s*\{[\s\S]*position:\s*relative !important;[\s\S]*inset:\s*auto !important;[\s\S]*width:\s*100% !important;/, 'management disclosure must remain in stack flow so it cannot overlap the main goal');
+assert.match(ownershipCss, /\.hud-management__tray\s*\{[\s\S]*width:\s*min\(246px, 100%\)/, 'management tray must stay bounded by the goal stack width');
 assert.match(css, /\.objective-panel\.is-updated[\s\S]*\.objective-panel\.is-updated p/, 'objective detail should appear only in its updated state');
 assert.match(css, /\.interaction-prompt__target/, 'structured interaction prompt must have explicit visual hierarchy');
 assert.match(css, /\.inventory-grid\s*\{[\s\S]*grid-template-columns:/, 'backpack slots must use a real visual grid');

@@ -6,6 +6,7 @@ import './final-phase-ui.js';
 import './home-runtime.js';
 import './home-surface-ui.js';
 import './post-clear-optimization-ui.js';
+import './hud-objective-ownership.js';
 import './adaptive-ui.js';
 import './phase7-settings.js';
 import './pause-notification-ui.js';
