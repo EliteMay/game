@@ -95,6 +95,20 @@ The visible guide is represented as seven state-driven tutorial stages because s
 
 The tutorial uses a target spotlight and a compact coach card. Non-target UI is visually de-emphasized, but the game is not hard-locked behind modal Next buttons. The spotlight can target the current resource generator, Life Scan button, Species placement control, or Planet Evolution button depending on actual state.
 
+## Mobile first-run follow-up
+
+A real-device user report showed that the first Generator remained unclear on a phone even after the spotlight tutorial was added. The underlying problem was not only tutorial wording: the resource card still looked like a read-only status display, and the term `Generator` was introduced before its gameplay meaning was obvious.
+
+The follow-up therefore changes both language and affordance:
+
+- introduce `Generator` as `自動生産装置` before relying on the term;
+- when a resource is unlocked, its card explicitly says `TAP → 自動生産を購入` or the next auto-production level;
+- an affordable generator card receives a stronger ready state instead of relying on the tutorial ring alone;
+- on narrow viewports, the tutorial coach is deliberately positioned away from the current target so it does not cover the action it is explaining;
+- tutorial verbs use `TAP` / `SELECT` for touch-first clarity instead of assuming mouse input.
+
+This is intentionally an affordance fix, not just more explanatory prose: if the primary action still looks like passive information, the tutorial has failed even when the text is technically correct.
+
 ## New-resource bootstrap
 
 A newly unlocked resource needs a valid first source. Orbloom previously unlocked Water/Oxygen/Energy at zero while their first generators also cost that same resource, creating a possible dead end.
@@ -112,7 +126,7 @@ The grant is one-time and persisted so it cannot be farmed repeatedly.
 
 ## Existing-save behavior
 
-Onboarding completion is tracked separately from canonical game progression and keyed to the current save. Version 3 intentionally re-opens the improved guide for saves that only saw the earlier five-stage tutorial, but the guide derives its current step from the actual save state instead of forcing the player back through completed actions.
+Onboarding completion is tracked separately from canonical game progression and keyed to the current save. Version 4 intentionally re-opens the clearer touch-first guide for saves that saw an earlier onboarding version, but the guide derives its current step from the actual save state instead of forcing the player back through completed actions.
 
 This means:
 - a progressed save is not reset;
@@ -124,7 +138,10 @@ This means:
 
 - Fresh save always starts with a visible first action.
 - The target changes automatically when the requested state change occurs.
-- The first generator is clearly taught as automation.
+- The first Generator is explained as auto-production, not unexplained jargon.
+- Unlocked resource cards expose an explicit tap-to-buy / tap-to-upgrade action.
+- Affordable Generator actions are visually distinct on narrow screens.
+- The mobile coach does not intentionally cover the current target.
 - Generator reinvestment is taught before Planet Evolution.
 - First Planet Evolution leads to an immediately usable Water Generator.
 - The guide continues until the first Life Scan succeeds and one Species is placed.
