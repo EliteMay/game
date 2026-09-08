@@ -7,6 +7,7 @@
   <meta name="description" content="小さな岩塊をStable Living Worldへ育てる3D incremental / idle growth game。">
   <title>Orbloom | Game Hub</title>
   <link rel="stylesheet" href="./orbloom.css">
+  <link rel="stylesheet" href="./onboarding.css">
   <script type="importmap">
     {
       "imports": {
@@ -36,7 +37,7 @@
           <span><kbd>1–4</kbd> 管理タブ</span>
         </div>
         <button id="start-game" class="primary-button" type="button">惑星を育てる</button>
-        <p class="boot-note">Autosave / Offline Progress対応。大きな進化だけはあなたが決めます。</p>
+        <p class="boot-note">最初の操作からゲーム内で案内します。</p>
       </div>
     </section>
 
@@ -130,5 +131,6 @@
     <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
   </main>
   <script type="module" src="./game.js"></script>
+  <script type="module" src="./onboarding.js"></script>
 </body>
 </html>
