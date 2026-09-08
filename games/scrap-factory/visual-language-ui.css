@@ -309,6 +309,33 @@ select:focus-visible {
   .eyebrow {
     letter-spacing: 0.12em;
   }
+
+  /* On compact viewports Management becomes the next HUD row instead of a
+     fixed element competing with the Main Goal for the same top edge. */
+  .hud-context-stack {
+    width: calc(100vw - 24px);
+  }
+
+  .hud-context-stack .hud-management {
+    position: relative;
+    inset: auto;
+    top: auto;
+    right: auto;
+    justify-self: end;
+    width: auto;
+  }
+
+  .hud-management__toggle {
+    min-width: 64px;
+  }
+
+  .hud-management__toggle span {
+    display: inline;
+  }
+
+  .hud-management__tray {
+    width: min(246px, calc(100vw - 24px));
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
