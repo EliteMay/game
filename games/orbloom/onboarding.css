@@ -3,6 +3,10 @@
 .resource-cell.is-generator-action small{display:block;margin-top:3px;color:#a8b9bc;font-weight:800;line-height:1.3}
 .resource-cell.is-generator-ready{background:rgba(120,215,177,.11);box-shadow:inset 0 -2px #78d7b1}
 .resource-cell.is-generator-ready small{color:#bcebd7}
+.tutorial-action{border-color:rgba(120,215,177,.58);background:rgba(16,47,42,.92);color:#d7f8e9}
+.tutorial-action:hover{border-color:#8ce5bd;color:#fff}
+.tutorial-action.is-error{border-color:rgba(223,125,118,.72);background:rgba(68,25,28,.94);color:#ffd2ce}
+.tutorial-action.needs-attention{animation:tutorialLauncherNudge .65s ease}
 .is-onboarding-live-target{filter:brightness(1.16);box-shadow:0 0 0 3px rgba(140,229,189,.75),0 0 28px rgba(120,215,177,.42)!important}
 .onboarding-layer{position:fixed;inset:0;z-index:80;pointer-events:none}
 .onboarding-mask{position:absolute;background:rgba(2,7,10,.72);pointer-events:auto;touch-action:none;transition:left .12s ease,top .12s ease,width .12s ease,height .12s ease}
@@ -48,10 +52,12 @@
 @keyframes onboardingFinger{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(6px) scale(1.08)}}
 @keyframes onboardingWrongTap{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
 @keyframes onboardingCoachNudge{0%,100%{border-color:rgba(140,229,189,.42)}50%{border-color:#d7b96f}}
+@keyframes tutorialLauncherNudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 @media (prefers-reduced-motion:reduce){.onboarding-target-ring,.onboarding-pointer__hand{animation:none}.onboarding-mask,.onboarding-progress i{transition:none}}
 @media (max-width:620px){
   .resource-cell.is-generator-action small{font-size:.56rem;line-height:1.35;white-space:normal}
   .resource-cell.is-generator-ready{background:rgba(120,215,177,.18);box-shadow:inset 0 0 0 3px rgba(140,229,189,.78)}
+  .tutorial-action{position:fixed;right:10px;bottom:10px;z-index:70;min-height:46px!important;padding:0 13px!important;border:2px solid #8ce5bd!important;background:#10352d!important;color:#e5fff3!important;box-shadow:0 8px 28px rgba(0,0,0,.45),0 0 0 3px rgba(140,229,189,.12);font-size:.67rem!important}
   .is-onboarding-live-target{filter:brightness(1.23);box-shadow:0 0 0 4px #8ce5bd,0 0 42px rgba(120,215,177,.62)!important}
   .onboarding-target-ring{border-width:4px;box-shadow:0 0 0 4px rgba(140,229,189,.15),0 0 42px rgba(120,215,177,.62)}
   .onboarding-target-ring span{display:none}
