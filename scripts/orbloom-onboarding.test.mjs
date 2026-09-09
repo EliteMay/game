@@ -15,6 +15,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 for (const relative of [
   'games/orbloom/onboarding-core.js',
   'games/orbloom/onboarding.js',
+  'games/orbloom/onboarding-entry.js',
   'games/orbloom/onboarding.css',
   'games/orbloom/ONBOARDING_RESEARCH.md',
 ]) {
@@ -23,10 +24,17 @@ for (const relative of [
 
 const html = fs.readFileSync(path.join(root, 'games/orbloom/index.html'), 'utf8');
 const onboardingJs = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.js'), 'utf8');
+const onboardingEntry = fs.readFileSync(path.join(root, 'games/orbloom/onboarding-entry.js'), 'utf8');
 const onboardingCss = fs.readFileSync(path.join(root, 'games/orbloom/onboarding.css'), 'utf8');
 const onboardingResearch = fs.readFileSync(path.join(root, 'games/orbloom/ONBOARDING_RESEARCH.md'), 'utf8');
-assert.ok(html.includes('./onboarding.css'), 'Orbloom must load onboarding.css');
-assert.ok(html.includes('./onboarding.js'), 'Orbloom must load onboarding.js');
+assert.ok(html.includes('./onboarding.css?v=6'), 'Orbloom must cache-bust onboarding.css after mobile visibility fixes');
+assert.ok(html.includes('./onboarding-entry.js?v=6'), 'Orbloom must load the cache-busted onboarding entry');
+assert.ok(html.includes('id="open-tutorial"'), 'Orbloom HUD must expose an explicit tutorial launcher');
+assert.ok(onboardingEntry.includes("import('./onboarding.js?v=6')"), 'Onboarding entry must force a fresh onboarding module fetch');
+assert.ok(onboardingEntry.includes('elitemay-orbloom-onboarding-v5'), 'Recovery entry must know the current onboarding completion key');
+assert.ok(onboardingEntry.includes('onboarding-mobile-recovery-v6'), 'Mobile recovery must only replay once by default');
+assert.ok(onboardingEntry.includes("params.get(FORCE_PARAM) === '1'"), 'A tutorial=1 URL must force current tutorial replay');
+assert.ok(onboardingEntry.includes("'#offline-panel'"), 'Manual tutorial launch must close blocking overlays');
 assert.ok(onboardingJs.includes('TAP → 自動生産を購入'), 'Generator cards must expose a clear tap-to-buy action');
 assert.ok(onboardingJs.includes('onboarding-pointer'), 'Onboarding must render a direct pointer at the real target');
 assert.ok(onboardingJs.includes('ここをタップ'), 'Touch onboarding must label the exact target in Japanese');
@@ -35,6 +43,8 @@ assert.ok(onboardingJs.includes('is-onboarding-live-target'), 'The real DOM targ
 assert.ok(onboardingJs.includes('vw <= 620'), 'Onboarding must include a mobile-specific coach placement path');
 assert.ok(onboardingCss.includes('.resource-cell.is-generator-ready'), 'Affordable generator cards must have a visible ready state');
 assert.ok(onboardingCss.includes('.onboarding-pointer__hand'), 'Touch onboarding must visually render a finger cue');
+assert.ok(onboardingCss.includes('.tutorial-action{'), 'Tutorial launcher must have an explicit visible state');
+assert.match(onboardingCss, /@media \(max-width:620px\)[\s\S]*\.tutorial-action\{position:fixed/, 'Tutorial launcher must remain viewport-visible on phones');
 assert.match(onboardingCss, /\.onboarding-mask\{[^}]*pointer-events:auto/, 'Dimmed non-target regions must intercept accidental taps');
 assert.ok(onboardingResearch.includes('Idle Planet Miner'), 'Onboarding research must include Idle Planet Miner');
 assert.ok(onboardingResearch.includes('Cell to Singularity'), 'Onboarding research must include Cell to Singularity');
