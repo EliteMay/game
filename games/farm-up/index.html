@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#16251b">
+  <meta name="description" content="小さな3D農場を育て、収穫・出荷・投資で近代農場へ成長させるFarm Up。">
+  <title>Farm Up | Game Hub</title>
+  <link rel="stylesheet" href="./farm-up.css?v=1">
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.185.0/build/three.module.js"}}</script>
+</head>
+<body>
+  <main class="game-shell">
+    <canvas id="farm-canvas" aria-label="Farm Up 3D農場"></canvas>
+
+    <section id="boot-screen" class="boot-screen">
+      <div class="boot-content">
+        <div class="boot-brand-row"><a href="../../index.html">GAME HUB / 03</a><span>PLAYABLE MVP</span></div>
+        <p class="eyebrow">BUILD A MODERN FARM</p>
+        <h1 id="game-title">Farm<br>Up</h1>
+        <p class="boot-lead">小さな畑から始めて、作物を育て、売り、土地と農具へ再投資する。農場そのものが大きくなる3D育成ゲーム。</p>
+        <div class="boot-loop"><span>育てる</span><i>→</i><span>収穫</span><i>→</i><span>出荷</span><i>→</i><span>投資</span><i>→</i><span>拡張</span></div>
+        <div class="boot-controls"><span><kbd>WASD</kbd> MOVE</span><span><kbd>Mouse</kbd> CAMERA</span><span><kbd>E</kbd> WORK</span><span><kbd>1-4</kbd> TOOLS</span></div>
+        <button id="start-game" class="primary-button" type="button">START FARMING</button>
+        <p id="boot-save-status" class="boot-note">LOCAL SAVEを確認中</p>
+      </div>
+      <div class="boot-landscape" aria-hidden="true">
+        <div class="boot-sun"></div><div class="boot-field boot-field--a"></div><div class="boot-field boot-field--b"></div><div class="boot-barn"></div><div class="boot-silo"></div>
+      </div>
+    </section>
+
+    <section id="hud" class="hud" hidden>
+      <header class="top-bar">
+        <a class="game-mark" href="../../index.html" aria-label="Game Hubへ戻る"><span>03</span><strong>FARM UP</strong></a>
+        <div class="economy-strip" aria-label="農場状況">
+          <div><span>MONEY</span><strong id="money">¥490</strong></div>
+          <div class="level-block"><span id="farm-level-label">LV 1</span><div class="level-track"><i id="level-progress"></i></div><small id="xp-label">0 / 60 XP</small></div>
+          <div><span>SEASON / DAY</span><strong id="season-day">春 · DAY 1</strong></div>
+          <div><span>TIME / WEATHER</span><strong id="time-weather">08:00 · 晴れ</strong></div>
+        </div>
+        <div class="top-actions"><button id="save-now" type="button">SAVE</button><button id="open-settings" type="button">SETTINGS</button></div>
+      </header>
+
+      <aside class="tutorial-card" aria-live="polite">
+        <div class="panel-kicker"><span>TUTORIAL</span><strong id="tutorial-count">1 / 7</strong></div>
+        <h2 id="tutorial-title">WASDで農場を歩く</h2><p id="tutorial-detail">少し移動して操作感を確認する。</p><div class="tutorial-track"><i id="tutorial-progress"></i></div>
+      </aside>
+
+      <aside class="farm-card" aria-label="農場アップグレード">
+        <div class="panel-kicker"><span>FARM STATUS</span><strong id="field-count">16区画</strong></div>
+        <div class="farm-stats"><div><span>PLANTED</span><strong id="planted-count">0</strong></div><div><span>READY</span><strong id="ready-count">0</strong></div><div><span>STOCK</span><strong id="stock-value">¥0</strong></div></div>
+        <button id="expand-land" class="upgrade-action" type="button"><span><strong>土地を東へ拡張</strong><small>16区画 → 28区画</small></span><b>¥500</b></button>
+        <button id="upgrade-tools" class="upgrade-action" type="button"><span><strong>農具をLv2へ</strong><small>クワ / 水やりが十字5区画</small></span><b>¥360</b></button>
+      </aside>
+
+      <div class="reticle" aria-hidden="true"><i></i></div>
+      <div id="context-prompt" class="context-prompt" hidden><span id="context-kicker">FIELD</span><strong id="context-title">畑</strong><small id="context-detail">E 作業する</small></div>
+
+      <div class="toolbelt" aria-label="農具と作物">
+        <button class="tool-button is-active" data-tool="hoe" type="button"><kbd>1</kbd><span>クワ</span><small id="hoe-level">LV1</small></button>
+        <button class="tool-button" data-tool="seed" type="button"><kbd>2</kbd><span>種まき</span><small id="seed-name">小麦 · ¥8</small></button>
+        <button class="tool-button" data-tool="water" type="button"><kbd>3</kbd><span>じょうろ</span><small id="water-level">LV1</small></button>
+        <button class="tool-button" data-tool="harvest" type="button"><kbd>4</kbd><span>収穫</span><small>READY</small></button>
+        <button id="cycle-crop" class="crop-button" type="button"><kbd>Q</kbd><span>CROP</span><strong id="crop-name">小麦</strong></button>
+      </div>
+      <div id="pointer-hint" class="pointer-hint">3D画面をクリックしてマウス操作 · ESCでカーソルを戻す</div>
+      <div class="interaction-help"><span><kbd>WASD</kbd> MOVE</span><span><kbd>SHIFT</kbd> SPRINT</span><span><kbd>E</kbd> WORK</span></div>
+    </section>
+
+    <section id="settings-panel" class="overlay-panel" hidden aria-label="Farm Up設定">
+      <div class="dialog-card">
+        <header><div><p class="panel-kicker">FARM UP</p><h2>Settings & Save</h2></div><button class="close-button" data-close="settings" type="button" aria-label="設定を閉じる">×</button></header>
+        <label class="setting-row"><span><strong>Camera sensitivity</strong><small>マウスでカメラを動かす速さ</small></span><input id="setting-sensitivity" type="range" min="0.25" max="1.5" step="0.05"></label>
+        <label class="setting-row"><span><strong>Camera distance</strong><small>キャラクターからカメラまでの距離</small></span><input id="setting-distance" type="range" min="5.5" max="10" step="0.25"></label>
+        <label class="setting-row"><span><strong>Reduced motion</strong><small>カメラ追従の補間を減らす</small></span><input id="setting-motion" type="checkbox"></label>
+        <div class="save-actions"><button id="export-save" class="secondary-button" type="button">セーブを書き出す</button><label class="secondary-button file-button">セーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label><button id="reset-save" class="danger-button" type="button">セーブをリセット</button></div>
+        <p id="save-state" class="save-state">Local save / schema v1</p><a class="hub-link" href="../../index.html">Game Hubへ戻る →</a>
+      </div>
+    </section>
+
+    <section id="level-panel" class="level-panel" hidden aria-live="polite"><p>FARM PROGRESSION</p><h2 id="level-panel-title">FARM LEVEL 2</h2><span id="level-panel-unlock">新しい作物が解放されました。</span></section>
+    <div id="toast-stack" class="toast-stack" aria-live="polite"></div>
+  </main>
+
+  <script>
+    window.setTimeout(() => {
+      if (!document.documentElement.dataset.farmUpReady) {
+        const note = document.getElementById('boot-save-status');
+        const start = document.getElementById('start-game');
+        if (note) note.textContent = '3Dライブラリを読み込めませんでした。ネットワークを確認して再読み込みしてください。';
+        if (start) start.disabled = true;
+      }
+    }, 9000);
+  </script>
+  <script type="module" src="./game.js?v=1"></script>
+</body>
+</html>
