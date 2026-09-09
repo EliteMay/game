@@ -2,6 +2,9 @@ import { loadRootSave } from '../games/scrap-factory/storage.js';
 import { TUTORIAL } from '../games/scrap-factory/config.js';
 import { PLANET_STAGES, SPECIES } from '../games/orbloom/config.js';
 import { loadSave as loadOrbloomSave } from '../games/orbloom/storage.js';
+import { TUTORIAL_STEPS as FARM_TUTORIAL_STEPS } from '../games/farm-up/config.js';
+import { getFarmLevel } from '../games/farm-up/core.js';
+import { loadSave as loadFarmSave } from '../games/farm-up/storage.js';
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -20,17 +23,24 @@ function formatLastPlayed(iso) {
   return `最終プレイ ${new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)}`;
 }
 
-function renderOrbloomHub() {
+function renderGameHub() {
   const root = loadRootSave();
   const scrap = root.games?.['scrap-factory'];
   const { state: orbloom } = loadOrbloomSave();
+  const farmLoad = loadFarmSave();
+  const farm = farmLoad.state;
 
-  const totalPlay = Number(root.profile?.totalPlayTimeSeconds || 0) + Number(orbloom.playTimeSeconds || 0);
+  const totalPlay = Number(root.profile?.totalPlayTimeSeconds || 0)
+    + Number(orbloom.playTimeSeconds || 0)
+    + Number(farm.playTimeSeconds || 0);
   $('#total-playtime').textContent = formatDuration(totalPlay);
 
   const scrapStep = Math.min(TUTORIAL.length, Math.max(0, Number(scrap?.tutorialStep || 0)));
-  const achievements = (scrapStep >= TUTORIAL.length ? 1 : 0) + (orbloom.mainClearedAt ? 1 : 0);
-  $('#hub-achievements').textContent = `${achievements} / 2`;
+  const farmTutorialComplete = Number(farm.tutorialStep || 0) >= FARM_TUTORIAL_STEPS.length;
+  const achievements = (scrapStep >= TUTORIAL.length ? 1 : 0)
+    + (orbloom.mainClearedAt ? 1 : 0)
+    + (farmTutorialComplete ? 1 : 0);
+  $('#hub-achievements').textContent = `${achievements} / 3`;
 
   const stage = PLANET_STAGES[Math.max(0, Math.min(PLANET_STAGES.length - 1, Number(orbloom.planetStage || 0)))];
   $('#orbloom-stage').textContent = stage?.name || 'Dead Rock';
@@ -38,6 +48,18 @@ function renderOrbloomHub() {
   $('#orbloom-playtime').textContent = formatDuration(orbloom.playTimeSeconds);
   $('#orbloom-status').textContent = orbloom.mainClearedAt ? 'MAIN CLEAR' : 'GROWING';
   $('#orbloom-last-played').textContent = Number(orbloom.playTimeSeconds || 0) > 0 ? formatLastPlayed(orbloom.lastPlayedAt) : '未プレイ';
+
+  $('#farm-money').textContent = `¥${Math.floor(Number(farm.money || 0)).toLocaleString('ja-JP')}`;
+  $('#farm-level').textContent = `LV ${getFarmLevel(farm.xp)}`;
+  $('#farm-playtime').textContent = formatDuration(farm.playTimeSeconds);
+  $('#farm-status').textContent = farmLoad.status === 'recovery'
+    ? 'SAVE RECOVERY'
+    : farmTutorialComplete
+      ? 'MVP LOOP CLEAR'
+      : Number(farm.playTimeSeconds || 0) > 0
+        ? 'GROWING'
+        : 'STARTING';
+  $('#farm-last-played').textContent = Number(farm.playTimeSeconds || 0) > 0 ? formatLastPlayed(farm.lastPlayedAt) : '未プレイ';
 }
 
-renderOrbloomHub();
+renderGameHub();
