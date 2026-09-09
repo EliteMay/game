@@ -9,7 +9,7 @@ export const FARM_LEVEL_THRESHOLDS = Array.from({ length: 30 }, (_, index) => {
 });
 
 export const CROPS = [
-  { id: 'wheat', name: '小麦', shortName: 'WHEAT', unlockLevel: 1, seedCost: 8, sellPrice: 24, growthMs: 18000, xp: 9, color: 0xd7bd58, accent: '#e3c860', season: 'spring' },
+  { id: 'wheat', name: '小麦', shortName: 'WHEAT', unlockLevel: 1, seedCost: 8, sellPrice: 32, growthMs: 18000, xp: 9, color: 0xd7bd58, accent: '#e3c860', season: 'spring' },
   { id: 'carrot', name: 'にんじん', shortName: 'CARROT', unlockLevel: 2, seedCost: 14, sellPrice: 40, growthMs: 24000, xp: 13, color: 0xe77d2f, accent: '#f09445', season: 'spring' },
   { id: 'corn', name: 'とうもろこし', shortName: 'CORN', unlockLevel: 3, seedCost: 24, sellPrice: 70, growthMs: 32000, xp: 18, color: 0xe7d24b, accent: '#f4df63', season: 'summer' },
   { id: 'strawberry', name: 'いちご', shortName: 'STRAWBERRY', unlockLevel: 4, seedCost: 38, sellPrice: 112, growthMs: 42000, xp: 26, color: 0xd84b50, accent: '#ec6468', season: 'spring' },
