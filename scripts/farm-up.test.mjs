@@ -106,6 +106,7 @@ function completeWheatCycle(state, id = '0:0') {
   const farmHtmlPath = path.join(root, 'games/farm-up/index.html');
   const farmHtml = fs.readFileSync(farmHtmlPath, 'utf8');
   const gameSource = read('games/farm-up/game.js');
+  const worldSource = read('games/farm-up/world.js');
   const htmlIds = [...farmHtml.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
   assert.equal(new Set(htmlIds).size, htmlIds.length, 'Farm Up HTML must not contain duplicate IDs');
 
@@ -120,6 +121,16 @@ function completeWheatCycle(state, id = '0:0') {
     if (/^(?:https?:|mailto:|tel:|data:|javascript:)/i.test(ref)) continue;
     const target = path.resolve(farmDir, ref.split('?')[0]);
     assert.equal(fs.existsSync(target), true, `Farm Up broken local ref: ${ref}`);
+  }
+
+  assert.ok(farmHtml.includes('右ドラッグで視点移動'), 'Farm Up must explain right-drag camera controls');
+  assert.ok(farmHtml.includes('ホイールでズーム'), 'Farm Up must explain wheel zoom');
+  assert.ok(worldSource.includes("event.button !== 2"), 'Farm Up camera must use right-button drag');
+  assert.ok(worldSource.includes("addEventListener('wheel'"), 'Farm Up camera must support wheel zoom');
+  assert.ok(worldSource.includes('resetCamera()'), 'Farm Up camera must support camera reset');
+  assert.equal(worldSource.includes('requestPointerLock'), false, 'Farm Up camera must not require pointer lock');
+  for (const marker of ['buildGroundDetails', 'buildYardProps', 'furrowGroups', 'ACESFilmicToneMapping', 'updatePlayerAnimation']) {
+    assert.ok(worldSource.includes(marker), `Farm Up visual pass missing marker: ${marker}`);
   }
 
   const hubHtml = read('index.html');
