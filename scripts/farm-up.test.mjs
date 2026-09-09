@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { CROPS, LAND, SAVE_SCHEMA_VERSION, TUTORIAL_STEPS } from '../games/farm-up/config.js';
 import {
   advanceSimulation,
@@ -19,6 +22,9 @@ import {
   waterTile,
 } from '../games/farm-up/core.js';
 import { parseSaveText, serializeSave } from '../games/farm-up/storage.js';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 
 function completeWheatCycle(state, id = '0:0') {
   assert.equal(tillTile(state, id).ok, true);
@@ -44,14 +50,21 @@ function completeWheatCycle(state, id = '0:0') {
   const state = createInitialState(0);
   assert.equal(tutorialEvent(state, 'till'), false);
   assert.equal(tutorialEvent(state, 'move'), true);
-  assert.equal(completeWheatCycle(state).ok, true);
+  const sale = completeWheatCycle(state);
+  assert.equal(sale.ok, true);
+  assert.equal(sale.total, 32);
   assert.equal(state.tutorialStep, 6);
-  assert.equal(state.money, 506);
+  assert.equal(state.money, 514);
   assert.equal(purchaseLandExpansion(state).ok, true);
   assert.equal(state.landLevel, 2);
   assert.equal(getTutorial(state).completed, true);
   assert.equal(state.tutorialStep, TUTORIAL_STEPS.length);
   assert.equal(Object.keys(state.tiles).filter((id) => isTileUnlocked(state, id)).length, 28);
+  assert.equal(state.money, 14);
+  assert.equal(getFarmLevel(state.xp), 2);
+  assert.ok(state.money >= CROPS.find((crop) => crop.id === 'carrot').seedCost);
+  assert.equal(tillTile(state, '0:1').ok, true);
+  assert.equal(plantTile(state, '0:1', 'carrot').ok, true);
 }
 
 {
@@ -89,5 +102,37 @@ function completeWheatCycle(state, id = '0:0') {
   assert.throws(() => parseSaveText(JSON.stringify({ schemaVersion: SAVE_SCHEMA_VERSION + 1 })), /future-schema/);
 }
 
+{
+  const farmHtmlPath = path.join(root, 'games/farm-up/index.html');
+  const farmHtml = fs.readFileSync(farmHtmlPath, 'utf8');
+  const gameSource = read('games/farm-up/game.js');
+  const htmlIds = [...farmHtml.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
+  assert.equal(new Set(htmlIds).size, htmlIds.length, 'Farm Up HTML must not contain duplicate IDs');
+
+  const controllerIds = [...gameSource.matchAll(/\$\(["']#([^"']+)["']\)/g)].map((match) => match[1]);
+  for (const id of new Set(controllerIds)) {
+    assert.ok(htmlIds.includes(id), `Farm Up controller references missing HTML id: ${id}`);
+  }
+
+  const farmDir = path.dirname(farmHtmlPath);
+  const localRefs = [...farmHtml.matchAll(/(?:src|href)=["']([^"'#]+)["']/g)].map((match) => match[1]);
+  for (const ref of localRefs) {
+    if (/^(?:https?:|mailto:|tel:|data:|javascript:)/i.test(ref)) continue;
+    const target = path.resolve(farmDir, ref.split('?')[0]);
+    assert.equal(fs.existsSync(target), true, `Farm Up broken local ref: ${ref}`);
+  }
+
+  const hubHtml = read('index.html');
+  const hubSource = read('js/hub-orbloom.js');
+  const hubIds = [...hubHtml.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
+  const farmHubIds = [...hubSource.matchAll(/\$\(["']#(farm-[^"']+)["']\)/g)].map((match) => match[1]);
+  for (const id of new Set(farmHubIds)) {
+    assert.ok(hubIds.includes(id), `Game Hub Farm Up summary references missing HTML id: ${id}`);
+  }
+  assert.ok(hubHtml.includes('./games/farm-up/index.html'), 'Game Hub must link to Farm Up');
+  assert.ok(hubHtml.includes('./css/hub-farm-up.css'), 'Game Hub must load Farm Up card styles');
+  assert.ok(hubSource.includes("../games/farm-up/storage.js"), 'Game Hub must load Farm Up save summary');
+}
+
 assert.deepEqual(CROPS.map((crop) => crop.id), ['wheat', 'carrot', 'corn', 'strawberry']);
-console.log('Farm Up core/storage tests passed');
+console.log('Farm Up core/storage/integration tests passed');
