@@ -2,13 +2,13 @@
 
 ## Status
 
-- Status: **Current Contract / Requirements definition in progress**
+- Status: **Current Contract / Ready for implementation**
 - Updated: 2026-09-09
 - Target: Game Hub / Game 03
 - Working title: **Farm Up**
 - Profile: **GAME**
 - Primary device: **Desktop / Keyboard + Mouse**
-- Blocking Decisions: **None currently**
+- Blocking Decisions: **None**
 - Implementation has **not** started.
 - `Farm Up` is a working title and may change without altering the Product Core.
 
@@ -642,7 +642,14 @@ AUTO HARVEST停止
 
 ただし細かな会計Simulationにはしない。
 
-# 13. Offline Progression / Save
+# 13. Save / Offline / Data Contract
+
+## Data Authority
+
+- 初期完成版は **Local-only canonical save** を基本とする。
+- Login / Cloud Sync / Multi-device Syncを初期完成条件にしない。
+- Cloud機能を将来追加する場合も、Authority / Conflict / Migrationを別Requirementとして定義してから導入する。
+- Cache / derived runtime stateをCanonical Saveと混同しない。
 
 ## Save
 
@@ -670,9 +677,11 @@ AUTO HARVEST停止
 
 を含む。
 
-Manual Save / Backup Exportも提供する方向とする。
+Manual Saveを提供する。
 
-既存Saveを壊すSchema変更ではMigration / Backup / Recoveryを考慮する。
+Backup Export / Restoreを正式に提供し、Backupは作成できるだけでなく**Restoreして同じ農場へ戻せること**をCompletion条件とする。
+
+既存Saveを壊すSchema変更ではMigration / Backup / Recoveryを必須検討とし、保存済み農場を理由なくResetしない。
 
 ## Offline Progression
 
@@ -720,7 +729,7 @@ Farm Lvが主要機能Unlock、熟練度は「その作業が少し上手くな�
 
 Achievement報酬はXP・少額Money・装飾・称号程度を中心とし、Main Progression必須設備をAchievement限定にしない。
 
-# 15. UI / Interaction Contract
+# 15. UI / Interaction / Accessibility Contract
 
 ## HUD Principle
 
@@ -818,6 +827,20 @@ Pause:
 
 複数Save slotを許可する。
 
+## Accessibility / Comfort
+
+最低限:
+
+- 主要Gameplay key bindingを変更可能にする。
+- Keyboard focusを失わず、Menu / Management surfaceの主要操作をKeyboardでも到達可能にする。
+- Focus stateを見分けられるようにする。
+- Text / important UIはBlockingなContrast不足を残さない。
+- Warning / status / placement可否を**色だけ**で表現しない。
+- Motion BlurをOFF可能にする。
+- Camera ShakeをOFFまたは大幅軽減可能にする。
+- Camera sensitivity / distanceを調整可能にする。
+- Mini-map / tutorial hint / contextual hint等、画面情報量を必要に応じて調整可能にする。
+
 # 16. Tutorial / Returning Player
 
 最初の10〜15分で:
@@ -884,6 +907,8 @@ Avoid:
 - 大量の常時HUD
 - 過剰Bloom / Motion Blur
 - 背景と同化する作物 / 設備
+
+Visual researchの根拠は `games/farm-up/DESIGN_RESEARCH.md` を参照する。
 
 # 18. Feedback / Audio
 
@@ -1030,7 +1055,13 @@ Post ClearではCollection completion、Automation最適化、最高品質量産
 
 遠距離 / Off-screen Contentは必要に応じて簡易Simulationとし、巨大農場を実用的なPerformanceで維持する。
 
-Main Clear相当のStress FarmでPerformanceを検証する。
+Performance completionでは最低限:
+
+- Cold LoadからPrimary Task開始までを確認する。
+- Initial loadだけでなく、長時間Play SessionでRuntimeが不安定化しないことを確認する。
+- Repeated build / harvest / vehicle / management操作で明確なMemory / responsiveness劣化を残さない。
+- Main Clear相当のStress Farmで移動・収穫・車両・Automation・Management UI・Save / Loadを確認する。
+- 遠距離Entity / off-screen simulationの軽量化が、Saveや生産結果と重大に矛盾しないことを確認する。
 
 # 23. Validation / Completion Contract
 
@@ -1071,21 +1102,43 @@ Avoid:
 - Employee最大雇用が無条件最適
 - 何時間も意味ある購入ができない停滞
 
-## Save / Offline
+## Save / Data Integrity
 
-Save → Reloadで主要Game Stateを保持。
+最低限:
+
+- New Save → Autosave / Manual Save → Reloadで主要Game Stateを保持する。
+- Save処理中に追加State変更が発生しても、古い保存結果が新しいStateを上書きしない。
+- Storage write failureをSavedとして表示しない。
+- Corrupt / invalid saveを検知した場合、正常SaveやBackupまで無条件Resetしない。
+- 旧Schema → Migration → ReloadでCurrent Stateを保持できる。
+- Migration途中失敗 / 再実行で二重変換や消失を起こさない。
+- Backup Export → Current Data変更 / 削除 → Restore → ReloadのRound-tripを通す。
+
+## Offline
 
 Offline処理で:
 
 - 二重生産しない
 - Item消失しない
 - Storage / Feed / Power等の停止条件を尊重する
+- Offline上限を超えた時間を無制限に報酬化しない
+- Offline Reportが実際の計算結果と一致する
+
+## UI / Accessibility / Visual
+
+- Main Task / Primary Action / Management navigationのHierarchyが理解できる。
+- Keyboard focus / key remap / contrast / non-color-only stateを確認する。
+- Motion Blur / Camera Shake OFFが実際に反映される。
+- Main gameplay / Vehicle / Build / Managementの各StateでHUDが必要以上に画面を覆わない。
+- First View / Main Task / Navigation / overflow / clipping / interactive statesを実BrowserでVisual確認する。
 
 ## Main Clear
 
 Fresh Startから通常GameplayだけでMain Clearまで到達可能であること。
 
 Developer commandやSave編集をMain progressionの前提にしない。
+
+Main Clear後も同じSaveで継続でき、Clear履歴は保持される。
 
 # 24. Important Assumptions / Open Tuning
 
@@ -1108,11 +1161,20 @@ Developer commandやSave編集をMain progressionの前提にしない。
 
 # 25. Implementation Handoff
 
-- Status: **Not yet handed off / Requirements definition conversation active**
+- Status: **Ready for implementation**
 - Requirements updated: 2026-09-09
-- Blocking Decisions: None currently
+- Blocking Decisions: **None**
 - Working title: Farm Up
 - Target path: `games/farm-up/`
-- Implementation conversation when ready: `game（実装）`
+- Implementation conversation: `game（実装）`
 
-要件定義完了時にこのStatusを更新し、Current Repositoryから保存確認後にImplementationへ移行する。
+Implementation開始時は、Current `EliteMay/web-project-guide`、Current Repository、`games/farm-up/REQUIREMENTS.md`、`games/farm-up/DESIGN_RESEARCH.md`を確認し、古いConversation summaryだけをSource of Truthにしない。
+
+## Requirements Completion
+
+Requirements definition is complete when this Current Contract is stored in the Repository and re-fetch verification confirms:
+
+- Product Core / Non-goalsが保持されている。
+- Save / Offline / Accessibility / Performance / Validation contractが存在する。
+- Blocking Decisionが残っていない。
+- ImplementationがCurrent Requirementsから開始可能である。
