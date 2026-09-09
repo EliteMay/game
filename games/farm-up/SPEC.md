@@ -26,7 +26,7 @@ Move
 → Buy first land expansion
 ```
 
-Starting cash is `¥490`. Wheat seed is `¥8`, wheat shipment is `¥24`, so the first completed tutorial crop leaves `¥506`, enough for the required `¥500` first land expansion.
+Starting cash is `¥490`. Wheat seed is `¥8`, wheat shipment is `¥32`, so the first completed tutorial crop leaves `¥514`, enough for the required `¥500` first land expansion. After expansion the player keeps `¥14`, reaches Farm Lv2 and can immediately plant the newly unlocked carrot (`¥14`) instead of entering an economy deadlock.
 
 ## Modules
 
