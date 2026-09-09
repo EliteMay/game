@@ -17,22 +17,23 @@ Phase: Vertical Slice / Playable MVP implementation
 - Game Hub total play time / achievement summary now includes Farm Up.
 - `scripts/farm-up.test.mjs` registered in `npm run validate` and as `npm run test:farm-up`.
 
-## Automated validation evidence already recorded for the implementation candidate
+## Validation
 
-- `node --check` on Farm Up JavaScript modules.
-- Farm Up Core / Storage tests passed.
-- Initial 4×4 land and expanded 7×4 land rules.
-- Tutorial order.
-- One-wheat Vertical Slice economy reaches the first land purchase amount.
-- Water requirement and rain-as-watering behavior.
-- Lv2 tool cross-area behavior.
-- Save serialization/parse round trip.
-- Invalid JSON and future schema rejection.
-- HTML IDs referenced by the controller had no missing/duplicate IDs in the implementation candidate.
+### Automated / repository CI verified
 
-## Current repository integration verification
+- Current `main` GitHub Actions `Validate Web Game` project-contract job passed `npm run validate` after Farm Up was registered in the root validation command.
+- GitHub Pages workflow validation job also passed `npm run validate` for the same current `main` revision.
+- JavaScript syntax / JSON baseline checks passed in the reusable baseline workflow for the current revision.
+- Farm Up regression coverage includes:
+  - initial 4×4 land and expanded 7×4 land rules;
+  - tutorial order;
+  - one-wheat Vertical Slice economy reaching the first land purchase amount;
+  - water requirement and rain-as-watering behavior;
+  - Lv2 tool cross-area behavior;
+  - save serialization/parse round trip;
+  - invalid JSON and future-schema rejection.
 
-### Verified from current GitHub source
+### Current repository integration verified
 
 - Farm Up implementation files are present under `games/farm-up/`.
 - `scripts/farm-up.test.mjs` is present.
@@ -43,7 +44,6 @@ Phase: Vertical Slice / Playable MVP implementation
 
 ### Not verified in this environment
 
-- Full `npm run validate` execution against the current GitHub checkout. The available local execution environment cannot resolve GitHub to clone the repository, so current-source execution must be confirmed by repository CI or another runtime with the checkout available.
 - Actual browser pointer-lock feel.
 - WebGL output on the user's GPU/browser.
 - Final visual composition / responsive overflow in a real browser screenshot.
