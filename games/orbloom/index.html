@@ -7,7 +7,7 @@
   <meta name="description" content="小さな岩塊をStable Living Worldへ育てる3D incremental / idle growth game。">
   <title>Orbloom | Game Hub</title>
   <link rel="stylesheet" href="./orbloom.css">
-  <link rel="stylesheet" href="./onboarding.css">
+  <link rel="stylesheet" href="./onboarding.css?v=6">
   <script type="importmap">
     {
       "imports": {
@@ -48,6 +48,7 @@
         </a>
         <div id="resource-strip" class="resource-strip" aria-label="資源"></div>
         <div class="top-actions">
+          <button id="open-tutorial" class="icon-action tutorial-action" type="button">TUTORIAL</button>
           <button id="save-now" class="icon-action" type="button">SAVE</button>
           <button id="open-settings" class="icon-action" type="button">SETTINGS</button>
         </div>
@@ -131,6 +132,6 @@
     <div id="toast-stack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
   </main>
   <script type="module" src="./game.js"></script>
-  <script type="module" src="./onboarding.js"></script>
+  <script type="module" src="./onboarding-entry.js?v=6"></script>
 </body>
 </html>
