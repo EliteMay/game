@@ -20,7 +20,7 @@
         <h1 id="game-title">Farm<br>Up</h1>
         <p class="boot-lead">小さな畑から始めて、作物を育て、売り、土地と農具へ再投資する。農場そのものが大きくなる3D育成ゲーム。</p>
         <div class="boot-loop"><span>育てる</span><i>→</i><span>収穫</span><i>→</i><span>出荷</span><i>→</i><span>投資</span><i>→</i><span>拡張</span></div>
-        <div class="boot-controls"><span><kbd>WASD</kbd> MOVE</span><span><kbd>Mouse</kbd> CAMERA</span><span><kbd>E</kbd> WORK</span><span><kbd>1-4</kbd> TOOLS</span></div>
+        <div class="boot-controls"><span><kbd>WASD</kbd> MOVE</span><span><kbd>RMB</kbd> CAMERA</span><span><kbd>Wheel</kbd> ZOOM</span><span><kbd>E</kbd> WORK</span></div>
         <button id="start-game" class="primary-button" type="button">START FARMING</button>
         <p id="boot-save-status" class="boot-note">LOCAL SAVEを確認中</p>
       </div>
@@ -63,15 +63,15 @@
         <button class="tool-button" data-tool="harvest" type="button"><kbd>4</kbd><span>収穫</span><small>READY</small></button>
         <button id="cycle-crop" class="crop-button" type="button"><kbd>Q</kbd><span>CROP</span><strong id="crop-name">小麦</strong></button>
       </div>
-      <div id="pointer-hint" class="pointer-hint">3D画面をクリックしてマウス操作 · ESCでカーソルを戻す</div>
-      <div class="interaction-help"><span><kbd>WASD</kbd> MOVE</span><span><kbd>SHIFT</kbd> SPRINT</span><span><kbd>E</kbd> WORK</span></div>
+      <div id="pointer-hint" class="pointer-hint">右ドラッグで視点移動 · ホイールでズーム · Cで視点リセット</div>
+      <div class="interaction-help"><span><kbd>WASD</kbd> MOVE</span><span><kbd>SHIFT</kbd> SPRINT</span><span><kbd>E</kbd> WORK</span><span><kbd>1-4</kbd> TOOLS</span></div>
     </section>
 
     <section id="settings-panel" class="overlay-panel" hidden aria-label="Farm Up設定">
       <div class="dialog-card">
         <header><div><p class="panel-kicker">FARM UP</p><h2>Settings & Save</h2></div><button class="close-button" data-close="settings" type="button" aria-label="設定を閉じる">×</button></header>
-        <label class="setting-row"><span><strong>Camera sensitivity</strong><small>マウスでカメラを動かす速さ</small></span><input id="setting-sensitivity" type="range" min="0.25" max="1.5" step="0.05"></label>
-        <label class="setting-row"><span><strong>Camera distance</strong><small>キャラクターからカメラまでの距離</small></span><input id="setting-distance" type="range" min="5.5" max="10" step="0.25"></label>
+        <label class="setting-row"><span><strong>Camera sensitivity</strong><small>右ドラッグでカメラを動かす速さ</small></span><input id="setting-sensitivity" type="range" min="0.25" max="1.5" step="0.05"></label>
+        <label class="setting-row"><span><strong>Camera distance</strong><small>キャラクターからカメラまでの距離。ホイールでも調整できます。</small></span><input id="setting-distance" type="range" min="5.25" max="11.5" step="0.25"></label>
         <label class="setting-row"><span><strong>Reduced motion</strong><small>カメラ追従の補間を減らす</small></span><input id="setting-motion" type="checkbox"></label>
         <div class="save-actions"><button id="export-save" class="secondary-button" type="button">セーブを書き出す</button><label class="secondary-button file-button">セーブを読み込む<input id="import-save" type="file" accept="application/json,.json"></label><button id="reset-save" class="danger-button" type="button">セーブをリセット</button></div>
         <p id="save-state" class="save-state">Local save / schema v1</p><a class="hub-link" href="../../index.html">Game Hubへ戻る →</a>
