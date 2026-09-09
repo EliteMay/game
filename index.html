@@ -8,6 +8,7 @@
   <title>Game Hub | EliteMay</title>
   <link rel="stylesheet" href="./css/hub.css">
   <link rel="stylesheet" href="./css/hub-orbloom.css">
+  <link rel="stylesheet" href="./css/hub-farm-up.css">
 </head>
 <body>
   <div class="hub-shell">
@@ -25,7 +26,7 @@
 
       <section class="rail-status" aria-label="Hub情報">
         <span>LIBRARY STATUS</span>
-        <strong>2 PLAYABLE</strong>
+        <strong>3 PLAYABLE</strong>
         <small>ゲームは完成度を優先し、1本ずつ追加。</small>
       </section>
 
@@ -43,8 +44,8 @@
         </div>
         <div class="header-metrics" id="progress">
           <div><span>TOTAL PLAY</span><strong id="total-playtime">0m</strong></div>
-          <div><span>GAMES</span><strong>02</strong></div>
-          <div><span>ACHIEVEMENTS</span><strong id="hub-achievements">0 / 2</strong></div>
+          <div><span>GAMES</span><strong>03</strong></div>
+          <div><span>ACHIEVEMENTS</span><strong id="hub-achievements">0 / 3</strong></div>
         </div>
       </header>
 
@@ -96,6 +97,31 @@
         </div>
       </section>
 
+      <section class="farm-feature" aria-labelledby="farm-title">
+        <div class="farm-feature__visual" aria-hidden="true">
+          <div class="farm-sun"></div>
+          <div class="farm-barn"></div>
+          <div class="farm-silo"></div>
+          <div class="farm-greenhouse"></div>
+          <span>GAME 03</span>
+        </div>
+        <div class="farm-feature__content">
+          <div class="game-meta"><span>PLAYABLE MVP</span><span>THIRD PERSON 3D</span><span>FARMING / GROWTH</span></div>
+          <h2 id="farm-title">Farm Up</h2>
+          <p>小さな農場を歩き、耕す・植える・水をやる・収穫・出荷。稼いだお金で土地と農具を強化し、巨大な近代農場へ育てていく。</p>
+          <div class="save-summary save-summary--farm">
+            <div><span>MONEY</span><strong id="farm-money">¥490</strong></div>
+            <div><span>FARM LEVEL</span><strong id="farm-level">LV 1</strong></div>
+            <div><span>PLAY TIME</span><strong id="farm-playtime">0m</strong></div>
+            <div><span>STATUS</span><strong id="farm-status">STARTING</strong></div>
+          </div>
+          <div class="featured-game__actions">
+            <a class="launch-button launch-button--farm" href="./games/farm-up/index.html">PLAY FARM UP <span>→</span></a>
+            <span id="farm-last-played" class="last-played">未プレイ</span>
+          </div>
+        </div>
+      </section>
+
       <section id="roadmap" class="library-section" aria-labelledby="library-title">
         <div class="section-heading">
           <div><p>ROADMAP</p><h2 id="library-title">次に増やすゲーム</h2></div>
@@ -103,25 +129,25 @@
         </div>
         <div class="game-list">
           <article class="game-row">
-            <span class="game-row__index">03</span>
+            <span class="game-row__index">04</span>
             <div class="game-row__type">PRODUCTION</div>
             <div><h3>Chicken Drop</h3><p>生産ラインを強化して、ヒヨコを大量に送り込み利益を伸ばす物理系生産ゲーム。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">04</span>
+            <span class="game-row__index">05</span>
             <div class="game-row__type">BREEDING</div>
             <div><h3>Creature Ranch</h3><p>生物を育成・繁殖し、能力や個体差を見ながら理想の系統を作る。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">05</span>
+            <span class="game-row__index">06</span>
             <div class="game-row__type">FPS</div>
             <div><h3>Arena FPS</h3><p>短時間で繰り返せる、小規模マップの一人称シューティング。</p></div>
             <strong class="status-badge">PLANNED</strong>
           </article>
           <article class="game-row">
-            <span class="game-row__index">06</span>
+            <span class="game-row__index">07</span>
             <div class="game-row__type">SANDBOX</div>
             <div><h3>Block World</h3><p>採掘・クラフト・建築を軸にした3Dサンドボックス。長期候補。</p></div>
             <strong class="status-badge">LATER</strong>
@@ -130,7 +156,7 @@
       </section>
 
       <footer class="hub-footer">
-        <span>GAME HUB / BUILD 002</span>
+        <span>GAME HUB / BUILD 003</span>
         <a href="https://github.com/EliteMay/game">GitHub Repository</a>
       </footer>
     </main>
