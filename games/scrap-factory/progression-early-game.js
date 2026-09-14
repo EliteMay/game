@@ -9,11 +9,14 @@ const EARLY_RANK_REWARDS = Object.freeze({
   4: { researchData: 1 },
 });
 
+function usesEarlyGameRules(game) {
+  return Boolean(game?.home) && game.home.introducedFromLegacy !== true;
+}
+
 function earlyMetrics(game) {
   const residential = game?.exploration?.areas?.residential || {};
   const discovered = new Set(game?.discoveredItems || []);
   return {
-    processed: Math.max(0, Number(game?.tutorialStats?.processed || 0)),
     discoveredCount: discovered.size,
     discoveredIronIngot: discovered.has('iron_ingot'),
     discoveredCable: discovered.has('cable_bundle'),
@@ -68,7 +71,7 @@ export function getRankDefinition(rank) {
       { id: 'residential_zones_3', label: '廃住宅街の4区画中3区画を発見', test: (m) => m.residentialZones >= 3 },
       { id: 'residential_return_10', label: '廃住宅街から素材を累計10個持ち帰る', test: (m) => m.residentialReturnedLoot >= 10 },
       { id: 'discover_cable', label: 'ケーブル束を発見 / 製作', test: (m) => m.discoveredCable },
-      { id: 'discover_4', label: '鉄くず以外を含め4種類のアイテムを発見', test: (m) => m.discoveredCount >= 4 },
+      { id: 'discover_4', label: '鉄くずを含め4種類のアイテムを発見', test: (m) => m.discoveredCount >= 4 },
     ],
     rewards: ['Splitter', 'Merger', 'Conveyor Mk.2', 'Generator', 'Power Pole', 'Research Data +1'],
   };
@@ -78,7 +81,7 @@ export function getRankDefinition(rank) {
 
 export function rankProgress(game) {
   const progression = core.ensureProgressionState(game);
-  if (progression.progressionRank > 3) return base.rankProgress(game);
+  if (progression.progressionRank > 3 || !usesEarlyGameRules(game)) return base.rankProgress(game);
 
   const definition = getRankDefinition(progression.progressionRank);
   if (!definition) {
@@ -112,7 +115,7 @@ export function rankProgress(game) {
 
 export function claimRankUp(game) {
   const progression = core.ensureProgressionState(game);
-  if (progression.progressionRank > 3) return base.claimRankUp(game);
+  if (progression.progressionRank > 3 || !usesEarlyGameRules(game)) return base.claimRankUp(game);
   if (progression.progressionRank >= base.PLAYABLE_MAX_RANK) {
     return { changed: false, reason: 'phase-cap', progression };
   }
