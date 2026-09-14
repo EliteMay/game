@@ -25,6 +25,8 @@ function earlyMetrics(game) {
   return {
     discoveredCount: discovered.size,
     discoveredCable: discovered.has('cable_bundle'),
+    metalScrapCollected: telemetry.metalScrapCollected,
+    manualSale: telemetry.manualSale,
     autoCrushedLine: telemetry.autoCrushedLine,
     autoIronLine: telemetry.autoIronLine,
     crushedMetalAutoSold: telemetry.crushedMetalAutoSold,
@@ -55,8 +57,13 @@ export function getRankDefinition(rank) {
     title: '最初の自動化',
     mandatory: {
       id: 'factory_online',
-      label: `Hopper → Crusher → Sellerの自動ラインを成立させ、Crushed Metalを${EARLY_GAME_TARGETS.crushedMetalAutoSold}個自動販売`,
-      test: (m) => m.autoCrushedLine && m.crushedMetalAutoSold >= EARLY_GAME_TARGETS.crushedMetalAutoSold,
+      label: `SALVAGE / FIRST PAY完了後、Hopper → Crusher → Sellerを自動化しCrushed Metalを${EARLY_GAME_TARGETS.crushedMetalAutoSold}個販売`,
+      test: (m) => (
+        m.metalScrapCollected >= EARLY_GAME_TARGETS.metalScrapCollected
+        && m.manualSale
+        && m.autoCrushedLine
+        && m.crushedMetalAutoSold >= EARLY_GAME_TARGETS.crushedMetalAutoSold
+      ),
     },
     optionalRequired: 0,
     optionals: [],
