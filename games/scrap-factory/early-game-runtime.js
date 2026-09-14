@@ -98,8 +98,20 @@ export function applyEarlyGameRuntime(game) {
   };
 }
 
+function shouldKeepWatching(game) {
+  if (!game || Number(game.progression?.progressionRank || 1) > 1) return false;
+  if (!qualifiesForEarlyGameEnrollment(game)) return false;
+  return !game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK);
+}
+
 function installEarlyGameRuntime() {
   let timer = null;
+
+  const stop = () => {
+    if (!timer) return;
+    window.clearInterval(timer);
+    timer = null;
+  };
 
   const tick = () => {
     const runtime = window.__scrapFactoryRuntime;
@@ -115,14 +127,13 @@ function installEarlyGameRuntime() {
       }
     }
 
-    if (hasEarlyGameEnrollment(game) && game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK) && timer) {
-      window.clearInterval(timer);
-      timer = null;
-    }
+    if (!shouldKeepWatching(game)) stop();
   };
 
   tick();
-  timer = window.setInterval(tick, 250);
+  if (shouldKeepWatching(window.__scrapFactoryRuntime?.getGame?.())) {
+    timer = window.setInterval(tick, 250);
+  }
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
