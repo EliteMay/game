@@ -1,6 +1,10 @@
 import * as core from './progression-core.js';
 import * as base from './progression-phase6c.js';
-import { qualifiesForEarlyGameEnrollment } from './early-game-contract.js';
+import {
+  EARLY_GAME_TARGETS,
+  earlyGameTelemetry,
+  qualifiesForEarlyGameEnrollment,
+} from './early-game-contract.js';
 
 export * from './progression-phase6c.js';
 
@@ -17,13 +21,14 @@ function usesEarlyGameRules(game) {
 function earlyMetrics(game) {
   const residential = game?.exploration?.areas?.residential || {};
   const discovered = new Set(game?.discoveredItems || []);
+  const telemetry = earlyGameTelemetry(game);
   return {
     discoveredCount: discovered.size,
-    discoveredIronIngot: discovered.has('iron_ingot'),
     discoveredCable: discovered.has('cable_bundle'),
-    autoSale: Boolean(game?.home?.tutorial?.events?.autoSale),
-    autoCrushedLine: core.hasAutomatedCrushedMetalLine(game),
-    autoIronLine: core.hasAutomatedIronLine(game),
+    autoCrushedLine: telemetry.autoCrushedLine,
+    autoIronLine: telemetry.autoIronLine,
+    crushedMetalAutoSold: telemetry.crushedMetalAutoSold,
+    ironIngotProduced: telemetry.ironIngotProduced,
     residentialObjective: Boolean(residential?.objective?.completed),
     residentialZones: Array.isArray(residential.discoveredZones) ? residential.discoveredZones.length : 0,
     residentialReturnedLoot: Math.max(0, Number(residential?.returnedLootTotal || 0)),
@@ -50,8 +55,8 @@ export function getRankDefinition(rank) {
     title: '最初の自動化',
     mandatory: {
       id: 'factory_online',
-      label: 'Hopper → Crusher → Seller の自動ラインを成立させ、最初の自動販売を確認',
-      test: (m) => m.autoCrushedLine && m.autoSale,
+      label: `Hopper → Crusher → Sellerの自動ラインを成立させ、Crushed Metalを${EARLY_GAME_TARGETS.crushedMetalAutoSold}個自動販売`,
+      test: (m) => m.autoCrushedLine && m.crushedMetalAutoSold >= EARLY_GAME_TARGETS.crushedMetalAutoSold,
     },
     optionalRequired: 0,
     optionals: [],
@@ -64,8 +69,8 @@ export function getRankDefinition(rank) {
     title: '基本工場',
     mandatory: {
       id: 'basic_production',
-      label: 'Crusher → Smelterを含む鉄インゴット完全自動ラインを成立',
-      test: (m) => m.autoIronLine && m.discoveredIronIngot,
+      label: `Crusher → Smelterを含む完全自動ラインを成立させ、Iron Ingotを${EARLY_GAME_TARGETS.ironIngotProduced}個生産`,
+      test: (m) => m.autoIronLine && m.ironIngotProduced >= EARLY_GAME_TARGETS.ironIngotProduced,
     },
     optionalRequired: 0,
     optionals: [],
