@@ -20,12 +20,26 @@ function earlyMetrics(game) {
     discoveredCount: discovered.size,
     discoveredIronIngot: discovered.has('iron_ingot'),
     discoveredCable: discovered.has('cable_bundle'),
+    autoSale: Boolean(game?.home?.tutorial?.events?.autoSale),
     autoCrushedLine: core.hasAutomatedCrushedMetalLine(game),
     autoIronLine: core.hasAutomatedIronLine(game),
     residentialObjective: Boolean(residential?.objective?.completed),
     residentialZones: Array.isArray(residential.discoveredZones) ? residential.discoveredZones.length : 0,
     residentialReturnedLoot: Math.max(0, Number(residential?.returnedLootTotal || 0)),
   };
+}
+
+export function buildingUnlockState(game, type) {
+  if (usesEarlyGameRules(game)
+      && Number(game?.progression?.progressionRank || 1) === 1
+      && type === 'seller') {
+    return { unlocked: false, reason: 'rank', requiredRank: 2, requiredResearch: null };
+  }
+  return base.buildingUnlockState(game, type);
+}
+
+export function isBuildingUnlocked(game, type) {
+  return buildingUnlockState(game, type).unlocked;
 }
 
 export function getRankDefinition(rank) {
@@ -35,12 +49,12 @@ export function getRankDefinition(rank) {
     title: '最初の自動化',
     mandatory: {
       id: 'factory_online',
-      label: 'Hopper → Crusher → Seller の自動ラインを成立',
-      test: (m) => m.autoCrushedLine,
+      label: 'Hopper → Crusher → Seller の自動ラインを成立させ、最初の自動販売を確認',
+      test: (m) => m.autoCrushedLine && m.autoSale,
     },
     optionalRequired: 0,
     optionals: [],
-    rewards: ['Smelter', 'Storage', 'Research Tier 2', 'Research Data +1'],
+    rewards: ['Smelter', 'Storage', 'Seller建築', 'Research Tier 2', 'Research Data +1'],
   };
 
   if (rank === 2) return {
