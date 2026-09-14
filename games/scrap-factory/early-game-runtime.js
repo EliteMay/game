@@ -1,4 +1,9 @@
 import { advanceHomeTutorial, ensureHomeState } from './home-system.js';
+import {
+  EARLY_GAME_ONBOARDING_UNLOCK,
+  hasEarlyGameEnrollment,
+  qualifiesForEarlyGameEnrollment,
+} from './early-game-contract.js';
 
 export const STARTER_CONTRACT_GRANT = 80;
 export const STARTER_CONTRACT_UNLOCK = 'grant:starter-contract-v2';
@@ -17,14 +22,26 @@ function progressionState(game) {
   return game.progression;
 }
 
-function freshHome(game) {
+function enrollEarlyGame(game) {
+  if (!qualifiesForEarlyGameEnrollment(game)) return false;
+  if (hasEarlyGameEnrollment(game)) return false;
+  const progression = progressionState(game);
+  progression.unlocks.push(EARLY_GAME_ONBOARDING_UNLOCK);
+  progression.history = Array.isArray(progression.history) ? progression.history : [];
+  progression.history.push({ type: 'onboarding-enrollment', id: EARLY_GAME_ONBOARDING_UNLOCK, at: new Date().toISOString() });
+  progression.history = progression.history.slice(-100);
+  return true;
+}
+
+function enrolledHome(game) {
+  if (!hasEarlyGameEnrollment(game)) return null;
   const home = ensureHomeState(game);
   return home.introducedFromLegacy ? null : home;
 }
 
 export function streamlineFreshTutorial(game) {
   if (!game || Number(game.progression?.progressionRank || 1) !== 1) return false;
-  const home = freshHome(game);
+  const home = enrolledHome(game);
   if (!home || home.tutorial?.basicStatus !== 'active') return false;
 
   let changed = false;
@@ -43,7 +60,7 @@ export function applyStarterContractGrant(game) {
     return { changed: false, granted: false };
   }
 
-  const home = freshHome(game);
+  const home = enrolledHome(game);
   if (!home) return { changed: false, granted: false };
   const progression = progressionState(game);
   if (progression.unlocks.includes(STARTER_CONTRACT_UNLOCK)) {
@@ -63,41 +80,49 @@ export function applyStarterContractGrant(game) {
   });
   progression.history = progression.history.slice(-100);
 
-  // The old 15-step tutorial awarded $50 at full completion. FIRST PAY replaces
-  // that reward so the fresh-start economy has one predictable onboarding grant.
+  // FIRST PAY is the single onboarding cash grant for the V2 fresh-start flow.
   home.tutorial.rewardClaimed = true;
 
   return { changed: true, granted: true, amount: STARTER_CONTRACT_GRANT };
 }
 
 export function applyEarlyGameRuntime(game) {
+  const enrollmentChanged = enrollEarlyGame(game);
   const tutorialChanged = streamlineFreshTutorial(game);
   const grant = applyStarterContractGrant(game);
   return {
-    changed: tutorialChanged || grant.changed,
+    changed: enrollmentChanged || tutorialChanged || grant.changed,
+    enrollmentChanged,
     tutorialChanged,
     grant,
   };
 }
 
 function installEarlyGameRuntime() {
+  let timer = null;
+
   const tick = () => {
     const runtime = window.__scrapFactoryRuntime;
     const game = runtime?.getGame?.();
     if (!game) return;
 
     const result = applyEarlyGameRuntime(game);
-    if (!result.changed) return;
+    if (result.changed) {
+      runtime.persist?.('序盤オンボーディング更新');
+      runtime.renderAll?.();
+      if (result.grant.granted) {
+        runtime.toast?.(`FIRST PAY 契約完了 +$${result.grant.amount}`, 'success');
+      }
+    }
 
-    runtime.persist?.('序盤オンボーディング更新');
-    runtime.renderAll?.();
-    if (result.grant.granted) {
-      runtime.toast?.(`FIRST PAY 契約完了 +$${result.grant.amount}`, 'success');
+    if (hasEarlyGameEnrollment(game) && game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK) && timer) {
+      window.clearInterval(timer);
+      timer = null;
     }
   };
 
   tick();
-  window.setInterval(tick, 250);
+  timer = window.setInterval(tick, 250);
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
