@@ -204,6 +204,7 @@ function ironLine(game) {
 {
   const game = ironLine(freshGame(2));
   applyEarlyGameRuntime(game);
+  assert.equal(earlyGameContractObjective(game).title, '04 BASIC PRODUCTION', 'Rank 2 is historical evidence that Contracts 1-3 already completed');
   recordEarlyGameProduction(game, 'iron_ingot', 4);
   let progress = rankProgress(game);
   assert.equal(progress.mandatory.done, false, 'BASIC PRODUCTION requires five produced Iron Ingots');
@@ -214,13 +215,7 @@ function ironLine(game) {
   assert.equal(progress.mandatory.done, true);
   assert.equal(progress.optionalRequired, 0);
   assert.equal(progress.eligible, true);
-  assert.equal(earlyGameContractObjective(game).title, '01 SALVAGE', 'Contracts remain ordered when a fixture skips earlier Contract evidence');
-
-  // A real Rank 2 save reached this point through Rank 1, so preserve that evidence
-  // before checking the Rank 2 -> 3 transition in isolation.
-  game.tutorialStats.metalScrapCollected = EARLY_GAME_TARGETS.metalScrapCollected;
-  game.tutorialStats.crushedMetalAutoSold = EARLY_GAME_TARGETS.crushedMetalAutoSold;
-  game.home.tutorial.events.manualSale = true;
+  assert.equal(earlyGameContractObjective(game).title, '05 BEYOND THE YARD');
 
   const result = claimRankUp(game);
   assert.equal(result.changed, true);
