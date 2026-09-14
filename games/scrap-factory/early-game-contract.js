@@ -28,6 +28,21 @@ function nonNegativeInt(value) {
   return Number.isFinite(number) ? Math.max(0, number) : 0;
 }
 
+function tutorialStats(game) {
+  if (!game) return {};
+  game.tutorialStats ??= {};
+  return game.tutorialStats;
+}
+
+function incrementCapped(game, key, amount, cap) {
+  if (!hasEarlyGameEnrollment(game)) return 0;
+  const stats = tutorialStats(game);
+  const previous = nonNegativeInt(stats[key]);
+  const next = Math.min(cap, previous + Math.max(0, nonNegativeInt(amount)));
+  stats[key] = next;
+  return next - previous;
+}
+
 export function hasEarlyGameEnrollment(game) {
   return unlocks(game).includes(EARLY_GAME_ONBOARDING_UNLOCK);
 }
@@ -38,14 +53,29 @@ export function qualifiesForEarlyGameEnrollment(game) {
   return Math.max(0, Number(game.sessionCount || 0)) <= 1;
 }
 
+export function recordEarlyGamePickup(game, itemId, amount = 1) {
+  if (itemId !== 'metal_scrap') return 0;
+  return incrementCapped(game, 'metalScrapCollected', amount, EARLY_GAME_TARGETS.metalScrapCollected);
+}
+
+export function recordEarlyGameAutoSale(game, itemId, amount = 1) {
+  if (itemId !== 'crushed_metal') return 0;
+  return incrementCapped(game, 'crushedMetalAutoSold', amount, EARLY_GAME_TARGETS.crushedMetalAutoSold);
+}
+
+export function recordEarlyGameProduction(game, itemId, amount = 1) {
+  if (itemId !== 'iron_ingot') return 0;
+  return incrementCapped(game, 'ironIngotProduced', amount, EARLY_GAME_TARGETS.ironIngotProduced);
+}
+
 export function earlyGameTelemetry(game) {
-  const tutorialStats = game?.tutorialStats || {};
+  const stats = game?.tutorialStats || {};
   const residential = game?.exploration?.areas?.residential || {};
   const activeSession = game?.exploration?.activeSession || null;
   return {
-    metalScrapCollected: nonNegativeInt(tutorialStats.metalScrapCollected),
-    crushedMetalAutoSold: nonNegativeInt(tutorialStats.crushedMetalAutoSold),
-    ironIngotProduced: nonNegativeInt(tutorialStats.ironIngotProduced),
+    metalScrapCollected: nonNegativeInt(stats.metalScrapCollected),
+    crushedMetalAutoSold: nonNegativeInt(stats.crushedMetalAutoSold),
+    ironIngotProduced: nonNegativeInt(stats.ironIngotProduced),
     manualSale: Boolean(game?.home?.tutorial?.events?.manualSale),
     autoCrushedLine: hasAutomatedCrushedMetalLine(game),
     autoIronLine: hasAutomatedIronLine(game),
