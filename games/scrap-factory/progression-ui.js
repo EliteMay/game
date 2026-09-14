@@ -1,9 +1,10 @@
 // Compatibility entrypoint. Phase 6-C progression remains in progression-ui-v4.js.
 // Automation Console, Final Phase, Home, Post Clear, adaptive HUD, Phase 7 settings,
-// final factory visual/performance, and high-polling input layers load from this stable entrypoint.
+// final factory visual/performance, high-polling input, and early-game onboarding load here.
 import './phase5c-automation-ui.js';
 import './final-phase-ui.js';
 import './home-runtime.js';
+import './early-game-runtime.js';
 import './home-surface-ui.js';
 import './post-clear-optimization-ui.js';
 import './hud-objective-ownership.js';
