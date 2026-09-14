@@ -7,6 +7,7 @@ import {
   rankProgress,
 } from '../games/scrap-factory/progression.js';
 import { makeDefaultHomeState } from '../games/scrap-factory/home-system.js';
+import { EARLY_GAME_ONBOARDING_UNLOCK } from '../games/scrap-factory/early-game-contract.js';
 import {
   STARTER_CONTRACT_GRANT,
   STARTER_CONTRACT_UNLOCK,
@@ -54,6 +55,7 @@ function freshGame(rank = 1) {
   return {
     money: 40,
     lifetimeRevenue: 0,
+    sessionCount: 1,
     inventory: {},
     discoveredItems: ['metal_scrap'],
     tutorialStats: {
@@ -98,6 +100,8 @@ function ironLine(game) {
 {
   const game = freshGame();
   const result = applyEarlyGameRuntime(game);
+  assert.equal(result.enrollmentChanged, true);
+  assert.equal(game.progression.unlocks.includes(EARLY_GAME_ONBOARDING_UNLOCK), true);
   assert.equal(result.tutorialChanged, true);
   assert.equal(game.home.tutorial.basicStep, 3, 'fresh tutorial should begin at the Home exit instead of Bed / move / PC chores');
   assert.deepEqual(game.home.tutorial.completedSteps, ['bed', 'move', 'pc']);
@@ -114,9 +118,11 @@ function ironLine(game) {
   assert.equal(game.progression.unlocks.includes(STARTER_CONTRACT_UNLOCK), true);
   assert.equal(game.home.tutorial.rewardClaimed, true, 'FIRST PAY replaces the old +$50 tutorial completion reward');
 
+  game.sessionCount = 2;
   const second = applyEarlyGameRuntime(game);
   assert.equal(second.grant.granted, false);
-  assert.equal(game.money, 88 + STARTER_CONTRACT_GRANT, 'starter grant must be idempotent across repeated runtime checks');
+  assert.equal(game.money, 88 + STARTER_CONTRACT_GRANT, 'starter grant must be idempotent across reloads and repeated runtime checks');
+  assert.equal(isBuildingUnlocked(game, 'seller'), false, 'enrollment marker keeps V2 rules after reload');
 }
 
 {
@@ -130,7 +136,17 @@ function ironLine(game) {
 }
 
 {
+  const game = freshGame();
+  game.sessionCount = 2;
+  const result = applyEarlyGameRuntime(game);
+  assert.equal(result.changed, false, 'an already-played Home-format save without the V2 marker must retain the legacy onboarding contract');
+  assert.equal(game.progression.unlocks.includes(EARLY_GAME_ONBOARDING_UNLOCK), false);
+  assert.equal(isBuildingUnlocked(game, 'seller'), true);
+}
+
+{
   const game = crushedLine(freshGame(1));
+  applyEarlyGameRuntime(game);
   assert.equal(isBuildingUnlocked(game, 'seller'), false, 'fresh Rank 1 must use the permanent Starter Seller instead of buying another one');
   assert.equal(buildingUnlockState(game, 'seller').requiredRank, 2);
 
@@ -151,6 +167,7 @@ function ironLine(game) {
 
 {
   const game = ironLine(freshGame(2));
+  applyEarlyGameRuntime(game);
   const progress = rankProgress(game);
   assert.equal(progress.mandatory.done, true);
   assert.equal(progress.optionalRequired, 0);
@@ -163,6 +180,7 @@ function ironLine(game) {
 
 {
   const game = freshGame(3);
+  applyEarlyGameRuntime(game);
   game.exploration.areas.residential.objective.completed = true;
   game.exploration.areas.residential.discoveredZones = ['entry', 'homes-a', 'homes-b'];
   const progress = rankProgress(game);
