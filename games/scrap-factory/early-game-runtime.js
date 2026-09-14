@@ -1,8 +1,13 @@
 import { advanceHomeTutorial, ensureHomeState } from './home-system.js';
 import {
   EARLY_GAME_ONBOARDING_UNLOCK,
+  EARLY_GAME_TARGETS,
+  earlyGameTelemetry,
   hasEarlyGameEnrollment,
   qualifiesForEarlyGameEnrollment,
+  recordEarlyGameAutoSale,
+  recordEarlyGamePickup,
+  recordEarlyGameProduction,
 } from './early-game-contract.js';
 
 export const STARTER_CONTRACT_GRANT = 80;
@@ -15,6 +20,10 @@ const AUTO_SATISFIED_TUTORIAL_EVENTS = Object.freeze([
   'inventoryOpened',
   'buildMenuOpened',
 ]);
+
+const WORLD_PICKUP_HOOK = Symbol('early-game-pickup-hook');
+const AUTO_SALE_HOOK = Symbol('early-game-auto-sale-hook');
+const IRON_OUTPUT_HOOK = Symbol('early-game-iron-output-hook');
 
 function progressionState(game) {
   game.progression ??= {};
@@ -66,6 +75,11 @@ export function applyStarterContractGrant(game) {
   if (progression.unlocks.includes(STARTER_CONTRACT_UNLOCK)) {
     return { changed: false, granted: false };
   }
+
+  const telemetry = earlyGameTelemetry(game);
+  if (telemetry.metalScrapCollected < EARLY_GAME_TARGETS.metalScrapCollected) {
+    return { changed: false, granted: false };
+  }
   if (!home.tutorial?.events?.manualSale) {
     return { changed: false, granted: false };
   }
@@ -98,10 +112,69 @@ export function applyEarlyGameRuntime(game) {
   };
 }
 
+function instrumentWorldPickup(runtime) {
+  const world = runtime?.world;
+  if (!world || world[WORLD_PICKUP_HOOK] || typeof world.collectScrap !== 'function') return;
+  const original = world.collectScrap.bind(world);
+  world.collectScrap = (...args) => {
+    const itemId = original(...args);
+    const game = runtime.getGame?.();
+    if (itemId && game) recordEarlyGamePickup(game, itemId, 1);
+    return itemId;
+  };
+  Object.defineProperty(world, WORLD_PICKUP_HOOK, { value: true });
+}
+
+function instrumentAutoSale(game) {
+  const events = enrolledHome(game)?.tutorial?.events;
+  if (!events || events[AUTO_SALE_HOOK]) return;
+  let current = Boolean(events.autoSale);
+  Object.defineProperty(events, 'autoSale', {
+    enumerable: true,
+    configurable: true,
+    get: () => current,
+    set: (value) => {
+      const next = Boolean(value);
+      if (next) recordEarlyGameAutoSale(game, 'crushed_metal', 1);
+      current = next;
+    },
+  });
+  Object.defineProperty(events, AUTO_SALE_HOOK, { value: true, configurable: true });
+}
+
+function instrumentSmelterOutput(game, building) {
+  if (!building || building.type !== 'smelter') return;
+  building.output ??= {};
+  const output = building.output;
+  if (output[IRON_OUTPUT_HOOK]) return;
+
+  let current = Math.max(0, Number(output.iron_ingot || 0));
+  Object.defineProperty(output, 'iron_ingot', {
+    enumerable: true,
+    configurable: true,
+    get: () => current,
+    set: (value) => {
+      const next = Math.max(0, Number(value || 0));
+      if (next > current) recordEarlyGameProduction(game, 'iron_ingot', next - current);
+      current = next;
+    },
+  });
+  Object.defineProperty(output, IRON_OUTPUT_HOOK, { value: true, configurable: true });
+}
+
+function instrumentTelemetry(runtime, game) {
+  if (!hasEarlyGameEnrollment(game)) return;
+  instrumentWorldPickup(runtime);
+  instrumentAutoSale(game);
+  for (const building of game.buildings || []) instrumentSmelterOutput(game, building);
+}
+
 function shouldKeepWatching(game) {
-  if (!game || Number(game.progression?.progressionRank || 1) > 1) return false;
-  if (!qualifiesForEarlyGameEnrollment(game)) return false;
-  return !game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK);
+  if (!game || !qualifiesForEarlyGameEnrollment(game)) return false;
+  if (Number(game.progression?.progressionRank || 1) >= 3) return false;
+  const telemetry = earlyGameTelemetry(game);
+  const starterGrantDone = game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK);
+  return !starterGrantDone || telemetry.ironIngotProduced < EARLY_GAME_TARGETS.ironIngotProduced;
 }
 
 function installEarlyGameRuntime() {
@@ -119,6 +192,8 @@ function installEarlyGameRuntime() {
     if (!game) return;
 
     const result = applyEarlyGameRuntime(game);
+    instrumentTelemetry(runtime, game);
+
     if (result.changed) {
       runtime.persist?.('序盤オンボーディング更新');
       runtime.renderAll?.();
