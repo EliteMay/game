@@ -2,6 +2,8 @@ import { advanceHomeTutorial, ensureHomeState } from './home-system.js';
 import {
   EARLY_GAME_ONBOARDING_UNLOCK,
   EARLY_GAME_TARGETS,
+  earlyGameContractObjective,
+  earlyGameContractState,
   earlyGameTelemetry,
   hasEarlyGameEnrollment,
   qualifiesForEarlyGameEnrollment,
@@ -12,14 +14,6 @@ import {
 
 export const STARTER_CONTRACT_GRANT = 80;
 export const STARTER_CONTRACT_UNLOCK = 'grant:starter-contract-v2';
-
-const AUTO_SATISFIED_TUTORIAL_EVENTS = Object.freeze([
-  'bedUsed',
-  'moved',
-  'pcOpened',
-  'inventoryOpened',
-  'buildMenuOpened',
-]);
 
 const WORLD_PICKUP_HOOK = Symbol('early-game-pickup-hook');
 const AUTO_SALE_HOOK = Symbol('early-game-auto-sale-hook');
@@ -49,19 +43,17 @@ function enrolledHome(game) {
 }
 
 export function streamlineFreshTutorial(game) {
-  if (!game || Number(game.progression?.progressionRank || 1) !== 1) return false;
   const home = enrolledHome(game);
   if (!home || home.tutorial?.basicStatus !== 'active') return false;
 
-  let changed = false;
-  for (const eventName of AUTO_SATISFIED_TUTORIAL_EVENTS) {
-    if (home.tutorial.events?.[eventName]) continue;
-    home.tutorial.events[eventName] = true;
-    changed = true;
-  }
-
-  const result = advanceHomeTutorial(game);
-  return changed || Boolean(result.changed);
+  // Fresh Start V2 owns onboarding through five Contracts. Keep the legacy
+  // 15-step tutorial available to older saves, but do not run both systems.
+  home.tutorial.basicStatus = 'skipped';
+  home.tutorial.skippedTutorials = Array.isArray(home.tutorial.skippedTutorials)
+    ? home.tutorial.skippedTutorials
+    : [];
+  if (!home.tutorial.skippedTutorials.includes('basic')) home.tutorial.skippedTutorials.push('basic');
+  return true;
 }
 
 export function applyStarterContractGrant(game) {
@@ -169,12 +161,90 @@ function instrumentTelemetry(runtime, game) {
   for (const building of game.buildings || []) instrumentSmelterOutput(game, building);
 }
 
+function originalObjectivePanel() {
+  return document.querySelector('.objective-panel:not([data-early-contract-panel])');
+}
+
+function ensureContractHudPanel() {
+  const stack = document.querySelector('[data-hud-context-stack]');
+  const original = originalObjectivePanel();
+  if (!stack || !original) return null;
+
+  let panel = document.querySelector('[data-early-contract-panel]');
+  if (!panel) {
+    panel = document.createElement('aside');
+    panel.className = 'objective-panel';
+    panel.dataset.earlyContractPanel = 'true';
+    panel.setAttribute('aria-label', 'Fresh Start Contract');
+    panel.setAttribute('aria-live', 'polite');
+    panel.innerHTML = `
+      <div class="objective-panel__header">
+        <span>CONTRACT</span>
+        <strong data-early-contract-progress></strong>
+      </div>
+      <h2 data-early-contract-title></h2>
+      <p data-early-contract-body></p>
+    `;
+    original.insertAdjacentElement('afterend', panel);
+  }
+  original.hidden = true;
+  return panel;
+}
+
+function updateHomeContractSurface(objective) {
+  const content = document.querySelector('#home-system-content');
+  if (!content) return;
+  const label = [...content.querySelectorAll('.home-section__head span')]
+    .find((node) => node.textContent?.trim() === 'CURRENT / NEXT GOAL');
+  const section = label?.closest('.home-section');
+  if (!section) return;
+
+  label.textContent = 'FRESH START CONTRACT';
+  const title = section.querySelector('.home-section__head h3');
+  const progress = section.querySelector('.home-section__head > strong');
+  const body = section.querySelector(':scope > p:not(.home-hint)');
+  const hint = section.querySelector('.home-hint');
+  if (title) title.textContent = `${objective.kind}: ${objective.title}`;
+  if (progress) progress.textContent = objective.progress;
+  if (body) body.textContent = objective.body;
+  if (hint) {
+    const strong = document.createElement('strong');
+    strong.textContent = 'HINT';
+    hint.replaceChildren(strong, document.createTextNode(` ${objective.hint}`));
+  }
+
+  section.querySelectorAll('[data-restart-basic], [data-skip-basic]').forEach((button) => { button.hidden = true; });
+}
+
+function cleanupContractSurfaces() {
+  document.querySelector('[data-early-contract-panel]')?.remove();
+  const original = originalObjectivePanel();
+  if (original) original.hidden = false;
+  document.querySelectorAll('[data-restart-basic], [data-skip-basic]').forEach((button) => { button.hidden = false; });
+}
+
+function renderContractSurfaces(game) {
+  const objective = earlyGameContractObjective(game);
+  if (!objective) {
+    cleanupContractSurfaces();
+    return;
+  }
+
+  const panel = ensureContractHudPanel();
+  if (panel) {
+    const progress = panel.querySelector('[data-early-contract-progress]');
+    const title = panel.querySelector('[data-early-contract-title]');
+    const body = panel.querySelector('[data-early-contract-body]');
+    if (progress) progress.textContent = objective.progress;
+    if (title) title.textContent = objective.title;
+    if (body) body.textContent = objective.body;
+  }
+  updateHomeContractSurface(objective);
+}
+
 function shouldKeepWatching(game) {
   if (!game || !qualifiesForEarlyGameEnrollment(game)) return false;
-  if (Number(game.progression?.progressionRank || 1) >= 3) return false;
-  const telemetry = earlyGameTelemetry(game);
-  const starterGrantDone = game.progression?.unlocks?.includes(STARTER_CONTRACT_UNLOCK);
-  return !starterGrantDone || telemetry.ironIngotProduced < EARLY_GAME_TARGETS.ironIngotProduced;
+  return !earlyGameContractState(game).complete;
 }
 
 function installEarlyGameRuntime() {
@@ -193,6 +263,7 @@ function installEarlyGameRuntime() {
 
     const result = applyEarlyGameRuntime(game);
     instrumentTelemetry(runtime, game);
+    renderContractSurfaces(game);
 
     if (result.changed) {
       runtime.persist?.('序盤オンボーディング更新');
@@ -202,7 +273,10 @@ function installEarlyGameRuntime() {
       }
     }
 
-    if (!shouldKeepWatching(game)) stop();
+    if (!shouldKeepWatching(game)) {
+      cleanupContractSurfaces();
+      stop();
+    }
   };
 
   tick();
