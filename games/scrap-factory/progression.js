@@ -1,5 +1,5 @@
-// Compatibility entrypoint. Core progression stays stable while later phases layer explicit overrides.
-// Phase 6-C extends and re-exports progression-phase6b.js so existing Phase 6-B contracts remain part of the chain.
+// Compatibility entrypoint. Early Rank 1-3 rules are owned by progression-early-game.js.
+// Later progression continues through the existing Phase 6-C chain.
 export * from './progression-core.js';
 export {
   PLAYABLE_MAX_RANK,
@@ -13,4 +13,4 @@ export {
   rankProgress,
   requiredBuildingRank,
   researchState,
-} from './progression-phase6c.js';
+} from './progression-early-game.js';
