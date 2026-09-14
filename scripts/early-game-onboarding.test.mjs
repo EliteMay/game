@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {
+  buildingUnlockState,
   claimRankUp,
+  isBuildingUnlocked,
   makeDefaultProgression,
   rankProgress,
 } from '../games/scrap-factory/progression.js';
@@ -129,14 +131,22 @@ function ironLine(game) {
 
 {
   const game = crushedLine(freshGame(1));
-  const progress = rankProgress(game);
-  assert.equal(progress.mandatory.done, true);
+  assert.equal(isBuildingUnlocked(game, 'seller'), false, 'fresh Rank 1 must use the permanent Starter Seller instead of buying another one');
+  assert.equal(buildingUnlockState(game, 'seller').requiredRank, 2);
+
+  let progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'topology alone must not complete Rank 1 before the first automatic sale');
   assert.equal(progress.optionalRequired, 0);
-  assert.equal(progress.eligible, true, 'fresh Rank 1 should promote as soon as the first automated line exists');
+
+  game.home.tutorial.events.autoSale = true;
+  progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, true);
+  assert.equal(progress.eligible, true, 'fresh Rank 1 should promote after the first automatic sale succeeds');
   const result = claimRankUp(game);
   assert.equal(result.changed, true);
   assert.equal(game.progression.progressionRank, 2);
   assert.equal(game.progression.researchData, 1);
+  assert.equal(isBuildingUnlocked(game, 'seller'), true, 'Seller construction becomes available after Rank 2');
 }
 
 {
@@ -169,6 +179,7 @@ function ironLine(game) {
   const progress = rankProgress(legacyFixture);
   assert.equal(progress.optionalRequired, 2, 'fixtures without fresh-home state retain the legacy progression contract');
   assert.equal(progress.eligible, false);
+  assert.equal(isBuildingUnlocked(legacyFixture, 'seller'), true, 'legacy Rank 1 keeps the original Seller build contract');
 }
 
 console.log('Early-game onboarding regression tests passed.');
