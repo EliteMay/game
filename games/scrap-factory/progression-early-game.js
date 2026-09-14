@@ -1,5 +1,6 @@
 import * as core from './progression-core.js';
 import * as base from './progression-phase6c.js';
+import { qualifiesForEarlyGameEnrollment } from './early-game-contract.js';
 
 export * from './progression-phase6c.js';
 
@@ -10,7 +11,7 @@ const EARLY_RANK_REWARDS = Object.freeze({
 });
 
 function usesEarlyGameRules(game) {
-  return Boolean(game?.home) && game.home.introducedFromLegacy !== true;
+  return qualifiesForEarlyGameEnrollment(game);
 }
 
 function earlyMetrics(game) {
