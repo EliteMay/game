@@ -17,10 +17,15 @@ function progressionState(game) {
   return game.progression;
 }
 
+function freshHome(game) {
+  const home = ensureHomeState(game);
+  return home.introducedFromLegacy ? null : home;
+}
+
 export function streamlineFreshTutorial(game) {
   if (!game || Number(game.progression?.progressionRank || 1) !== 1) return false;
-  const home = ensureHomeState(game);
-  if (home.introducedFromLegacy || home.tutorial?.basicStatus !== 'active') return false;
+  const home = freshHome(game);
+  if (!home || home.tutorial?.basicStatus !== 'active') return false;
 
   let changed = false;
   for (const eventName of AUTO_SATISFIED_TUTORIAL_EVENTS) {
@@ -38,7 +43,8 @@ export function applyStarterContractGrant(game) {
     return { changed: false, granted: false };
   }
 
-  const home = ensureHomeState(game);
+  const home = freshHome(game);
+  if (!home) return { changed: false, granted: false };
   const progression = progressionState(game);
   if (progression.unlocks.includes(STARTER_CONTRACT_UNLOCK)) {
     return { changed: false, granted: false };
@@ -57,6 +63,10 @@ export function applyStarterContractGrant(game) {
   });
   progression.history = progression.history.slice(-100);
 
+  // The old 15-step tutorial awarded $50 at full completion. FIRST PAY replaces
+  // that reward so the fresh-start economy has one predictable onboarding grant.
+  home.tutorial.rewardClaimed = true;
+
   return { changed: true, granted: true, amount: STARTER_CONTRACT_GRANT };
 }
 
@@ -71,35 +81,23 @@ export function applyEarlyGameRuntime(game) {
 }
 
 function installEarlyGameRuntime() {
-  let lastGame = null;
-  let initialPassDone = false;
-
   const tick = () => {
     const runtime = window.__scrapFactoryRuntime;
     const game = runtime?.getGame?.();
     if (!game) return;
 
-    if (game !== lastGame) {
-      lastGame = game;
-      initialPassDone = false;
-    }
-
     const result = applyEarlyGameRuntime(game);
-    if (!result.changed) {
-      initialPassDone = true;
-      return;
-    }
+    if (!result.changed) return;
 
     runtime.persist?.('序盤オンボーディング更新');
     runtime.renderAll?.();
     if (result.grant.granted) {
       runtime.toast?.(`FIRST PAY 契約完了 +$${result.grant.amount}`, 'success');
     }
-    initialPassDone = true;
   };
 
   tick();
-  window.setInterval(tick, initialPassDone ? 500 : 200);
+  window.setInterval(tick, 250);
 }
 
 if (typeof window !== 'undefined' && typeof document !== 'undefined') {
