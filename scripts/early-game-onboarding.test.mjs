@@ -7,7 +7,15 @@ import {
   rankProgress,
 } from '../games/scrap-factory/progression.js';
 import { makeDefaultHomeState } from '../games/scrap-factory/home-system.js';
-import { EARLY_GAME_ONBOARDING_UNLOCK } from '../games/scrap-factory/early-game-contract.js';
+import {
+  EARLY_GAME_ONBOARDING_UNLOCK,
+  EARLY_GAME_TARGETS,
+  earlyGameContractObjective,
+  earlyGameContractState,
+  recordEarlyGameAutoSale,
+  recordEarlyGamePickup,
+  recordEarlyGameProduction,
+} from '../games/scrap-factory/early-game-contract.js';
 import {
   STARTER_CONTRACT_GRANT,
   STARTER_CONTRACT_UNLOCK,
@@ -38,11 +46,13 @@ function baseExploration() {
       residential: {
         discoveredZones: [],
         returnedLootTotal: 0,
+        visits: 0,
         objective: { completed: false },
       },
       industrial: {
         discoveredZones: [],
         returnedLootTotal: 0,
+        visits: 0,
         objective: { completed: false, shortcutOpened: false },
       },
     },
@@ -64,6 +74,9 @@ function freshGame(rank = 1) {
       returned: false,
       processed: 0,
       automationComplete: false,
+      metalScrapCollected: 0,
+      crushedMetalAutoSold: 0,
+      ironIngotProduced: 0,
     },
     progression: { ...makeDefaultProgression(), progressionRank: rank },
     exploration: baseExploration(),
@@ -103,15 +116,27 @@ function ironLine(game) {
   assert.equal(result.enrollmentChanged, true);
   assert.equal(game.progression.unlocks.includes(EARLY_GAME_ONBOARDING_UNLOCK), true);
   assert.equal(result.tutorialChanged, true);
-  assert.equal(game.home.tutorial.basicStep, 3, 'fresh tutorial should begin at the Home exit instead of Bed / move / PC chores');
-  assert.deepEqual(game.home.tutorial.completedSteps, ['bed', 'move', 'pc']);
+  assert.equal(game.home.tutorial.basicStatus, 'skipped', 'Fresh Start V2 must replace the legacy 15-step tutorial instead of running both');
+  assert.equal(game.home.tutorial.skippedTutorials.includes('basic'), true);
+  const objective = earlyGameContractObjective(game);
+  assert.equal(objective.title, '01 SALVAGE');
+  assert.match(objective.progress, /CONTRACT 1 \/ 5/);
+  assert.match(objective.progress, /0 \/ 6/);
   assert.equal(game.money, 40);
 }
 
 {
   const game = freshGame();
+  applyEarlyGameRuntime(game);
   game.money = 88;
   game.home.tutorial.events.manualSale = true;
+  const earlySale = applyEarlyGameRuntime(game);
+  assert.equal(earlySale.grant.granted, false, 'FIRST PAY must not grant before SALVAGE is complete');
+
+  assert.equal(recordEarlyGamePickup(game, 'copper_wire', 4), 0);
+  assert.equal(recordEarlyGamePickup(game, 'metal_scrap', 8), EARLY_GAME_TARGETS.metalScrapCollected);
+  assert.equal(game.tutorialStats.metalScrapCollected, EARLY_GAME_TARGETS.metalScrapCollected, 'pickup telemetry should cap at the Contract target');
+
   const first = applyEarlyGameRuntime(game);
   assert.equal(first.grant.granted, true);
   assert.equal(game.money, 88 + STARTER_CONTRACT_GRANT);
@@ -133,6 +158,7 @@ function ironLine(game) {
   const result = applyEarlyGameRuntime(game);
   assert.equal(result.changed, false, 'legacy saves must not be rewritten by the fresh-start onboarding pass');
   assert.equal(game.money, 88);
+  assert.equal(earlyGameContractObjective(game), null);
 }
 
 {
@@ -150,14 +176,24 @@ function ironLine(game) {
   assert.equal(isBuildingUnlocked(game, 'seller'), false, 'fresh Rank 1 must use the permanent Starter Seller instead of buying another one');
   assert.equal(buildingUnlockState(game, 'seller').requiredRank, 2);
 
+  recordEarlyGamePickup(game, 'metal_scrap', 6);
+  game.home.tutorial.events.manualSale = true;
+  applyEarlyGameRuntime(game);
+
   let progress = rankProgress(game);
-  assert.equal(progress.mandatory.done, false, 'topology alone must not complete Rank 1 before the first automatic sale');
+  assert.equal(progress.mandatory.done, false, 'SALVAGE and FIRST PAY alone must not complete FACTORY ONLINE');
   assert.equal(progress.optionalRequired, 0);
 
-  game.home.tutorial.events.autoSale = true;
+  recordEarlyGameAutoSale(game, 'crushed_metal', 2);
+  progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'FACTORY ONLINE requires three automatic Crushed Metal sales');
+
+  recordEarlyGameAutoSale(game, 'crushed_metal', 1);
   progress = rankProgress(game);
   assert.equal(progress.mandatory.done, true);
-  assert.equal(progress.eligible, true, 'fresh Rank 1 should promote after the first automatic sale succeeds');
+  assert.equal(progress.eligible, true);
+  assert.equal(earlyGameContractObjective(game).title, '04 BASIC PRODUCTION');
+
   const result = claimRankUp(game);
   assert.equal(result.changed, true);
   assert.equal(game.progression.progressionRank, 2);
@@ -168,21 +204,55 @@ function ironLine(game) {
 {
   const game = ironLine(freshGame(2));
   applyEarlyGameRuntime(game);
-  const progress = rankProgress(game);
+  recordEarlyGameProduction(game, 'iron_ingot', 4);
+  let progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'BASIC PRODUCTION requires five produced Iron Ingots');
+
+  recordEarlyGameProduction(game, 'iron_ingot', 1);
+  assert.equal(game.tutorialStats.ironIngotProduced, EARLY_GAME_TARGETS.ironIngotProduced);
+  progress = rankProgress(game);
   assert.equal(progress.mandatory.done, true);
   assert.equal(progress.optionalRequired, 0);
   assert.equal(progress.eligible, true);
+  assert.equal(earlyGameContractObjective(game).title, '01 SALVAGE', 'Contracts remain ordered when a fixture skips earlier Contract evidence');
+
+  // A real Rank 2 save reached this point through Rank 1, so preserve that evidence
+  // before checking the Rank 2 -> 3 transition in isolation.
+  game.tutorialStats.metalScrapCollected = EARLY_GAME_TARGETS.metalScrapCollected;
+  game.tutorialStats.crushedMetalAutoSold = EARLY_GAME_TARGETS.crushedMetalAutoSold;
+  game.home.tutorial.events.manualSale = true;
+
   const result = claimRankUp(game);
   assert.equal(result.changed, true);
   assert.equal(game.progression.progressionRank, 3);
   assert.equal(game.progression.researchData, 2);
+  assert.equal(earlyGameContractObjective(game).title, '05 BEYOND THE YARD');
+}
+
+{
+  const game = ironLine(freshGame(2));
+  applyEarlyGameRuntime(game);
+  recordEarlyGamePickup(game, 'metal_scrap', 6);
+  game.home.tutorial.events.manualSale = true;
+  recordEarlyGameAutoSale(game, 'crushed_metal', 3);
+  recordEarlyGameProduction(game, 'iron_ingot', 5);
+  game.progression.progressionRank = 3;
+
+  let objective = earlyGameContractObjective(game);
+  assert.equal(objective.title, '05 BEYOND THE YARD');
+  assert.match(objective.progress, /TRANSPORT READY/);
+  assert.equal(earlyGameContractState(game).complete, false);
+
+  game.exploration.areas.residential.visits = 1;
+  assert.equal(earlyGameContractState(game).complete, true);
+  assert.equal(earlyGameContractObjective(game), null, 'five-contract onboarding ends when the Residential Area expedition begins');
 }
 
 {
   const game = freshGame(3);
   applyEarlyGameRuntime(game);
   game.exploration.areas.residential.objective.completed = true;
-  game.exploration.areas.residential.discoveredZones = ['entry', 'homes-a', 'homes-b'];
+  game.exploration.areas.residential.discoveredZones = ['entrance', 'row_houses', 'garage'];
   const progress = rankProgress(game);
   assert.equal(progress.mandatory.done, true);
   assert.equal(progress.optionalRequired, 1);
