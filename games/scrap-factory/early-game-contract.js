@@ -86,11 +86,13 @@ export function earlyGameTelemetry(game) {
 
 function contractDoneList(game) {
   const telemetry = earlyGameTelemetry(game);
+  const rank2Reached = telemetry.rank >= 2;
+  const rank3Reached = telemetry.rank >= 3;
   return [
-    telemetry.metalScrapCollected >= EARLY_GAME_TARGETS.metalScrapCollected,
-    telemetry.manualSale,
-    telemetry.autoCrushedLine && telemetry.crushedMetalAutoSold >= EARLY_GAME_TARGETS.crushedMetalAutoSold,
-    telemetry.autoIronLine && telemetry.ironIngotProduced >= EARLY_GAME_TARGETS.ironIngotProduced,
+    rank2Reached || telemetry.metalScrapCollected >= EARLY_GAME_TARGETS.metalScrapCollected,
+    rank2Reached || telemetry.manualSale,
+    rank2Reached || (telemetry.autoCrushedLine && telemetry.crushedMetalAutoSold >= EARLY_GAME_TARGETS.crushedMetalAutoSold),
+    rank3Reached || (telemetry.autoIronLine && telemetry.ironIngotProduced >= EARLY_GAME_TARGETS.ironIngotProduced),
     telemetry.residentialVisited,
   ];
 }
