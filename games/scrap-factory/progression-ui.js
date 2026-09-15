@@ -13,6 +13,7 @@ import './adaptive-ui.js';
 // left visible while the Fresh Contract surface is still waiting for the HUD stack.
 import './early-game-runtime.js';
 import './early-game-rank-runtime.js';
+import './early-game-hud-ownership.js';
 import './phase7-settings.js';
 import './pause-notification-ui.js';
 import './phase7-world-runtime.js';
