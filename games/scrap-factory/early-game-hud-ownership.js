@@ -14,15 +14,15 @@ const LEGACY_SELECTOR = ':scope > .objective-panel:not([data-early-contract-pane
 const LEGACY_EARLY_GOALS = Object.freeze({
   1: Object.freeze({
     title: 'Rank 2 — 最初の自動化',
-    body: 'Hopper → Crusher → Sellerの自動ラインを完成。さらに「累計売上$250 / Scrap 10個回収 / 粉砕5回 / Crusher 2台」のうち2つを達成し、P → RANKでRank 2へ。',
+    body: 'Hopper → Crusher → Sellerの自動ラインを完成。さらに「累計売上$250 / Scrap 10個回収 / 粉砕5回 / Crusher 2台」のうち2つを達成し、右上の「管理」→「RANK」からRank 2へ昇格。',
   }),
   2: Object.freeze({
     title: 'Rank 3 — 基本工場',
-    body: 'Crusher → Smelter → Sellerの鉄インゴット自動ラインを完成。さらに「累計売上$750 / 鉄インゴット発見 / 自作設備8台 / 粉砕10回」のうち2つを達成し、P → RANKでRank 3へ。',
+    body: 'Crusher → Smelter → Sellerの鉄インゴット自動ラインを完成。さらに「累計売上$750 / 鉄インゴット発見 / 自作設備8台 / 粉砕10回」のうち2つを達成し、右上の「管理」→「RANK」からRank 3へ昇格。',
   }),
   3: Object.freeze({
     title: 'Rank 4 — 廃住宅街を攻略',
-    body: '廃住宅街のMain Objectiveを完了し、追加条件を2つ達成する。P → RANKで達成状況と不足条件を確認できます。',
+    body: '廃住宅街のMain Objectiveを完了し、追加条件を2つ達成する。右上の「管理」→「RANK」で達成状況と不足条件を確認できます。',
   }),
 });
 
