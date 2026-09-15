@@ -11,6 +11,12 @@ export const EARLY_GAME_TARGETS = Object.freeze({
   ironIngotProduced: 5,
 });
 
+export const EARLY_GAME_HINT_THRESHOLDS = Object.freeze({
+  contextual: 30_000,
+  specific: 75_000,
+  guide: 120_000,
+});
+
 export const EARLY_GAME_CONTRACTS = Object.freeze([
   Object.freeze({ id: 'salvage', code: '01 SALVAGE' }),
   Object.freeze({ id: 'first-pay', code: '02 FIRST PAY' }),
@@ -130,6 +136,63 @@ function contractProgress(index, telemetry) {
   return 'CONTRACT 5 / 5 · TRANSPORT READY';
 }
 
+function hintsFor(index, telemetry) {
+  if (index === 0) return [
+    '黄色いSCRAP YARDゲートの先を探す。',
+    'ゲート直後に鉄くずがまとまっている。照準を合わせてEで回収。',
+    'Oでガイドを開けます。鉄くずだけ6個集めれば次へ進みます。',
+  ];
+  if (index === 1) return [
+    'Factory Baseへ戻り、固定のStarter Sellerを探す。',
+    'Starter Sellerへ照準を合わせてE。バッグ内の回収品を直接販売できます。',
+    'Oでガイドを開けます。追加Sellerを建てる必要はありません。',
+  ];
+  if (index === 2) return [
+    'BでConveyor / Crusherを設置して、Starter設備同士をつなぐ。',
+    '黄色い矢印を Hopper → Crusher → Starter Seller の方向へ揃える。',
+    'Oでガイドを開けます。必要順は Hopper → Conveyor → Crusher → Conveyor → Starter Seller。',
+  ];
+  if (index === 3) return [
+    'Rank 2で解放されたSmelterを既存ラインへ追加する。',
+    'Crusherの出力をSmelter入力へ、Smelterの出力をSeller / Storageへ接続する。',
+    'Oでガイドを開けます。Crusher → Smelter → Seller / Storageが完全につながっているか確認。',
+  ];
+  return telemetry.rank < 3
+    ? [
+      'BASIC PRODUCTIONを完成させてRank 3へ進む。',
+      'Rank Up条件はProgress画面で確認できます。',
+      'Oでガイドを開けます。まずIron Ingot生産条件を満たしてRank 3へ進みます。',
+    ]
+    : [
+      'TでTransport Terminalを開く。',
+      '廃住宅街を選び、出発操作を実行する。',
+      'Oでガイドを開けます。Transport Terminal → 廃住宅街 → 出発でFresh Start完了です。',
+    ];
+}
+
+export function earlyGameHintLevel(elapsedMs) {
+  const elapsed = Math.max(0, Number(elapsedMs || 0));
+  if (elapsed < EARLY_GAME_HINT_THRESHOLDS.contextual) return 0;
+  if (elapsed < EARLY_GAME_HINT_THRESHOLDS.specific) return 1;
+  if (elapsed < EARLY_GAME_HINT_THRESHOLDS.guide) return 2;
+  return 3;
+}
+
+export function earlyGameHintForElapsed(objective, elapsedMs) {
+  const level = earlyGameHintLevel(elapsedMs);
+  if (!objective || level === 0) return { level: 0, text: '' };
+  const hints = Array.isArray(objective.hints) ? objective.hints : [];
+  return {
+    level,
+    text: hints[Math.min(level - 1, hints.length - 1)] || '',
+  };
+}
+
+export function earlyGameObjectiveSignature(objective) {
+  if (!objective) return '';
+  return `${objective.id}|${objective.progress}`;
+}
+
 export function earlyGameContractObjective(game) {
   const state = earlyGameContractState(game);
   if (!state.active) return null;
@@ -139,33 +202,27 @@ export function earlyGameContractObjective(game) {
     id: `early-contract:${state.contract.id}`,
     title: state.contract.code,
     progress: contractProgress(index, telemetry),
+    hints: hintsFor(index, telemetry),
   };
 
   if (index === 0) return {
     ...base,
     body: 'Scrap Yardへ向かい、鉄くずを6個回収する。',
-    hint: '黄色いゲートの先へ進み、鉄くずへ照準を合わせてEで回収。',
   };
   if (index === 1) return {
     ...base,
     body: 'Factoryへ戻り、Starter Sellerで回収品を手動販売する。',
-    hint: '固定Sellerへ照準を合わせてE。最初の売却でFIRST PAY +$80。',
   };
   if (index === 2) return {
     ...base,
     body: 'Hopper → Conveyor → Crusher → Conveyor → Starter Sellerを接続し、Crushed Metalを3個自動販売する。',
-    hint: 'BでConveyor / Crusherを設置。黄色い矢印をSeller方向へ揃える。',
   };
   if (index === 3) return {
     ...base,
     body: 'Crusher → Smelter → Seller / Storageの完全自動ラインを作り、Iron Ingotを5個生産する。',
-    hint: 'Rank 2でSmelter解放。Crusherの出力をSmelter入力へ接続する。',
   };
   return {
     ...base,
     body: 'Research / Rank 3を進め、Transport Terminalから廃住宅街へ出発する。',
-    hint: telemetry.rank < 3
-      ? 'BASIC PRODUCTIONを完成させてRank 3へ進む。'
-      : 'TでTransport Terminalを開き、廃住宅街を選んで出発。',
   };
 }
