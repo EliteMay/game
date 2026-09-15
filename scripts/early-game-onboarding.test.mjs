@@ -1,0 +1,366 @@
+import assert from 'node:assert/strict';
+import {
+  buildingUnlockState,
+  claimRankUp,
+  isBuildingUnlocked,
+  makeDefaultProgression,
+  rankProgress,
+} from '../games/scrap-factory/progression.js';
+import { makeDefaultHomeState } from '../games/scrap-factory/home-system.js';
+import {
+  EARLY_GAME_HINT_THRESHOLDS,
+  EARLY_GAME_ONBOARDING_UNLOCK,
+  EARLY_GAME_TARGETS,
+  earlyGameContractObjective,
+  earlyGameContractState,
+  earlyGameHintForElapsed,
+  recordEarlyGameAutoSale,
+  recordEarlyGamePickup,
+  recordEarlyGameProduction,
+} from '../games/scrap-factory/early-game-contract.js';
+import {
+  STARTER_CONTRACT_GRANT,
+  STARTER_CONTRACT_UNLOCK,
+  STARTER_SALVAGE_POSITIONS,
+  applyEarlyGameRuntime,
+  createEarlyGameHintTracker,
+  instrumentEarlyGameTelemetry,
+  stageStarterSalvage,
+} from '../games/scrap-factory/early-game-runtime.js';
+
+function building(id, type, x, z, rotation = 0, permanent = false) {
+  return {
+    id,
+    type,
+    x,
+    z,
+    rotation,
+    permanent,
+    input: {},
+    output: {},
+    progress: 0,
+    powerFuelSeconds: 0,
+    powerStored: 0,
+    logisticsCursor: 0,
+  };
+}
+
+function baseExploration() {
+  return {
+    version: 1,
+    areas: {
+      residential: {
+        discoveredZones: [],
+        returnedLootTotal: 0,
+        visits: 0,
+        objective: { completed: false },
+      },
+      industrial: {
+        discoveredZones: [],
+        returnedLootTotal: 0,
+        visits: 0,
+        objective: { completed: false, shortcutOpened: false },
+      },
+    },
+    depot: {},
+    activeSession: null,
+  };
+}
+
+function freshGame(rank = 1) {
+  return {
+    money: 40,
+    lifetimeRevenue: 0,
+    sessionCount: 1,
+    inventory: {},
+    discoveredItems: ['metal_scrap'],
+    tutorialStats: {
+      movedToScrapyard: false,
+      collected: 0,
+      returned: false,
+      processed: 0,
+      automationComplete: false,
+      metalScrapCollected: 0,
+      crushedMetalAutoSold: 0,
+      ironIngotProduced: 0,
+    },
+    progression: { ...makeDefaultProgression(), progressionRank: rank },
+    exploration: baseExploration(),
+    home: makeDefaultHomeState({ existingSave: false }),
+    buildings: [],
+  };
+}
+
+function crushedLine(game) {
+  game.buildings = [
+    building('hopper', 'hopper', -5, 0, 0, true),
+    building('belt-a', 'conveyor', -2.5, 0),
+    building('crusher', 'crusher', 0, 0),
+    building('belt-b', 'conveyor', 2.5, 0),
+    building('seller', 'seller', 5, 0, Math.PI, true),
+  ];
+  return game;
+}
+
+function ironLine(game) {
+  game.buildings = [
+    building('hopper', 'hopper', -7.5, 0, 0, true),
+    building('belt-a', 'conveyor', -5, 0),
+    building('crusher', 'crusher', -2.5, 0),
+    building('belt-b', 'conveyor', 0, 0),
+    building('smelter', 'smelter', 2.5, 0),
+    building('belt-c', 'conveyor', 5, 0),
+    building('seller', 'seller', 7.5, 0, Math.PI, true),
+  ];
+  game.discoveredItems = ['metal_scrap', 'crushed_metal', 'iron_ingot'];
+  return game;
+}
+
+function scrapMesh(id, itemId, x = 50, z = 0) {
+  return {
+    userData: { entity: { kind: 'scrap', id, itemId } },
+    position: {
+      x,
+      y: 0.32,
+      z,
+      set(nextX, nextY, nextZ) {
+        this.x = nextX;
+        this.y = nextY;
+        this.z = nextZ;
+      },
+    },
+  };
+}
+
+{
+  const game = freshGame();
+  const result = applyEarlyGameRuntime(game);
+  assert.equal(result.enrollmentChanged, true);
+  assert.equal(game.progression.unlocks.includes(EARLY_GAME_ONBOARDING_UNLOCK), true);
+  assert.equal(result.tutorialChanged, true);
+  assert.equal(game.home.tutorial.basicStatus, 'skipped', 'Fresh Start V2 must replace the legacy 15-step tutorial instead of running both');
+  assert.equal(game.home.tutorial.skippedTutorials.includes('basic'), true);
+  const objective = earlyGameContractObjective(game);
+  assert.equal(objective.title, '01 SALVAGE');
+  assert.match(objective.progress, /CONTRACT 1 \/ 5/);
+  assert.match(objective.progress, /0 \/ 6/);
+  assert.equal(game.money, 40);
+
+  assert.deepEqual(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.contextual - 1), { level: 0, text: '' });
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.contextual).level, 1);
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.specific).level, 2);
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.guide).level, 3);
+
+  let now = 0;
+  const tracker = createEarlyGameHintTracker(() => now);
+  assert.equal(tracker.update(objective).level, 0, 'a new Contract must begin with no extra hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.contextual;
+  assert.equal(tracker.update(objective).level, 1, '30 seconds without progress should reveal the contextual hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.specific;
+  assert.equal(tracker.update(objective).level, 2, '75 seconds without progress should reveal the specific hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.guide;
+  const guideHint = tracker.update(objective);
+  assert.equal(guideHint.level, 3, '120 seconds without progress should reveal the Guide fallback');
+  assert.match(guideHint.text, /Oでガイド/);
+
+  recordEarlyGamePickup(game, 'metal_scrap', 1);
+  now += 1;
+  const progressedObjective = earlyGameContractObjective(game);
+  assert.match(progressedObjective.progress, /1 \/ 6/);
+  assert.equal(tracker.update(progressedObjective).level, 0, 'any visible Contract progress must reset the stall timer');
+  now += EARLY_GAME_HINT_THRESHOLDS.contextual;
+  assert.equal(tracker.update(progressedObjective).level, 1, 'the timer should start again from the latest progress');
+}
+
+{
+  const game = freshGame();
+  applyEarlyGameRuntime(game);
+  const meshes = new Map();
+  for (let index = 0; index < 10; index += 1) {
+    meshes.set(`metal-${index}`, scrapMesh(`metal-${index}`, 'metal_scrap', 50 + index, 10));
+  }
+  meshes.set('copper-1', scrapMesh('copper-1', 'copper_wire', 55, -10));
+  const world = { scrapMeshes: meshes };
+  const staged = stageStarterSalvage({ world }, game);
+  assert.equal(staged, EARLY_GAME_TARGETS.metalScrapCollected, 'Fresh SALVAGE should stage exactly the six required Metal Scrap items');
+
+  const stagedMeshes = [...meshes.values()].slice(0, EARLY_GAME_TARGETS.metalScrapCollected);
+  assert.deepEqual(
+    stagedMeshes.map((mesh) => ({ x: mesh.position.x, z: mesh.position.z })),
+    STARTER_SALVAGE_POSITIONS,
+    'staged Metal Scrap should sit in the reserved entrance strip just beyond the Scrap Yard gate',
+  );
+  assert.equal(meshes.get('copper-1').position.x, 55, 'non-Metal Scrap placement must remain untouched');
+  assert.equal(stageStarterSalvage({ world }, game), 0, 'starter salvage staging must be idempotent for the same world instance');
+
+  const legacy = freshGame();
+  legacy.home = makeDefaultHomeState({ existingSave: true });
+  const legacyWorld = { scrapMeshes: new Map([['metal', scrapMesh('metal', 'metal_scrap')]]) };
+  assert.equal(stageStarterSalvage({ world: legacyWorld }, legacy), 0, 'legacy saves must keep the original random Scrap Yard layout');
+}
+
+{
+  const game = ironLine(freshGame());
+  applyEarlyGameRuntime(game);
+  const runtime = {
+    world: { collectScrap: () => 'metal_scrap' },
+    getGame: () => game,
+  };
+  instrumentEarlyGameTelemetry(runtime, game);
+
+  for (let index = 0; index < 8; index += 1) runtime.world.collectScrap(`scrap-${index}`);
+  assert.equal(game.tutorialStats.metalScrapCollected, EARLY_GAME_TARGETS.metalScrapCollected, 'world pickup hook must count and cap Metal Scrap Contract progress');
+
+  for (let index = 0; index < 5; index += 1) game.home.tutorial.events.autoSale = true;
+  assert.equal(game.tutorialStats.crushedMetalAutoSold, EARLY_GAME_TARGETS.crushedMetalAutoSold, 'autoSale event hook must count and cap Crushed Metal sales');
+
+  const smelter = game.buildings.find((entry) => entry.type === 'smelter');
+  smelter.output.iron_ingot = 1;
+  smelter.output.iron_ingot = 2;
+  smelter.output.iron_ingot = 1;
+  smelter.output.iron_ingot = 5;
+  smelter.output.iron_ingot = 8;
+  assert.equal(game.tutorialStats.ironIngotProduced, EARLY_GAME_TARGETS.ironIngotProduced, 'smelter output hook must count production increases, ignore decreases, and cap the target');
+}
+
+{
+  const game = freshGame();
+  applyEarlyGameRuntime(game);
+  game.money = 88;
+  game.home.tutorial.events.manualSale = true;
+  const earlySale = applyEarlyGameRuntime(game);
+  assert.equal(earlySale.grant.granted, false, 'FIRST PAY must not grant before SALVAGE is complete');
+
+  assert.equal(recordEarlyGamePickup(game, 'copper_wire', 4), 0);
+  assert.equal(recordEarlyGamePickup(game, 'metal_scrap', 8), EARLY_GAME_TARGETS.metalScrapCollected);
+  assert.equal(game.tutorialStats.metalScrapCollected, EARLY_GAME_TARGETS.metalScrapCollected, 'pickup telemetry should cap at the Contract target');
+
+  const first = applyEarlyGameRuntime(game);
+  assert.equal(first.grant.granted, true);
+  assert.equal(game.money, 88 + STARTER_CONTRACT_GRANT);
+  assert.equal(game.progression.unlocks.includes(STARTER_CONTRACT_UNLOCK), true);
+  assert.equal(game.home.tutorial.rewardClaimed, true, 'FIRST PAY replaces the old +$50 tutorial completion reward');
+
+  game.sessionCount = 2;
+  const second = applyEarlyGameRuntime(game);
+  assert.equal(second.grant.granted, false);
+  assert.equal(game.money, 88 + STARTER_CONTRACT_GRANT, 'starter grant must be idempotent across reloads and repeated runtime checks');
+  assert.equal(isBuildingUnlocked(game, 'seller'), false, 'enrollment marker keeps V2 rules after reload');
+}
+
+{
+  const game = freshGame();
+  game.home = makeDefaultHomeState({ existingSave: true });
+  game.home.tutorial.events.manualSale = true;
+  game.money = 88;
+  const result = applyEarlyGameRuntime(game);
+  assert.equal(result.changed, false, 'legacy saves must not be rewritten by the fresh-start onboarding pass');
+  assert.equal(game.money, 88);
+  assert.equal(earlyGameContractObjective(game), null);
+}
+
+{
+  const game = freshGame();
+  game.sessionCount = 2;
+  const result = applyEarlyGameRuntime(game);
+  assert.equal(result.changed, false, 'an already-played Home-format save without the V2 marker must retain the legacy onboarding contract');
+  assert.equal(game.progression.unlocks.includes(EARLY_GAME_ONBOARDING_UNLOCK), false);
+  assert.equal(isBuildingUnlocked(game, 'seller'), true);
+}
+
+{
+  const game = crushedLine(freshGame(1));
+  applyEarlyGameRuntime(game);
+  assert.equal(isBuildingUnlocked(game, 'seller'), false, 'fresh Rank 1 must use the permanent Starter Seller instead of buying another one');
+  assert.equal(buildingUnlockState(game, 'seller').requiredRank, 2);
+
+  recordEarlyGamePickup(game, 'metal_scrap', 6);
+  game.home.tutorial.events.manualSale = true;
+  applyEarlyGameRuntime(game);
+
+  let progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'SALVAGE and FIRST PAY alone must not complete FACTORY ONLINE');
+  assert.equal(progress.optionalRequired, 0);
+
+  recordEarlyGameAutoSale(game, 'crushed_metal', 2);
+  progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'FACTORY ONLINE requires three automatic Crushed Metal sales');
+
+  recordEarlyGameAutoSale(game, 'crushed_metal', 1);
+  progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, true);
+  assert.equal(progress.eligible, true);
+  assert.equal(earlyGameContractObjective(game).title, '04 BASIC PRODUCTION');
+
+  const result = claimRankUp(game);
+  assert.equal(result.changed, true);
+  assert.equal(game.progression.progressionRank, 2);
+  assert.equal(game.progression.researchData, 1);
+  assert.equal(isBuildingUnlocked(game, 'seller'), true, 'Seller construction becomes available after Rank 2');
+}
+
+{
+  const game = ironLine(freshGame(2));
+  applyEarlyGameRuntime(game);
+  assert.equal(earlyGameContractObjective(game).title, '04 BASIC PRODUCTION', 'Rank 2 is historical evidence that Contracts 1-3 already completed');
+  recordEarlyGameProduction(game, 'iron_ingot', 4);
+  let progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, false, 'BASIC PRODUCTION requires five produced Iron Ingots');
+
+  recordEarlyGameProduction(game, 'iron_ingot', 1);
+  assert.equal(game.tutorialStats.ironIngotProduced, EARLY_GAME_TARGETS.ironIngotProduced);
+  progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, true);
+  assert.equal(progress.optionalRequired, 0);
+  assert.equal(progress.eligible, true);
+  assert.equal(earlyGameContractObjective(game).title, '05 BEYOND THE YARD');
+
+  const result = claimRankUp(game);
+  assert.equal(result.changed, true);
+  assert.equal(game.progression.progressionRank, 3);
+  assert.equal(game.progression.researchData, 2);
+  assert.equal(earlyGameContractObjective(game).title, '05 BEYOND THE YARD');
+}
+
+{
+  const game = ironLine(freshGame(2));
+  applyEarlyGameRuntime(game);
+  recordEarlyGamePickup(game, 'metal_scrap', 6);
+  game.home.tutorial.events.manualSale = true;
+  recordEarlyGameAutoSale(game, 'crushed_metal', 3);
+  recordEarlyGameProduction(game, 'iron_ingot', 5);
+  game.progression.progressionRank = 3;
+
+  let objective = earlyGameContractObjective(game);
+  assert.equal(objective.title, '05 BEYOND THE YARD');
+  assert.match(objective.progress, /TRANSPORT READY/);
+  assert.equal(earlyGameContractState(game).complete, false);
+
+  game.exploration.areas.residential.visits = 1;
+  assert.equal(earlyGameContractState(game).complete, true);
+  assert.equal(earlyGameContractObjective(game), null, 'five-contract onboarding ends when the Residential Area expedition begins');
+}
+
+{
+  const game = freshGame(3);
+  applyEarlyGameRuntime(game);
+  game.exploration.areas.residential.objective.completed = true;
+  game.exploration.areas.residential.discoveredZones = ['entrance', 'row_houses', 'garage'];
+  const progress = rankProgress(game);
+  assert.equal(progress.mandatory.done, true);
+  assert.equal(progress.optionalRequired, 1);
+  assert.equal(progress.optionalDone, 1);
+  assert.equal(progress.eligible, true, 'fresh Rank 3 should require only one supporting exploration objective');
+}
+
+{
+  const legacyFixture = crushedLine(freshGame(1));
+  delete legacyFixture.home;
+  legacyFixture.lifetimeRevenue = 250;
+  const progress = rankProgress(legacyFixture);
+  assert.equal(progress.optionalRequired, 2, 'fixtures without fresh-home state retain the legacy progression contract');
+  assert.equal(progress.eligible, false);
+  assert.equal(isBuildingUnlocked(legacyFixture, 'seller'), true, 'legacy Rank 1 keeps the original Seller build contract');
+}
+
+console.log('Early-game onboarding regression tests passed.');

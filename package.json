@@ -3,10 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "validate": "node scripts/validate.mjs && node scripts/phase6b.test.mjs && node scripts/phase6c.test.mjs && node scripts/final-phase.test.mjs && node scripts/home-system.test.mjs && node scripts/home-surface-ui.test.mjs && node scripts/post-clear-optimization.test.mjs && node scripts/reset-save.test.mjs && node scripts/adaptive-ui.test.mjs && node scripts/factory-management.test.mjs && node scripts/pause-notification-ui.test.mjs && node scripts/visual-language-ui.test.mjs && node scripts/phase7-settings.test.mjs && node scripts/phase7-visual.test.mjs && node scripts/runtime-integrity.test.mjs && node scripts/orbloom.test.mjs && node scripts/orbloom-onboarding.test.mjs && node scripts/farm-up.test.mjs",
+    "validate": "node scripts/validate.mjs && node scripts/early-game-onboarding.test.mjs && node scripts/early-game-upgrade-policy.test.mjs && node scripts/early-game-rank-auto.test.mjs && node scripts/phase6b.test.mjs && node scripts/phase6c.test.mjs && node scripts/final-phase.test.mjs && node scripts/home-system.test.mjs && node scripts/home-surface-ui.test.mjs && node scripts/post-clear-optimization.test.mjs && node scripts/reset-save.test.mjs && node scripts/adaptive-ui.test.mjs && node scripts/factory-management.test.mjs && node scripts/pause-notification-ui.test.mjs && node scripts/visual-language-ui.test.mjs && node scripts/phase7-settings.test.mjs && node scripts/phase7-visual.test.mjs && node scripts/runtime-integrity.test.mjs && node scripts/orbloom.test.mjs && node scripts/orbloom-onboarding.test.mjs && node scripts/farm-up.test.mjs",
     "test:logistics": "node scripts/logistics.test.mjs",
     "test:management": "node scripts/factory-management.test.mjs",
     "test:progression": "node scripts/progression.test.mjs",
+    "test:early-game": "node scripts/early-game-onboarding.test.mjs && node scripts/early-game-upgrade-policy.test.mjs && node scripts/early-game-rank-auto.test.mjs",
     "test:power": "node scripts/power.test.mjs",
     "test:storage": "node scripts/storage-capacity.test.mjs",
     "test:exploration": "node scripts/exploration.test.mjs",
