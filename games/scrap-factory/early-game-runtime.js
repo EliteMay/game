@@ -14,10 +14,19 @@ import {
 
 export const STARTER_CONTRACT_GRANT = 80;
 export const STARTER_CONTRACT_UNLOCK = 'grant:starter-contract-v2';
+export const STARTER_SALVAGE_POSITIONS = Object.freeze([
+  Object.freeze({ x: 29.2, z: -5.0 }),
+  Object.freeze({ x: 29.7, z: -3.0 }),
+  Object.freeze({ x: 29.2, z: -1.0 }),
+  Object.freeze({ x: 29.7, z: 1.0 }),
+  Object.freeze({ x: 29.2, z: 3.0 }),
+  Object.freeze({ x: 29.7, z: 5.0 }),
+]);
 
 const WORLD_PICKUP_HOOK = Symbol('early-game-pickup-hook');
 const AUTO_SALE_HOOK = Symbol('early-game-auto-sale-hook');
 const IRON_OUTPUT_HOOK = Symbol('early-game-iron-output-hook');
+const STARTER_SALVAGE_STAGE = Symbol('early-game-starter-salvage-stage');
 
 function progressionState(game) {
   game.progression ??= {};
@@ -102,6 +111,27 @@ export function applyEarlyGameRuntime(game) {
     tutorialChanged,
     grant,
   };
+}
+
+export function stageStarterSalvage(runtime, game) {
+  const world = runtime?.world;
+  if (!world || world[STARTER_SALVAGE_STAGE] || !hasEarlyGameEnrollment(game)) return 0;
+  const state = earlyGameContractState(game);
+  if (state.complete || state.index !== 0) return 0;
+
+  const remaining = Math.max(0, EARLY_GAME_TARGETS.metalScrapCollected - state.telemetry.metalScrapCollected);
+  if (remaining <= 0) return 0;
+
+  const metalScrapMeshes = [...(world.scrapMeshes?.values?.() || [])]
+    .filter((mesh) => mesh?.userData?.entity?.itemId === 'metal_scrap');
+  const count = Math.min(remaining, STARTER_SALVAGE_POSITIONS.length, metalScrapMeshes.length);
+  for (let index = 0; index < count; index += 1) {
+    const mesh = metalScrapMeshes[index];
+    const position = STARTER_SALVAGE_POSITIONS[index];
+    mesh.position.set(position.x, 0.32, position.z);
+  }
+  if (count > 0) Object.defineProperty(world, STARTER_SALVAGE_STAGE, { value: true });
+  return count;
 }
 
 function instrumentWorldPickup(runtime) {
@@ -262,6 +292,7 @@ function installEarlyGameRuntime() {
     if (!game) return;
 
     const result = applyEarlyGameRuntime(game);
+    stageStarterSalvage(runtime, game);
     instrumentEarlyGameTelemetry(runtime, game);
     renderContractSurfaces(game);
 
