@@ -20,6 +20,7 @@ import {
   STARTER_CONTRACT_GRANT,
   STARTER_CONTRACT_UNLOCK,
   applyEarlyGameRuntime,
+  instrumentEarlyGameTelemetry,
 } from '../games/scrap-factory/early-game-runtime.js';
 
 function building(id, type, x, z, rotation = 0, permanent = false) {
@@ -123,6 +124,30 @@ function ironLine(game) {
   assert.match(objective.progress, /CONTRACT 1 \/ 5/);
   assert.match(objective.progress, /0 \/ 6/);
   assert.equal(game.money, 40);
+}
+
+{
+  const game = ironLine(freshGame());
+  applyEarlyGameRuntime(game);
+  const runtime = {
+    world: { collectScrap: () => 'metal_scrap' },
+    getGame: () => game,
+  };
+  instrumentEarlyGameTelemetry(runtime, game);
+
+  for (let index = 0; index < 8; index += 1) runtime.world.collectScrap(`scrap-${index}`);
+  assert.equal(game.tutorialStats.metalScrapCollected, EARLY_GAME_TARGETS.metalScrapCollected, 'world pickup hook must count and cap Metal Scrap Contract progress');
+
+  for (let index = 0; index < 5; index += 1) game.home.tutorial.events.autoSale = true;
+  assert.equal(game.tutorialStats.crushedMetalAutoSold, EARLY_GAME_TARGETS.crushedMetalAutoSold, 'autoSale event hook must count and cap Crushed Metal sales');
+
+  const smelter = game.buildings.find((entry) => entry.type === 'smelter');
+  smelter.output.iron_ingot = 1;
+  smelter.output.iron_ingot = 2;
+  smelter.output.iron_ingot = 1;
+  smelter.output.iron_ingot = 5;
+  smelter.output.iron_ingot = 8;
+  assert.equal(game.tutorialStats.ironIngotProduced, EARLY_GAME_TARGETS.ironIngotProduced, 'smelter output hook must count production increases, ignore decreases, and cap the target');
 }
 
 {
