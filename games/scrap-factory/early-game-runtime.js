@@ -1,4 +1,4 @@
-import { ensureHomeState } from './home-system.js';
+import { ensureHomeState, PLAYER_UPGRADES } from './home-system.js';
 import {
   EARLY_GAME_ONBOARDING_UNLOCK,
   EARLY_GAME_TARGETS,
@@ -16,6 +16,12 @@ import {
 
 export const STARTER_CONTRACT_GRANT = 80;
 export const STARTER_CONTRACT_UNLOCK = 'grant:starter-contract-v2';
+export const RANK2_UPGRADE_NOTICE_UNLOCK = 'notice:rank2-player-upgrade-v2';
+export const FRESH_LOOT_SCANNER_POLICY = Object.freeze({
+  rank: 2,
+  cash: 100,
+  items: Object.freeze({ metal_scrap: 5 }),
+});
 export const STARTER_SALVAGE_POSITIONS = Object.freeze([
   Object.freeze({ x: 29.2, z: -5.0 }),
   Object.freeze({ x: 29.7, z: -3.0 }),
@@ -24,6 +30,12 @@ export const STARTER_SALVAGE_POSITIONS = Object.freeze([
   Object.freeze({ x: 29.2, z: 3.0 }),
   Object.freeze({ x: 29.7, z: 5.0 }),
 ]);
+
+const LEGACY_LOOT_SCANNER_POLICY = Object.freeze({
+  rank: 1,
+  cash: 80,
+  items: Object.freeze({ metal_scrap: 5, copper_wire: 2 }),
+});
 
 const WORLD_PICKUP_HOOK = Symbol('early-game-pickup-hook');
 const AUTO_SALE_HOOK = Symbol('early-game-auto-sale-hook');
@@ -51,6 +63,26 @@ function enrolledHome(game) {
   if (!hasEarlyGameEnrollment(game)) return null;
   const home = ensureHomeState(game);
   return home.introducedFromLegacy ? null : home;
+}
+
+function sameItems(left, right) {
+  const a = Object.entries(left || {}).sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
+  const b = Object.entries(right || {}).sort(([aKey], [bKey]) => aKey.localeCompare(bKey));
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+export function applyEarlyGamePlayerUpgradePolicy(game) {
+  const scanner = PLAYER_UPGRADES.loot_scanner_i;
+  if (!scanner) return false;
+  const policy = hasEarlyGameEnrollment(game) ? FRESH_LOOT_SCANNER_POLICY : LEGACY_LOOT_SCANNER_POLICY;
+  const changed = scanner.rank !== policy.rank
+    || scanner.cash !== policy.cash
+    || !sameItems(scanner.items, policy.items);
+  if (!changed) return false;
+  scanner.rank = policy.rank;
+  scanner.cash = policy.cash;
+  scanner.items = { ...policy.items };
+  return true;
 }
 
 export function streamlineFreshTutorial(game) {
@@ -103,15 +135,37 @@ export function applyStarterContractGrant(game) {
   return { changed: true, granted: true, amount: STARTER_CONTRACT_GRANT };
 }
 
+export function applyRank2PlayerUpgradeNotice(game) {
+  const home = enrolledHome(game);
+  if (!home || Number(game?.progression?.progressionRank || 1) < 2) {
+    return { changed: false, notified: false };
+  }
+  if (home.upgrades.includes('loot_scanner_i')) return { changed: false, notified: false };
+
+  const progression = progressionState(game);
+  if (progression.unlocks.includes(RANK2_UPGRADE_NOTICE_UNLOCK)) {
+    return { changed: false, notified: false };
+  }
+  progression.unlocks.push(RANK2_UPGRADE_NOTICE_UNLOCK);
+  progression.history = Array.isArray(progression.history) ? progression.history : [];
+  progression.history.push({ type: 'player-upgrade-notice', id: 'loot_scanner_i', rank: 2, at: new Date().toISOString() });
+  progression.history = progression.history.slice(-100);
+  return { changed: true, notified: true };
+}
+
 export function applyEarlyGameRuntime(game) {
   const enrollmentChanged = enrollEarlyGame(game);
+  const upgradePolicyChanged = applyEarlyGamePlayerUpgradePolicy(game);
   const tutorialChanged = streamlineFreshTutorial(game);
   const grant = applyStarterContractGrant(game);
+  const rank2Notice = applyRank2PlayerUpgradeNotice(game);
   return {
-    changed: enrollmentChanged || tutorialChanged || grant.changed,
+    changed: enrollmentChanged || tutorialChanged || grant.changed || rank2Notice.changed,
     enrollmentChanged,
+    upgradePolicyChanged,
     tutorialChanged,
     grant,
+    rank2Notice,
   };
 }
 
@@ -334,6 +388,9 @@ function installEarlyGameRuntime() {
       runtime.renderAll?.();
       if (result.grant.granted) {
         runtime.toast?.(`FIRST PAY 契約完了 +$${result.grant.amount}`, 'success');
+      }
+      if (result.rank2Notice.notified) {
+        runtime.toast?.('HOME PC — 新しいPlayer Upgrade「Loot Scanner I」が利用可能です', 'objective');
       }
     }
 
