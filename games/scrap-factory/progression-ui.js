@@ -8,6 +8,7 @@ import './home-surface-ui.js';
 import './post-clear-optimization-ui.js';
 import './hud-objective-ownership.js';
 import './adaptive-ui.js';
+import './overlay-carrier-runtime.js';
 // Fresh Contract must attach after the adaptive HUD has established the visible
 // objective owner. Otherwise the legacy generic "Rank N Main Objective" can be
 // left visible while the Fresh Contract surface is still waiting for the HUD stack.
