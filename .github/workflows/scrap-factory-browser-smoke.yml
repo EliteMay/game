@@ -1,0 +1,45 @@
+name: Scrap Factory Browser Smoke
+
+on:
+  pull_request:
+    paths:
+      - 'games/scrap-factory/**'
+      - 'scripts/scrap-factory-browser-smoke.mjs'
+      - '.github/workflows/scrap-factory-browser-smoke.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  chromium-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: npm install --no-save --package-lock=false playwright@1.55.0
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start static server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/scrap-factory-http.log 2>&1 &
+          for i in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:4173/games/scrap-factory/ > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/scrap-factory-http.log
+          exit 1
+      - name: Run browser smoke
+        run: node scripts/scrap-factory-browser-smoke.mjs
+      - name: Upload smoke screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrap-factory-browser-smoke
+          path: artifacts/browser-smoke/
+          if-no-files-found: ignore
