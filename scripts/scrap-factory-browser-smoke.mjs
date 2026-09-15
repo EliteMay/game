@@ -71,20 +71,27 @@ try {
   await page.waitForSelector('#hud:not([hidden])', { timeout: 5_000 });
   await page.waitForTimeout(750);
 
-  const started = await page.evaluate(() => ({
-    bootHidden: document.querySelector('#boot-screen')?.hidden,
-    hudHidden: document.querySelector('#hud')?.hidden,
-    cash: document.querySelector('#money-value')?.textContent,
-    contractTitle: document.querySelector('[data-early-contract-title]')?.textContent,
-    contractProgress: document.querySelector('[data-early-contract-progress]')?.textContent,
-    failedBoot: document.querySelector('#boot-status')?.textContent?.includes('FAILED') || false,
-  }));
+  const started = await page.evaluate(() => {
+    const contractBody = document.querySelector('[data-early-contract-body]');
+    return {
+      bootHidden: document.querySelector('#boot-screen')?.hidden,
+      hudHidden: document.querySelector('#hud')?.hidden,
+      cash: document.querySelector('#money-value')?.textContent,
+      contractTitle: document.querySelector('[data-early-contract-title]')?.textContent,
+      contractProgress: document.querySelector('[data-early-contract-progress]')?.textContent,
+      contractBody: contractBody?.textContent || '',
+      contractBodyVisible: Boolean(contractBody && getComputedStyle(contractBody).display !== 'none' && contractBody.getBoundingClientRect().height > 0),
+      failedBoot: document.querySelector('#boot-status')?.textContent?.includes('FAILED') || false,
+    };
+  });
 
   assert.equal(started.bootHidden, true, 'Boot screen should close after starting');
   assert.equal(started.hudHidden, false, 'HUD should become visible after starting');
   assert.equal(started.cash, '$40', 'HUD should show the Fresh Start cash');
   assert.equal(started.contractTitle, '01 SALVAGE');
   assert.match(started.contractProgress, /0 \/ 6/);
+  assert.match(started.contractBody, /Scrap Yard.*鉄くず.*6個/, 'Fresh Contract should state the next action');
+  assert.equal(started.contractBodyVisible, true, 'Fresh Contract action text should remain visible in the adaptive HUD');
   assert.equal(started.failedBoot, false, 'Boot failure fallback must not trigger');
 
   await page.screenshot({ path: `${outputDir}/fresh-start-1440.png`, fullPage: true });
