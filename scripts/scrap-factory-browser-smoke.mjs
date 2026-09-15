@@ -135,6 +135,39 @@ try {
 
   await page.screenshot({ path: `${outputDir}/rank2-objective-1440.png`, fullPage: true });
 
+  // Existing saves intentionally remain on the legacy progression contract.
+  // Reproduce the user's Rank 1 save by removing the Fresh enrollment marker.
+  // The fallback HUD must still explain exactly how to reach Rank 2.
+  await page.evaluate(() => {
+    const game = window.__scrapFactoryRuntime.getGame();
+    game.progression.progressionRank = 1;
+    game.sessionCount = Math.max(2, Number(game.sessionCount || 0));
+    game.progression.unlocks = (game.progression.unlocks || [])
+      .filter((id) => id !== 'onboarding:early-game-v2');
+  });
+
+  await page.waitForFunction(() => !document.querySelector('[data-early-contract-panel]'), null, { timeout: 5_000 });
+  await page.waitForFunction(() => document.querySelector('#tutorial-title')?.textContent === 'Rank 2 — 最初の自動化', null, { timeout: 5_000 });
+
+  const legacyRank1 = await page.evaluate(() => {
+    const panel = document.querySelector('.objective-panel:not([data-early-contract-panel])');
+    const body = panel?.querySelector('#tutorial-body');
+    return {
+      hidden: Boolean(panel?.hidden),
+      title: panel?.querySelector('#tutorial-title')?.textContent || '',
+      body: body?.textContent || '',
+      bodyVisible: Boolean(body && getComputedStyle(body).display !== 'none' && body.getBoundingClientRect().height > 0),
+    };
+  });
+
+  assert.equal(legacyRank1.hidden, false, 'Legacy Main Goal must remain visible when Fresh Contract is not active');
+  assert.equal(legacyRank1.title, 'Rank 2 — 最初の自動化');
+  assert.match(legacyRank1.body, /Hopper.*Crusher.*Seller/);
+  assert.match(legacyRank1.body, /P → RANK/);
+  assert.equal(legacyRank1.bodyVisible, true, 'Existing Rank 1 saves must show the concrete Rank 2 instructions without opening another panel');
+
+  await page.screenshot({ path: `${outputDir}/legacy-rank1-objective-1440.png`, fullPage: true });
+
   assert.deepEqual(consoleErrors, [], `Browser console errors:\n${consoleErrors.join('\n')}`);
   console.log('Scrap Factory browser smoke passed.');
 } finally {
