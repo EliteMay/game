@@ -163,7 +163,7 @@ try {
   assert.equal(legacyRank1.hidden, false, 'Legacy Main Goal must remain visible when Fresh Contract is not active');
   assert.equal(legacyRank1.title, 'Rank 2 — 最初の自動化');
   assert.match(legacyRank1.body, /Hopper.*Crusher.*Seller/);
-  assert.match(legacyRank1.body, /P → RANK/);
+  assert.match(legacyRank1.body, /管理.*RANK/);
   assert.equal(legacyRank1.bodyVisible, true, 'Existing Rank 1 saves must show the concrete Rank 2 instructions without opening another panel');
 
   await page.screenshot({ path: `${outputDir}/legacy-rank1-objective-1440.png`, fullPage: true });
