@@ -96,6 +96,42 @@ try {
 
   await page.screenshot({ path: `${outputDir}/fresh-start-1440.png`, fullPage: true });
 
+  // Reproduce the Rank 2 state that previously fell back to the generic
+  // "Rank 2 Main Objective" card. The visible owner must remain the Fresh
+  // Contract and tell the player exactly what to build and produce next.
+  await page.evaluate(() => {
+    const game = window.__scrapFactoryRuntime.getGame();
+    game.progression.progressionRank = 2;
+    game.tutorialStats.metalScrapCollected = 6;
+    game.tutorialStats.crushedMetalAutoSold = 3;
+    game.home.tutorial.events.manualSale = true;
+  });
+
+  await page.waitForFunction(() => (
+    document.querySelector('[data-early-contract-title]')?.textContent === '04 BASIC PRODUCTION'
+  ), null, { timeout: 5_000 });
+
+  const rank2 = await page.evaluate(() => {
+    const contract = document.querySelector('[data-early-contract-panel]');
+    const original = document.querySelector('.objective-panel:not([data-early-contract-panel])');
+    const body = contract?.querySelector('[data-early-contract-body]');
+    return {
+      title: contract?.querySelector('[data-early-contract-title]')?.textContent || '',
+      progress: contract?.querySelector('[data-early-contract-progress]')?.textContent || '',
+      body: body?.textContent || '',
+      bodyVisible: Boolean(body && getComputedStyle(body).display !== 'none' && body.getBoundingClientRect().height > 0),
+      legacyObjectiveHidden: Boolean(original?.hidden),
+    };
+  });
+
+  assert.equal(rank2.title, '04 BASIC PRODUCTION', 'Rank 2 must keep the Fresh Contract as the visible main goal');
+  assert.match(rank2.progress, /CONTRACT 4 \/ 5/);
+  assert.match(rank2.body, /Crusher.*Smelter.*Seller \/ Storage.*Iron Ingot.*5個/, 'Rank 2 HUD must explain the concrete production task');
+  assert.equal(rank2.bodyVisible, true, 'Rank 2 action text must be visible without opening another menu');
+  assert.equal(rank2.legacyObjectiveHidden, true, 'The generic legacy Main Goal must stay hidden while Fresh Contract is active');
+
+  await page.screenshot({ path: `${outputDir}/rank2-objective-1440.png`, fullPage: true });
+
   assert.deepEqual(consoleErrors, [], `Browser console errors:\n${consoleErrors.join('\n')}`);
   console.log('Scrap Factory browser smoke passed.');
 } finally {
