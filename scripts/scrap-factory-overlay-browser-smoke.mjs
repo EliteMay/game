@@ -61,15 +61,21 @@ try {
   await page.waitForFunction(() => document.pointerLockElement === document.querySelector('#game-canvas'), null, { timeout: 5_000 });
 
   await page.keyboard.press('p');
-  await page.waitForFunction(() => document.querySelector('#factory-management-panel')?.hidden === false, null, { timeout: 5_000 });
+  await page.waitForTimeout(400);
 
   const factoryOpen = await page.evaluate(() => ({
     factoryVisible: document.querySelector('#factory-management-panel')?.hidden === false,
     pauseHidden: document.querySelector('#pause-panel')?.hidden === true,
     guideHidden: document.querySelector('#guide-panel')?.hidden === true,
+    progressionHidden: document.querySelector('#progression-panel')?.hidden !== false,
+    pointerLocked: document.pointerLockElement === document.querySelector('#game-canvas'),
+    visibleOverlays: [...document.querySelectorAll('.overlay-panel, .factory-management-panel, .progression-panel')]
+      .filter((panel) => !panel.hidden)
+      .map((panel) => panel.id || panel.className),
   }));
 
-  assert.equal(factoryOpen.factoryVisible, true, 'P must open Factory Management');
+  console.log('P shortcut state:', JSON.stringify(factoryOpen));
+  assert.equal(factoryOpen.factoryVisible, true, `P must open Factory Management: ${JSON.stringify(factoryOpen)}`);
   assert.equal(factoryOpen.pauseHidden, true, 'P must not open Pause while Factory Management is opening');
   assert.equal(factoryOpen.guideHidden, true, 'The hidden Guide carrier must not become visible');
 
