@@ -1,41 +1,24 @@
-// External HUD panels reuse the base Guide overlay as their pointer-lock carrier.
-// When those panels intentionally release Pointer Lock, that unlock must not be
-// interpreted as an accidental Escape/pause event by the base game runtime.
+// Base panels and external HUD panels intentionally release Pointer Lock before
+// showing a mouse-driven surface. That programmatic unlock must not be mistaken
+// for the user's Escape action, which is what opens the Pause screen.
 
-const EXTERNAL_OVERLAY_OPENERS = [
-  '#factory-management-hud',
-  '#progression-hud',
-  '#automation-hud',
-].join(',');
 const SUPPRESS_WINDOW_MS = 1200;
 
 const state = {
-  runtime: null,
   suppressUnlockUntil: 0,
   installed: false,
 };
 
-function armIntentionalUnlock() {
-  const world = state.runtime?.world;
-  if (!world?.canvas || document.pointerLockElement !== world.canvas) return;
-  state.suppressUnlockUntil = performance.now() + SUPPRESS_WINDOW_MS;
-}
-
-function openerFromEvent(event) {
-  return event.target instanceof Element
-    ? event.target.closest(EXTERNAL_OVERLAY_OPENERS)
-    : null;
-}
-
-function bindOpenIntent() {
-  document.addEventListener('keydown', (event) => {
-    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey) return;
-    if (event.code === 'KeyP') armIntentionalUnlock();
-  }, true);
-
-  document.addEventListener('click', (event) => {
-    if (openerFromEvent(event)) armIntentionalUnlock();
-  }, true);
+function wrapProgrammaticUnlock(world) {
+  if (typeof world.unlockPointer !== 'function') return false;
+  const originalUnlock = world.unlockPointer.bind(world);
+  world.unlockPointer = (...args) => {
+    if (document.pointerLockElement === world.canvas) {
+      state.suppressUnlockUntil = performance.now() + SUPPRESS_WINDOW_MS;
+    }
+    return originalUnlock(...args);
+  };
+  return true;
 }
 
 function wrapPointerLockCallback(world) {
@@ -55,16 +38,13 @@ function wrapPointerLockCallback(world) {
 
 function install() {
   if (state.installed) return true;
-  const runtime = window.__scrapFactoryRuntime;
-  const world = runtime?.world;
-  if (!runtime || !world?.callbacks) return false;
+  const world = window.__scrapFactoryRuntime?.world;
+  if (!world?.callbacks) return false;
 
-  if (!wrapPointerLockCallback(world)) return false;
-  state.runtime = runtime;
+  if (!wrapProgrammaticUnlock(world) || !wrapPointerLockCallback(world)) return false;
   state.installed = true;
-  bindOpenIntent();
   world.userData ??= {};
-  world.userData.overlayCarrierRuntime = { mode: 'intentional-pointer-unlock-guard' };
+  world.userData.overlayCarrierRuntime = { mode: 'programmatic-pointer-unlock-guard' };
   return true;
 }
 
