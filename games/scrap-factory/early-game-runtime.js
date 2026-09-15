@@ -4,6 +4,8 @@ import {
   EARLY_GAME_TARGETS,
   earlyGameContractObjective,
   earlyGameContractState,
+  earlyGameHintForElapsed,
+  earlyGameObjectiveSignature,
   earlyGameTelemetry,
   hasEarlyGameEnrollment,
   qualifiesForEarlyGameEnrollment,
@@ -191,6 +193,22 @@ export function instrumentEarlyGameTelemetry(runtime, game) {
   for (const building of game.buildings || []) instrumentSmelterOutput(game, building);
 }
 
+export function createEarlyGameHintTracker(now = () => Date.now()) {
+  let signature = null;
+  let stalledSince = null;
+  return {
+    update(objective) {
+      const currentSignature = earlyGameObjectiveSignature(objective);
+      const timestamp = Number(now());
+      if (currentSignature !== signature || stalledSince === null) {
+        signature = currentSignature;
+        stalledSince = timestamp;
+      }
+      return earlyGameHintForElapsed(objective, Math.max(0, timestamp - stalledSince));
+    },
+  };
+}
+
 function originalObjectivePanel() {
   return document.querySelector('.objective-panel:not([data-early-contract-panel])');
 }
@@ -214,6 +232,7 @@ function ensureContractHudPanel() {
       </div>
       <h2 data-early-contract-title></h2>
       <p data-early-contract-body></p>
+      <p class="home-hint" data-early-contract-hint hidden></p>
     `;
     original.insertAdjacentElement('afterend', panel);
   }
@@ -221,11 +240,24 @@ function ensureContractHudPanel() {
   return panel;
 }
 
-function updateHomeContractSurface(objective) {
+function setHintContent(node, help) {
+  if (!node) return;
+  if (!help?.text) {
+    node.hidden = true;
+    node.replaceChildren();
+    return;
+  }
+  node.hidden = false;
+  const strong = document.createElement('strong');
+  strong.textContent = `HINT ${help.level} / 3`;
+  node.replaceChildren(strong, document.createTextNode(` ${help.text}`));
+}
+
+function updateHomeContractSurface(objective, help) {
   const content = document.querySelector('#home-system-content');
   if (!content) return;
   const label = [...content.querySelectorAll('.home-section__head span')]
-    .find((node) => node.textContent?.trim() === 'CURRENT / NEXT GOAL');
+    .find((node) => node.textContent?.trim() === 'CURRENT / NEXT GOAL' || node.textContent?.trim() === 'FRESH START CONTRACT');
   const section = label?.closest('.home-section');
   if (!section) return;
 
@@ -237,11 +269,7 @@ function updateHomeContractSurface(objective) {
   if (title) title.textContent = `${objective.kind}: ${objective.title}`;
   if (progress) progress.textContent = objective.progress;
   if (body) body.textContent = objective.body;
-  if (hint) {
-    const strong = document.createElement('strong');
-    strong.textContent = 'HINT';
-    hint.replaceChildren(strong, document.createTextNode(` ${objective.hint}`));
-  }
+  setHintContent(hint, help);
 
   section.querySelectorAll('[data-restart-basic], [data-skip-basic]').forEach((button) => { button.hidden = true; });
 }
@@ -253,7 +281,7 @@ function cleanupContractSurfaces() {
   document.querySelectorAll('[data-restart-basic], [data-skip-basic]').forEach((button) => { button.hidden = false; });
 }
 
-function renderContractSurfaces(game) {
+function renderContractSurfaces(game, help) {
   const objective = earlyGameContractObjective(game);
   if (!objective) {
     cleanupContractSurfaces();
@@ -265,11 +293,13 @@ function renderContractSurfaces(game) {
     const progress = panel.querySelector('[data-early-contract-progress]');
     const title = panel.querySelector('[data-early-contract-title]');
     const body = panel.querySelector('[data-early-contract-body]');
+    const hint = panel.querySelector('[data-early-contract-hint]');
     if (progress) progress.textContent = objective.progress;
     if (title) title.textContent = objective.title;
     if (body) body.textContent = objective.body;
+    setHintContent(hint, help);
   }
-  updateHomeContractSurface(objective);
+  updateHomeContractSurface(objective, help);
 }
 
 function shouldKeepWatching(game) {
@@ -279,6 +309,7 @@ function shouldKeepWatching(game) {
 
 function installEarlyGameRuntime() {
   let timer = null;
+  const hintTracker = createEarlyGameHintTracker();
 
   const stop = () => {
     if (!timer) return;
@@ -294,7 +325,9 @@ function installEarlyGameRuntime() {
     const result = applyEarlyGameRuntime(game);
     stageStarterSalvage(runtime, game);
     instrumentEarlyGameTelemetry(runtime, game);
-    renderContractSurfaces(game);
+    const objective = earlyGameContractObjective(game);
+    const help = hintTracker.update(objective);
+    renderContractSurfaces(game, help);
 
     if (result.changed) {
       runtime.persist?.('序盤オンボーディング更新');
