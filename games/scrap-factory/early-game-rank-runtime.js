@@ -31,7 +31,7 @@ export function advanceFreshEarlyRank(game) {
 
 function rankUpMessage(rank) {
   if (rank === 2) return 'FACTORY RANK 2 — Smelter / Storage / Seller建築を解放';
-  if (rank === 3) return 'FACTORY RANK 3 — 廃住宅街への探索ルートを解放';
+  if (rank === 3) return 'FACTORY RANK 3 — 廃住宅街を解放。以降のRank条件は「管理 → RANK」で確認';
   return `FACTORY RANK ${rank}`;
 }
 
