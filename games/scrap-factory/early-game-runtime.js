@@ -263,6 +263,21 @@ export function createEarlyGameHintTracker(now = () => Date.now()) {
   };
 }
 
+function ensureEarlyContractPresentation() {
+  if (document.querySelector('style[data-early-contract-style]')) return;
+  const style = document.createElement('style');
+  style.dataset.earlyContractStyle = 'true';
+  style.textContent = `
+    .hud-context-stack .objective-panel[data-early-contract-panel] [data-early-contract-body] {
+      display: block;
+    }
+    .hud-context-stack .objective-panel[data-early-contract-panel] [data-early-contract-hint]:not([hidden]) {
+      display: block;
+    }
+  `;
+  document.head.append(style);
+}
+
 function originalObjectivePanel() {
   return document.querySelector('.objective-panel:not([data-early-contract-panel])');
 }
@@ -271,6 +286,8 @@ function ensureContractHudPanel() {
   const stack = document.querySelector('[data-hud-context-stack]');
   const original = originalObjectivePanel();
   if (!stack || !original) return null;
+
+  ensureEarlyContractPresentation();
 
   let panel = document.querySelector('[data-early-contract-panel]');
   if (!panel) {
