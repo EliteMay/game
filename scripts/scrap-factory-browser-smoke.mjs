@@ -73,6 +73,7 @@ try {
 
   const started = await page.evaluate(() => {
     const contractBody = document.querySelector('[data-early-contract-body]');
+    const legacyObjective = document.querySelector('.objective-panel:not([data-early-contract-panel])');
     return {
       bootHidden: document.querySelector('#boot-screen')?.hidden,
       hudHidden: document.querySelector('#hud')?.hidden,
@@ -81,6 +82,7 @@ try {
       contractProgress: document.querySelector('[data-early-contract-progress]')?.textContent,
       contractBody: contractBody?.textContent || '',
       contractBodyVisible: Boolean(contractBody && getComputedStyle(contractBody).display !== 'none' && contractBody.getBoundingClientRect().height > 0),
+      legacyObjectiveHidden: Boolean(legacyObjective?.hidden),
       failedBoot: document.querySelector('#boot-status')?.textContent?.includes('FAILED') || false,
     };
   });
@@ -92,6 +94,7 @@ try {
   assert.match(started.contractProgress, /0 \/ 6/);
   assert.match(started.contractBody, /Scrap Yard.*鉄くず.*6個/, 'Fresh Contract should state the next action');
   assert.equal(started.contractBodyVisible, true, 'Fresh Contract action text should remain visible in the adaptive HUD');
+  assert.equal(started.legacyObjectiveHidden, true, 'Generic Main Goal must not compete with the Fresh Contract');
   assert.equal(started.failedBoot, false, 'Boot failure fallback must not trigger');
 
   await page.screenshot({ path: `${outputDir}/fresh-start-1440.png`, fullPage: true });
