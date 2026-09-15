@@ -1,4 +1,4 @@
-import { advanceHomeTutorial, ensureHomeState } from './home-system.js';
+import { ensureHomeState } from './home-system.js';
 import {
   EARLY_GAME_ONBOARDING_UNLOCK,
   EARLY_GAME_TARGETS,
@@ -154,7 +154,7 @@ function instrumentSmelterOutput(game, building) {
   Object.defineProperty(output, IRON_OUTPUT_HOOK, { value: true, configurable: true });
 }
 
-function instrumentTelemetry(runtime, game) {
+export function instrumentEarlyGameTelemetry(runtime, game) {
   if (!hasEarlyGameEnrollment(game)) return;
   instrumentWorldPickup(runtime);
   instrumentAutoSale(game);
@@ -262,7 +262,7 @@ function installEarlyGameRuntime() {
     if (!game) return;
 
     const result = applyEarlyGameRuntime(game);
-    instrumentTelemetry(runtime, game);
+    instrumentEarlyGameTelemetry(runtime, game);
     renderContractSurfaces(game);
 
     if (result.changed) {
