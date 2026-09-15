@@ -8,10 +8,12 @@ import {
 } from '../games/scrap-factory/progression.js';
 import { makeDefaultHomeState } from '../games/scrap-factory/home-system.js';
 import {
+  EARLY_GAME_HINT_THRESHOLDS,
   EARLY_GAME_ONBOARDING_UNLOCK,
   EARLY_GAME_TARGETS,
   earlyGameContractObjective,
   earlyGameContractState,
+  earlyGameHintForElapsed,
   recordEarlyGameAutoSale,
   recordEarlyGamePickup,
   recordEarlyGameProduction,
@@ -21,6 +23,7 @@ import {
   STARTER_CONTRACT_UNLOCK,
   STARTER_SALVAGE_POSITIONS,
   applyEarlyGameRuntime,
+  createEarlyGameHintTracker,
   instrumentEarlyGameTelemetry,
   stageStarterSalvage,
 } from '../games/scrap-factory/early-game-runtime.js';
@@ -142,6 +145,31 @@ function scrapMesh(id, itemId, x = 50, z = 0) {
   assert.match(objective.progress, /CONTRACT 1 \/ 5/);
   assert.match(objective.progress, /0 \/ 6/);
   assert.equal(game.money, 40);
+
+  assert.deepEqual(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.contextual - 1), { level: 0, text: '' });
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.contextual).level, 1);
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.specific).level, 2);
+  assert.equal(earlyGameHintForElapsed(objective, EARLY_GAME_HINT_THRESHOLDS.guide).level, 3);
+
+  let now = 0;
+  const tracker = createEarlyGameHintTracker(() => now);
+  assert.equal(tracker.update(objective).level, 0, 'a new Contract must begin with no extra hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.contextual;
+  assert.equal(tracker.update(objective).level, 1, '30 seconds without progress should reveal the contextual hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.specific;
+  assert.equal(tracker.update(objective).level, 2, '75 seconds without progress should reveal the specific hint');
+  now = EARLY_GAME_HINT_THRESHOLDS.guide;
+  const guideHint = tracker.update(objective);
+  assert.equal(guideHint.level, 3, '120 seconds without progress should reveal the Guide fallback');
+  assert.match(guideHint.text, /Oでガイド/);
+
+  recordEarlyGamePickup(game, 'metal_scrap', 1);
+  now += 1;
+  const progressedObjective = earlyGameContractObjective(game);
+  assert.match(progressedObjective.progress, /1 \/ 6/);
+  assert.equal(tracker.update(progressedObjective).level, 0, 'any visible Contract progress must reset the stall timer');
+  now += EARLY_GAME_HINT_THRESHOLDS.contextual;
+  assert.equal(tracker.update(progressedObjective).level, 1, 'the timer should start again from the latest progress');
 }
 
 {
