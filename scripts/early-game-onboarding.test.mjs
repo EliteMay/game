@@ -19,8 +19,10 @@ import {
 import {
   STARTER_CONTRACT_GRANT,
   STARTER_CONTRACT_UNLOCK,
+  STARTER_SALVAGE_POSITIONS,
   applyEarlyGameRuntime,
   instrumentEarlyGameTelemetry,
+  stageStarterSalvage,
 } from '../games/scrap-factory/early-game-runtime.js';
 
 function building(id, type, x, z, rotation = 0, permanent = false) {
@@ -111,6 +113,22 @@ function ironLine(game) {
   return game;
 }
 
+function scrapMesh(id, itemId, x = 50, z = 0) {
+  return {
+    userData: { entity: { kind: 'scrap', id, itemId } },
+    position: {
+      x,
+      y: 0.32,
+      z,
+      set(nextX, nextY, nextZ) {
+        this.x = nextX;
+        this.y = nextY;
+        this.z = nextZ;
+      },
+    },
+  };
+}
+
 {
   const game = freshGame();
   const result = applyEarlyGameRuntime(game);
@@ -124,6 +142,33 @@ function ironLine(game) {
   assert.match(objective.progress, /CONTRACT 1 \/ 5/);
   assert.match(objective.progress, /0 \/ 6/);
   assert.equal(game.money, 40);
+}
+
+{
+  const game = freshGame();
+  applyEarlyGameRuntime(game);
+  const meshes = new Map();
+  for (let index = 0; index < 10; index += 1) {
+    meshes.set(`metal-${index}`, scrapMesh(`metal-${index}`, 'metal_scrap', 50 + index, 10));
+  }
+  meshes.set('copper-1', scrapMesh('copper-1', 'copper_wire', 55, -10));
+  const world = { scrapMeshes: meshes };
+  const staged = stageStarterSalvage({ world }, game);
+  assert.equal(staged, EARLY_GAME_TARGETS.metalScrapCollected, 'Fresh SALVAGE should stage exactly the six required Metal Scrap items');
+
+  const stagedMeshes = [...meshes.values()].slice(0, EARLY_GAME_TARGETS.metalScrapCollected);
+  assert.deepEqual(
+    stagedMeshes.map((mesh) => ({ x: mesh.position.x, z: mesh.position.z })),
+    STARTER_SALVAGE_POSITIONS,
+    'staged Metal Scrap should sit in the reserved entrance strip just beyond the Scrap Yard gate',
+  );
+  assert.equal(meshes.get('copper-1').position.x, 55, 'non-Metal Scrap placement must remain untouched');
+  assert.equal(stageStarterSalvage({ world }, game), 0, 'starter salvage staging must be idempotent for the same world instance');
+
+  const legacy = freshGame();
+  legacy.home = makeDefaultHomeState({ existingSave: true });
+  const legacyWorld = { scrapMeshes: new Map([['metal', scrapMesh('metal', 'metal_scrap')]]) };
+  assert.equal(stageStarterSalvage({ world: legacyWorld }, legacy), 0, 'legacy saves must keep the original random Scrap Yard layout');
 }
 
 {
