@@ -16,6 +16,9 @@ import './early-game-rank-runtime.js';
 import './early-game-hud-ownership.js';
 import './phase7-settings.js';
 import './pause-notification-ui.js';
+// Patch the presentation-only geometry/LOD layer before Phase 7 creates its
+// production polish instance. Gameplay, save data, and collision stay unchanged.
+import './smooth-3d-visuals.js';
 import './phase7-world-runtime.js';
 import './high-polling-input.js';
 import './visual-language-ui.js';
