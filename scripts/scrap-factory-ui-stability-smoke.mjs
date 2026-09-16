@@ -18,6 +18,28 @@ async function sample(page, getter, { count = 12, delay = 220 } = {}) {
   return values;
 }
 
+async function sampleStructure(page, selector, { count = 8, delay = 180 } = {}) {
+  const values = [];
+  for (let index = 0; index < count; index += 1) {
+    values.push(await page.evaluate((surfaceSelector) => {
+      const root = document.querySelector(surfaceSelector);
+      if (!root || root.hidden) return null;
+      return [...root.querySelectorAll('*')].map((node) => [
+        node.tagName,
+        node.id || '',
+        node.className || '',
+        [...node.attributes]
+          .filter((attribute) => attribute.name.startsWith('data-'))
+          .map((attribute) => `${attribute.name}=${attribute.value}`)
+          .sort()
+          .join('|'),
+      ]);
+    }, selector));
+    await page.waitForTimeout(delay);
+  }
+  return values;
+}
+
 function allEqual(values) {
   return values.every((value) => JSON.stringify(value) === JSON.stringify(values[0]));
 }
@@ -73,25 +95,10 @@ try {
 
   // Check the other frequently updated player-facing surfaces for structural
   // oscillation. Dynamic values may change, so compare structure rather than text.
-  const structuralSignature = (selector) => {
-    const root = document.querySelector(selector);
-    if (!root || root.hidden) return null;
-    return [...root.querySelectorAll('*')].map((node) => [
-      node.tagName,
-      node.id || '',
-      node.className || '',
-      [...node.attributes]
-        .filter((attribute) => attribute.name.startsWith('data-'))
-        .map((attribute) => `${attribute.name}=${attribute.value}`)
-        .sort()
-        .join('|'),
-    ]);
-  };
-
   await page.keyboard.press('Tab');
   await page.waitForSelector('#inventory-panel:not([hidden])', { timeout: 5_000 });
   await page.waitForTimeout(500);
-  const inventorySamples = await sample(page, structuralSignature.bind(null, '#inventory-panel'), { count: 8, delay: 180 });
+  const inventorySamples = await sampleStructure(page, '#inventory-panel');
   assert.equal(allEqual(inventorySamples), true, 'Inventory surface must not alternate between competing layouts');
   await page.keyboard.press('Tab');
   await page.waitForSelector('#inventory-panel', { state: 'hidden', timeout: 5_000 });
@@ -99,7 +106,7 @@ try {
   await page.keyboard.press('KeyB');
   await page.waitForSelector('#build-panel:not([hidden])', { timeout: 5_000 });
   await page.waitForTimeout(500);
-  const buildSamples = await sample(page, structuralSignature.bind(null, '#build-panel'), { count: 8, delay: 180 });
+  const buildSamples = await sampleStructure(page, '#build-panel');
   assert.equal(allEqual(buildSamples), true, 'Build surface must not alternate between competing layouts');
   await page.keyboard.press('KeyB');
   await page.waitForSelector('#build-panel', { state: 'hidden', timeout: 5_000 });
@@ -109,7 +116,7 @@ try {
   await page.evaluate(() => document.querySelector('#open-settings-pause')?.click());
   await page.waitForSelector('#settings-panel:not([hidden])', { timeout: 5_000 });
   await page.waitForTimeout(500);
-  const settingsSamples = await sample(page, structuralSignature.bind(null, '#settings-panel'), { count: 8, delay: 180 });
+  const settingsSamples = await sampleStructure(page, '#settings-panel');
   assert.equal(allEqual(settingsSamples), true, 'Settings surface must not alternate between competing layouts');
 
   assert.deepEqual(consoleErrors, [], `Browser console errors:\n${consoleErrors.join('\n')}`);
