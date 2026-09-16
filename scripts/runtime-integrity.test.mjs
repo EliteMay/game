@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const [storage, progression, entry, adaptive, keyboard, polish, worldRuntime, visualCss, highPollingInput] = await Promise.all([
+const [storage, progression, entry, adaptive, keyboard, polish, worldRuntime, visualCss, highPollingInput, legacyManagementPatch] = await Promise.all([
   readFile(new URL('../games/scrap-factory/storage.js', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/progression-ui-v4.js', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/progression-ui.js', import.meta.url), 'utf8'),
@@ -11,6 +11,7 @@ const [storage, progression, entry, adaptive, keyboard, polish, worldRuntime, vi
   readFile(new URL('../games/scrap-factory/phase7-world-runtime.js', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/visual-language-ui.css', import.meta.url), 'utf8'),
   readFile(new URL('../games/scrap-factory/high-polling-input.js', import.meta.url), 'utf8'),
+  readFile(new URL('../games/scrap-factory/phase4b-management-ui.js', import.meta.url), 'utf8'),
 ]);
 
 assert.match(storage, /loadRootSave\(\{ preferRuntime = true \} = \{\}\)/, 'root snapshots must prefer current runtime state during play');
@@ -25,6 +26,10 @@ assert.doesNotMatch(entry, /bilingual-ui\.js/, 'live UI must not run the broad b
 assert.match(adaptive, /\^\(\.\+\?\)を使う\$/, 'Home interactions must parse use actions without duplicated target/action text');
 assert.match(adaptive, /\^\(\.\+\?\)を閉じる\$/, 'Home door close interaction must parse cleanly');
 assert.match(adaptive, /<span>管理<\/span>/, 'management launcher should use one concise action language');
+
+assert.match(legacyManagementPatch, /Retired compatibility module/, 'legacy Phase 4-B management path must stay explicitly retired');
+assert.match(legacyManagementPatch, /export \{\};/, 'retired management compatibility module must remain a no-op');
+assert.doesNotMatch(legacyManagementPatch, /setInterval|MutationObserver|innerHTML|append\(|replaceChildren\(/, 'retired management compatibility module must never regain a second DOM render loop');
 
 for (const code of ['Escape', 'KeyB', 'Tab', 'KeyO', 'KeyP']) {
   assert.match(keyboard, new RegExp(code), `panel keyboard handling must include ${code}`);
