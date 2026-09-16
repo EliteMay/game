@@ -1,4 +1,15 @@
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'https://cdn.jsdelivr.net/npm/three@0.185.0/examples/jsm/geometries/RoundedBoxGeometry.js';
+
+const MIN_CURVE_SEGMENTS = 16;
+
+function roundedBoxGeometry(size) {
+  const [width, height, depth] = size;
+  const minSide = Math.min(width, height, depth);
+  const radius = Math.min(0.09, minSide * 0.18);
+  if (radius < 0.018) return new THREE.BoxGeometry(width, height, depth);
+  return new RoundedBoxGeometry(width, height, depth, 2, radius);
+}
 
 export function makeMaterial(color, roughness = 0.78, metalness = 0.2, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness, metalness, ...extra });
@@ -204,11 +215,11 @@ export function addMesh(parent, geometry, material, position = [0, 0, 0], rotati
 }
 
 export function addBox(parent, size, material, position = [0, 0, 0], rotation = [0, 0, 0]) {
-  return addMesh(parent, new THREE.BoxGeometry(...size), material, position, rotation);
+  return addMesh(parent, roundedBoxGeometry(size), material, position, rotation);
 }
 
 export function addCylinder(parent, radiusTop, radiusBottom, height, segments, material, position = [0, 0, 0], rotation = [0, 0, 0]) {
-  return addMesh(parent, new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments), material, position, rotation);
+  return addMesh(parent, new THREE.CylinderGeometry(radiusTop, radiusBottom, height, Math.max(MIN_CURVE_SEGMENTS, segments)), material, position, rotation);
 }
 
 export function addPipeBetween(parent, a, b, radius, material, segments = 10) {
@@ -216,7 +227,7 @@ export function addPipeBetween(parent, a, b, radius, material, segments = 10) {
   const end = new THREE.Vector3(...b);
   const mid = start.clone().add(end).multiplyScalar(0.5);
   const length = start.distanceTo(end);
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, segments), material);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, Math.max(MIN_CURVE_SEGMENTS, segments)), material);
   mesh.position.copy(mid);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), end.clone().sub(start).normalize());
   parent.add(mesh);
