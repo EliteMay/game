@@ -14,13 +14,15 @@ import {
 } from './home-system.js';
 
 const STYLE_HREF = './home-surface-ui.css';
-const ENHANCE_MS = 180;
+const SURFACE_SYNC_MS = 500;
 
 const state = {
   runtime: null,
   panel: null,
   previousInteract: null,
   guideSignature: null,
+  dashboardSignature: null,
+  workbenchObserver: null,
 };
 
 function game() {
@@ -100,7 +102,7 @@ function dashboardAction(tab, eyebrow, title, note, badge = '') {
   `;
 }
 
-function renderDashboard() {
+function renderDashboard(force = false) {
   const g = game();
   const content = state.panel?.querySelector('[data-home-dashboard-content]');
   if (!g || !content) return;
@@ -117,6 +119,27 @@ function renderDashboard() {
   const secureMax = secureCaseSlotCapacity(g);
   const tracking = h.materialTracking ? ITEMS[h.materialTracking]?.name || h.materialTracking : 'なし';
   const quickDeposit = hasPlayerUpgrade(g, 'quick_deposit');
+  const signature = [
+    objective.id,
+    objective.title,
+    objective.body,
+    objective.progress,
+    objective.hint,
+    upgradesOwned,
+    upgradesTotal,
+    unread,
+    backpackUsed,
+    backpackMax,
+    homeUsed,
+    homeMax,
+    secureMax,
+    usedSlots(h.secureCase || {}),
+    tracking,
+    quickDeposit,
+    g.progression?.progressionRank || 1,
+  ].join('|');
+  if (!force && signature === state.dashboardSignature && content.childElementCount) return;
+  state.dashboardSignature = signature;
 
   content.innerHTML = `
     <section class="home-pc-priority">
@@ -160,7 +183,7 @@ function openDashboard() {
   if (!state.panel) return;
   if (state.panel.hidden && !acquireCarrier()) return;
   state.panel.hidden = false;
-  renderDashboard();
+  renderDashboard(true);
 }
 
 function closeDashboard() {
@@ -320,10 +343,24 @@ function enhanceWorkbenchTransfers() {
   });
 }
 
-function updateOpenSurfaces() {
+function installWorkbenchEnhancer() {
+  const content = document.querySelector('#home-system-content');
+  if (!content || state.workbenchObserver) return;
+
+  // The legacy Home renderer replaces only the direct children of this content
+  // node. Observe that boundary only, then enhance the freshly rendered
+  // Workbench in the same task cycle. Descendant changes made by the enhancer
+  // are intentionally not observed, so this cannot self-trigger.
+  state.workbenchObserver = new MutationObserver(() => {
+    queueMicrotask(enhanceWorkbenchTransfers);
+  });
+  state.workbenchObserver.observe(content, { childList: true, subtree: false });
+  enhanceWorkbenchTransfers();
+}
+
+function updateOwnedSurfaces() {
   if (state.panel && !state.panel.hidden) renderDashboard();
   renderQuickGuide();
-  enhanceWorkbenchTransfers();
 }
 
 function boot() {
@@ -336,7 +373,8 @@ function boot() {
   createDashboard();
   wrapPcInteraction();
   renderQuickGuide(true);
-  window.setInterval(updateOpenSurfaces, ENHANCE_MS);
+  installWorkbenchEnhancer();
+  window.setInterval(updateOwnedSurfaces, SURFACE_SYNC_MS);
 }
 
 boot();
