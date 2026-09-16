@@ -1,81 +1,143 @@
-// Fresh Start V2 owns the visible Main Goal surface while a Contract is active.
-// Some legacy/adaptive HUD passes can re-expose the generic objective after the
-// Fresh Contract panel has already been created. Keep visibility ownership
-// explicit so the player never sees two competing primary goals.
-//
-// Existing Rank 1-3 saves intentionally stay on the legacy progression contract.
-// Their fallback Main Goal must still explain the concrete next action instead of
-// only saying "Rank N Main Objective".
+import { rankProgress } from './progression.js';
 
 const STACK_SELECTOR = '[data-hud-context-stack]';
 const FRESH_SELECTOR = ':scope > .objective-panel[data-early-contract-panel]';
-const LEGACY_SELECTOR = ':scope > .objective-panel:not([data-early-contract-panel])';
-
-const LEGACY_EARLY_GOALS = Object.freeze({
-  1: Object.freeze({
-    title: 'Rank 2 — 最初の自動化',
-    body: 'Hopper → Crusher → Sellerの自動ラインを完成。さらに「累計売上$250 / Scrap 10個回収 / 粉砕5回 / Crusher 2台」のうち2つを達成し、右上の「管理」→「RANK」からRank 2へ昇格。',
-  }),
-  2: Object.freeze({
-    title: 'Rank 3 — 基本工場',
-    body: 'Crusher → Smelter → Sellerの鉄インゴット自動ラインを完成。さらに「累計売上$750 / 鉄インゴット発見 / 自作設備8台 / 粉砕10回」のうち2つを達成し、右上の「管理」→「RANK」からRank 3へ昇格。',
-  }),
-  3: Object.freeze({
-    title: 'Rank 4 — 廃住宅街を攻略',
-    body: '廃住宅街のMain Objectiveを完了し、追加条件を2つ達成する。右上の「管理」→「RANK」で達成状況と不足条件を確認できます。',
-  }),
-});
+const RANK_SELECTOR = ':scope > .objective-panel[data-rank-goal-panel]';
+const SYNC_MS = 300;
 
 function currentGame() {
   return window.__scrapFactoryRuntime?.getGame?.() || null;
 }
 
-function explainLegacyEarlyGoal(panel) {
-  const game = currentGame();
-  const rank = Math.max(1, Number(game?.progression?.progressionRank || 1));
-  const goal = LEGACY_EARLY_GOALS[rank];
-  const title = panel.querySelector('#tutorial-title');
-  const body = panel.querySelector('#tutorial-body');
+function ensureOwnershipStyle() {
+  if (document.querySelector('style[data-objective-ownership]')) return;
+  const style = document.createElement('style');
+  style.dataset.objectiveOwnership = 'true';
+  style.textContent = `
+    ${STACK_SELECTOR}[data-objective-owner="fresh"] > .objective-panel:not([data-early-contract-panel]) { display:none !important; }
+    ${STACK_SELECTOR}[data-objective-owner="rank"] > .objective-panel:not([data-rank-goal-panel]) { display:none !important; }
+    ${RANK_SELECTOR} [data-rank-goal-body] { display:block; }
+  `;
+  document.head.append(style);
+}
 
-  if (!goal) {
-    panel.dataset.legacyGoalExplained = 'false';
-    if (body) body.style.removeProperty('display');
-    return;
+function ensureRankPanel(stack) {
+  let panel = stack.querySelector(RANK_SELECTOR);
+  if (panel) return panel;
+
+  panel = document.createElement('aside');
+  panel.className = 'objective-panel';
+  panel.dataset.rankGoalPanel = 'true';
+  panel.hidden = true;
+  panel.setAttribute('aria-label', '現在のランク目標');
+  panel.innerHTML = `
+    <div class="objective-panel__header">
+      <span>MAIN GOAL</span>
+      <strong data-rank-goal-progress>RANK 1 / 7</strong>
+    </div>
+    <h2 data-rank-goal-title>次のRank条件を確認中</h2>
+    <p data-rank-goal-body></p>
+  `;
+
+  const management = stack.querySelector('[data-hud-management]');
+  if (management) stack.insertBefore(panel, management);
+  else stack.append(panel);
+  return panel;
+}
+
+function optionalSummary(progress) {
+  if (!progress?.optionalRequired) return '';
+  const remaining = (progress.optionals || [])
+    .filter((goal) => !goal.done)
+    .map((goal) => goal.label);
+  const prefix = `追加条件 ${progress.optionalDone}/${progress.optionalRequired}`;
+  if (!remaining.length) return `${prefix} ✓`;
+  return `${prefix}: ${remaining.join(' / ')}`;
+}
+
+function rankGoal(game) {
+  const rank = Math.max(1, Number(game?.progression?.progressionRank || 1));
+  if (rank >= 7) {
+    return {
+      signature: `final|${Boolean(game?.finalChapter?.mainClearedAt)}`,
+      title: game?.finalChapter?.mainClearedAt ? 'MAIN CLEAR — Factory Optimization' : 'FINAL CHAPTER — Mega Factory',
+      body: game?.finalChapter?.mainClearedAt
+        ? 'Main Goal達成済み。同じSaveでPower・物流・生産ラインをさらに最適化できます。'
+        : 'Experimental Technology → Final Automation → Mega Factoryの連続安定稼働を進める。',
+      progress: game?.finalChapter?.mainClearedAt ? 'POST CLEAR' : 'RANK 7 / FINAL',
+    };
   }
 
-  if (title && title.textContent !== goal.title) title.textContent = goal.title;
-  if (body && body.textContent !== goal.body) body.textContent = goal.body;
-  if (body) body.style.display = 'block';
-  panel.dataset.legacyGoalExplained = 'true';
+  const progress = rankProgress(game);
+  const definition = progress?.definition;
+  if (!definition || !progress?.mandatory) {
+    return {
+      signature: `rank-${rank}|loading`,
+      title: `Rank ${rank + 1}への条件を確認中`,
+      body: 'Factory / Exploration / Researchの現在条件を確認しています。',
+      progress: `RANK ${rank} / 7`,
+    };
+  }
+
+  const mandatory = `${progress.mandatory.done ? '✓' : '○'} ${progress.mandatory.label}`;
+  const optional = optionalSummary(progress);
+  const ready = progress.eligible ? '条件達成。自動Rank Upします。' : '条件を満たすと自動でRank Upします。';
+  const body = [mandatory, optional, ready].filter(Boolean).join('　');
+  const optionalProgress = progress.optionalRequired ? ` · 追加 ${progress.optionalDone}/${progress.optionalRequired}` : '';
+
+  return {
+    signature: [
+      rank,
+      Boolean(progress.mandatory.done),
+      progress.optionalDone,
+      progress.optionalRequired,
+      Boolean(progress.eligible),
+      body,
+    ].join('|'),
+    title: `Rank ${definition.nextRank} — ${definition.title}`,
+    body,
+    progress: `RANK ${rank} / 7 · 必須 ${progress.mandatory.done ? '✓' : '○'}${optionalProgress}`,
+  };
+}
+
+function renderRankPanel(panel, game) {
+  const goal = rankGoal(game);
+  if (panel.dataset.rankGoalSignature === goal.signature) return;
+  panel.dataset.rankGoalSignature = goal.signature;
+  panel.querySelector('[data-rank-goal-title]').textContent = goal.title;
+  panel.querySelector('[data-rank-goal-body]').textContent = goal.body;
+  panel.querySelector('[data-rank-goal-progress]').textContent = goal.progress;
 }
 
 function syncObjectiveOwnership() {
   const stack = document.querySelector(STACK_SELECTOR);
-  if (!stack) return;
+  const game = currentGame();
+  if (!stack || !game) return false;
 
+  ensureOwnershipStyle();
+  const rankPanel = ensureRankPanel(stack);
   const fresh = stack.querySelector(FRESH_SELECTOR);
-  const legacy = stack.querySelector(LEGACY_SELECTOR);
-  if (!legacy) return;
 
-  const shouldHideLegacy = Boolean(fresh);
-  if (legacy.hidden !== shouldHideLegacy) legacy.hidden = shouldHideLegacy;
-  stack.dataset.earlyContractOwner = shouldHideLegacy ? 'fresh' : 'legacy';
+  if (fresh) {
+    stack.dataset.objectiveOwner = 'fresh';
+    rankPanel.hidden = true;
+    return true;
+  }
 
-  if (!shouldHideLegacy) explainLegacyEarlyGoal(legacy);
+  stack.dataset.objectiveOwner = 'rank';
+  renderRankPanel(rankPanel, game);
+  rankPanel.hidden = false;
+  return true;
 }
 
 function boot() {
-  syncObjectiveOwnership();
+  if (!window.__scrapFactoryBooted || !window.__scrapFactoryRuntime || !document.querySelector(STACK_SELECTOR)) {
+    window.setTimeout(boot, 100);
+    return;
+  }
 
-  const root = document.body || document.documentElement;
-  const observer = new MutationObserver(() => syncObjectiveOwnership());
-  observer.observe(root, {
-    subtree: true,
-    childList: true,
-    characterData: true,
-    attributes: true,
-    attributeFilter: ['hidden'],
-  });
+  syncObjectiveOwnership();
+  window.setInterval(syncObjectiveOwnership, SYNC_MS);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
