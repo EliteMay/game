@@ -5,6 +5,7 @@ on:
     paths:
       - 'games/scrap-factory/**'
       - 'scripts/scrap-factory-browser-smoke.mjs'
+      - 'scripts/scrap-factory-smooth-3d-smoke.mjs'
       - '.github/workflows/scrap-factory-browser-smoke.yml'
 
 permissions:
@@ -35,7 +36,9 @@ jobs:
           cat /tmp/scrap-factory-http.log
           exit 1
       - name: Run browser smoke
-        run: node scripts/scrap-factory-browser-smoke.mjs
+        run: |
+          node scripts/scrap-factory-browser-smoke.mjs
+          node scripts/scrap-factory-smooth-3d-smoke.mjs
       - name: Upload smoke screenshot
         if: always()
         uses: actions/upload-artifact@v4
