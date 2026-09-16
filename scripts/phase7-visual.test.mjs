@@ -4,10 +4,15 @@ import { readFile } from 'node:fs/promises';
 const entry = await readFile(new URL('../games/scrap-factory/progression-ui.js', import.meta.url), 'utf8');
 const runtime = await readFile(new URL('../games/scrap-factory/phase7-world-runtime.js', import.meta.url), 'utf8');
 const polish = await readFile(new URL('../games/scrap-factory/phase7-world-polish.js', import.meta.url), 'utf8');
+const smooth = await readFile(new URL('../games/scrap-factory/smooth-3d-visuals.js', import.meta.url), 'utf8');
 const lateVisuals = await readFile(new URL('../games/scrap-factory/world-runtime.js', import.meta.url), 'utf8');
 const phase5Visuals = await readFile(new URL('../games/scrap-factory/world-runtime-phase5b.js', import.meta.url), 'utf8');
 
 assert.match(entry, /import '\.\/phase7-world-runtime\.js';/, 'stable production entrypoint must load final visual runtime');
+const smoothIndex = entry.indexOf("import './smooth-3d-visuals.js';");
+const phase7RuntimeIndex = entry.indexOf("import './phase7-world-runtime.js';");
+assert(smoothIndex >= 0, 'stable production entrypoint must load the smooth 3D presentation layer');
+assert(smoothIndex < phase7RuntimeIndex, 'smooth 3D presentation patch must load before Phase 7 creates its polish instance');
 assert.match(runtime, /EnhancedScrapWorld/, 'production visual layer must reuse the existing advanced visual runtime');
 assert.match(runtime, /EnhancedScrapWorld\.prototype\.addBuilding\.call/, 'advanced visuals must be generated from the existing visual implementation rather than a second gameplay simulation');
 
@@ -16,7 +21,7 @@ for (const type of [
   'battery', 'industrial_storage', 'assembler', 'drone_port', 'industrial_generator', 'logistics_warehouse',
   'advanced_drone_port', 'fabricator', 'fabricator_core', 'experimental_power_system',
 ]) {
-  assert.match(runtime, new RegExp(`['\"]${type}['\"]`), `production enhanced visual coverage must include ${type}`);
+  assert.match(runtime, new RegExp(`['\\"]${type}['\\"]`), `production enhanced visual coverage must include ${type}`);
 }
 
 assert.match(phase5Visuals, /addAdvancedLogisticsVisual/, 'Phase 5-B logistics visuals must remain available');
@@ -43,8 +48,16 @@ assert.match(runtime, /setBuildingRotation/, 'production visual runtime must sup
 assert.match(runtime, /replaceBuildPreview/, 'advanced equipment must have readable build previews');
 assert.match(runtime, /shouldVisualizeTransfer/, 'render packet reduction must not alter logistics simulation calls');
 
+assert.match(smooth, /RoundedBoxGeometry/, 'far LOD proxies should keep a rounded industrial silhouette instead of raw boxes');
+assert.match(smooth, /DETAIL_DISTANCE = Object\.freeze\(\{ high: 42, medium: 26, low: 14 \}\)/, 'high quality should keep detailed machine geometry visible farther away without changing low mode');
+assert.match(smooth, /geometry\.type === 'CylinderGeometry'/, 'low-segment industrial cylinders should receive presentation-only smoothing');
+assert.match(smooth, /geometry\.type === 'TorusGeometry'/, 'tire and ring geometry should receive presentation-only smoothing');
+assert.match(smooth, /TEXTURE_ANISOTROPY/, 'oblique industrial textures should use bounded anisotropic filtering');
+assert.match(smooth, /world\.startBuild/, 'build previews should receive the same primitive smoothing as placed machines');
+
 for (const forbidden of ['RECIPES', 'computePowerSnapshot', 'findDirectionalRoutes', 'lifetimeRevenue', 'progressionRank']) {
   assert.doesNotMatch(polish, new RegExp(`\\b${forbidden}\\b`), `visual polish must not own gameplay simulation state: ${forbidden}`);
+  assert.doesNotMatch(smooth, new RegExp(`\\b${forbidden}\\b`), `smooth 3D layer must remain presentation-only: ${forbidden}`);
 }
 
 console.log('Phase 7 visual/runtime regression checks passed.');
