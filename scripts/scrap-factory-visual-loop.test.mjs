@@ -49,7 +49,7 @@ try {
       }
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 650));
 
     const curvedTypes = new Set([
       'CylinderGeometry',
@@ -60,31 +60,69 @@ try {
       'LatheGeometry',
     ]);
     const boxTypes = new Set(['BoxGeometry', 'RoundedBoxGeometry']);
+    const worldScale = new THREE.Vector3();
+    const size = new THREE.Vector3();
+
+    const isActuallyVisible = (node, root) => {
+      let current = node;
+      while (current) {
+        if (current.visible === false) return false;
+        if (current === root) break;
+        current = current.parent;
+      }
+      return true;
+    };
+
+    const meshWeight = (node) => {
+      node.geometry.computeBoundingBox?.();
+      const box = node.geometry.boundingBox;
+      if (!box) return 0;
+      box.getSize(size);
+      node.getWorldScale(worldScale);
+      const x = Math.abs(size.x * worldScale.x);
+      const y = Math.abs(size.y * worldScale.y);
+      const z = Math.abs(size.z * worldScale.z);
+      return Math.max(0.0001, x * y + y * z + z * x);
+    };
 
     const summarize = (root) => {
+      root.updateMatrixWorld(true);
       const summary = {
         meshCount: 0,
         boxLike: 0,
         curved: 0,
         roundedBoxes: 0,
         hardBoxes: 0,
+        visibleWeight: 0,
+        boxLikeWeight: 0,
+        curvedWeight: 0,
         geometryTypes: {},
       };
 
       root.traverse((node) => {
-        if (!node.isMesh || !node.geometry) return;
+        if (!node.isMesh || !node.geometry || !isActuallyVisible(node, root)) return;
         const type = node.geometry.type || 'UnknownGeometry';
         if (type === 'PlaneGeometry') return;
+        const weight = meshWeight(node);
         summary.meshCount += 1;
+        summary.visibleWeight += weight;
         summary.geometryTypes[type] = (summary.geometryTypes[type] || 0) + 1;
-        if (boxTypes.has(type)) summary.boxLike += 1;
-        if (curvedTypes.has(type)) summary.curved += 1;
+        if (boxTypes.has(type)) {
+          summary.boxLike += 1;
+          summary.boxLikeWeight += weight;
+        }
+        if (curvedTypes.has(type)) {
+          summary.curved += 1;
+          summary.curvedWeight += weight;
+        }
         if (type === 'RoundedBoxGeometry') summary.roundedBoxes += 1;
         if (type === 'BoxGeometry') summary.hardBoxes += 1;
       });
 
       summary.curvedShare = summary.meshCount ? summary.curved / summary.meshCount : 0;
       summary.boxLikeShare = summary.meshCount ? summary.boxLike / summary.meshCount : 1;
+      summary.curvedWeightShare = summary.visibleWeight ? summary.curvedWeight / summary.visibleWeight : 0;
+      summary.boxLikeWeightShare = summary.visibleWeight ? summary.boxLikeWeight / summary.visibleWeight : 1;
       summary.shapeFamilies = Object.keys(summary.geometryTypes).length;
       return summary;
     };
@@ -112,11 +150,15 @@ try {
   for (const type of machineTypes) {
     const metric = metrics[type];
     assert(metric, `${type}: audit building was not created`);
-    assert(metric.curved >= 3, `${type}: expected at least 3 curved meshes, got ${metric.curved}`);
-    assert(metric.shapeFamilies >= 3, `${type}: expected at least 3 geometry families, got ${metric.shapeFamilies}`);
+    assert(metric.curved >= 3, `${type}: expected at least 3 visible curved meshes, got ${metric.curved}`);
+    assert(metric.shapeFamilies >= 3, `${type}: expected at least 3 visible geometry families, got ${metric.shapeFamilies}`);
     assert(
-      metric.boxLikeShare <= 0.55,
-      `${type}: blocky silhouette proxy too high (${(metric.boxLikeShare * 100).toFixed(1)}% box-like meshes)`,
+      metric.boxLikeWeightShare <= 0.55,
+      `${type}: blocky silhouette weight too high (${(metric.boxLikeWeightShare * 100).toFixed(1)}% box-like visible weight)`,
+    );
+    assert(
+      metric.curvedWeightShare >= 0.25,
+      `${type}: curved silhouette weight too low (${(metric.curvedWeightShare * 100).toFixed(1)}% curved visible weight)`,
     );
   }
 
