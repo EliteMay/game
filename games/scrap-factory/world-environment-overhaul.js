@@ -201,15 +201,31 @@ function buildTerrainFrame(root) {
     placements.push([99.5 + random() * 6, z + 2, 4.3 + random() * 4.3, 2.0 + random() * 2.8, 3.8 + random() * 4.2]);
   }
 
+  const darkCount = placements.filter((_, index) => index % 3 === 0).length;
+  const lightCount = placements.length - darkCount;
+  const darkRocks = new THREE.InstancedMesh(rockGeometry, rockMaterialDark, darkCount);
+  const lightRocks = new THREE.InstancedMesh(rockGeometry, rockMaterial, lightCount);
+  const dummy = new THREE.Object3D();
+  let darkIndex = 0;
+  let lightIndex = 0;
+
   placements.forEach(([x, z, sx, sy, sz], index) => {
-    const mesh = new THREE.Mesh(rockGeometry, index % 3 === 0 ? rockMaterialDark : rockMaterial);
-    mesh.position.set(x, sy * 0.36 - 0.2, z);
-    mesh.scale.set(sx, sy, sz);
-    mesh.rotation.set((random() - 0.5) * 0.32, random() * Math.PI, (random() - 0.5) * 0.24);
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    terrain.add(mesh);
+    dummy.position.set(x, sy * 0.36 - 0.2, z);
+    dummy.scale.set(sx, sy, sz);
+    dummy.rotation.set((random() - 0.5) * 0.32, random() * Math.PI, (random() - 0.5) * 0.24);
+    dummy.updateMatrix();
+    const target = index % 3 === 0 ? darkRocks : lightRocks;
+    const targetIndex = index % 3 === 0 ? darkIndex++ : lightIndex++;
+    target.setMatrixAt(targetIndex, dummy.matrix);
   });
+
+  for (const rocks of [darkRocks, lightRocks]) {
+    rocks.instanceMatrix.needsUpdate = true;
+    rocks.castShadow = false;
+    rocks.receiveShadow = true;
+    rocks.computeBoundingSphere();
+    terrain.add(rocks);
+  }
 
   const dirtMat = material(0x716956, { roughness: 1, metalness: 0 });
   for (const [x, z, w, d, rot] of [
