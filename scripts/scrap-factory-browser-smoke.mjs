@@ -22,7 +22,7 @@ try {
 
   page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(`console: ${message.text()}`);
+    if (message.type() === 'error') consoleErrors.push(`console: ${message.text()}`));
   });
 
   await page.addInitScript(() => {
@@ -98,6 +98,25 @@ try {
   assert.equal(started.failedBoot, false, 'Boot failure fallback must not trigger');
 
   await page.screenshot({ path: `${outputDir}/fresh-start-1440.png`, fullPage: true });
+
+  // Capture open-yard views so visual changes to the environment are reviewable.
+  await page.evaluate(() => {
+    const world = window.__scrapFactoryRuntime.world;
+    world.player.x = 52;
+    world.player.z = 8;
+    world.player.yaw = 0;
+    world.player.pitch = -0.06;
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${outputDir}/world-north-1440.png`, fullPage: true });
+
+  await page.evaluate(() => {
+    const world = window.__scrapFactoryRuntime.world;
+    world.player.yaw = Math.PI;
+    world.player.pitch = -0.04;
+  });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: `${outputDir}/world-south-1440.png`, fullPage: true });
 
   // Reproduce the Rank 2 state that previously fell back to the generic
   // "Rank 2 Main Objective" card. The visible owner must remain the Fresh
