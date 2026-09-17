@@ -6,6 +6,7 @@ on:
       - 'games/scrap-factory/**'
       - 'scripts/scrap-factory-browser-smoke.mjs'
       - 'scripts/scrap-factory-ui-stability-smoke.mjs'
+      - 'scripts/scrap-factory-machine-visual-smoke.mjs'
       - '.github/workflows/scrap-factory-browser-smoke.yml'
 
 permissions:
@@ -37,6 +38,8 @@ jobs:
           exit 1
       - name: Run browser smoke
         run: node scripts/scrap-factory-browser-smoke.mjs
+      - name: Run machine visual smoke
+        run: node scripts/scrap-factory-machine-visual-smoke.mjs
       - name: Run UI stability smoke
         run: node scripts/scrap-factory-ui-stability-smoke.mjs
       - name: Upload smoke screenshot
