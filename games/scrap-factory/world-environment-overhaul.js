@@ -183,6 +183,150 @@ function buildPerimeterInfrastructure(root) {
   root.add(infra);
 }
 
+function buildTerrainFrame(root) {
+  const terrain = new THREE.Group();
+  terrain.name = 'sf-world-overhaul-terrain';
+  const rockGeometry = new THREE.DodecahedronGeometry(1, 1);
+  const rockMaterial = material(0x665f53, { roughness: 0.98, metalness: 0.02 });
+  const rockMaterialDark = material(0x514d45, { roughness: 0.99, metalness: 0.01 });
+  const random = seededRandom(442109);
+  const placements = [];
+
+  for (let x = -18; x <= 96; x += 8.5) {
+    placements.push([x, -35.5 - random() * 4, 4.5 + random() * 4.5, 1.8 + random() * 2.7, 3.8 + random() * 4.0]);
+    placements.push([x + 2.5, 48.5 + random() * 5, 4.0 + random() * 4.0, 1.7 + random() * 2.5, 3.3 + random() * 4.2]);
+  }
+  for (let z = -24; z <= 39; z += 9.5) {
+    placements.push([-29.5 - random() * 5, z, 4.0 + random() * 4.0, 1.9 + random() * 2.6, 3.6 + random() * 4.1]);
+    placements.push([99.5 + random() * 6, z + 2, 4.3 + random() * 4.3, 2.0 + random() * 2.8, 3.8 + random() * 4.2]);
+  }
+
+  placements.forEach(([x, z, sx, sy, sz], index) => {
+    const mesh = new THREE.Mesh(rockGeometry, index % 3 === 0 ? rockMaterialDark : rockMaterial);
+    mesh.position.set(x, sy * 0.36 - 0.2, z);
+    mesh.scale.set(sx, sy, sz);
+    mesh.rotation.set((random() - 0.5) * 0.32, random() * Math.PI, (random() - 0.5) * 0.24);
+    mesh.castShadow = false;
+    mesh.receiveShadow = true;
+    terrain.add(mesh);
+  });
+
+  const dirtMat = material(0x716956, { roughness: 1, metalness: 0 });
+  for (const [x, z, w, d, rot] of [
+    [18, -32.2, 34, 7, 0.03], [67, -33.0, 39, 8, -0.02],
+    [17, 46.5, 39, 7, -0.02], [67, 47.2, 45, 8, 0.025],
+    [-24.0, 8, 8, 56, 0.01], [96.4, 8, 9, 60, -0.015],
+  ]) {
+    const mound = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 12), dirtMat);
+    mound.scale.set(w / 2, 1.7, d / 2);
+    mound.position.set(x, -1.22, z);
+    mound.rotation.y = rot;
+    mound.castShadow = false;
+    mound.receiveShadow = true;
+    terrain.add(mound);
+  }
+
+  root.add(terrain);
+}
+
+function buildAbandonedFacilities(root) {
+  const ruins = new THREE.Group();
+  ruins.name = 'sf-world-overhaul-ruins';
+  const steel = material(0x3c4444, { roughness: 0.82, metalness: 0.58 });
+  const rust = material(0x704d3b, { roughness: 0.9, metalness: 0.38 });
+  const concrete = material(0x686b65, { roughness: 0.98, metalness: 0.02 });
+  const warning = material(0xb08b32, { roughness: 0.7, metalness: 0.24 });
+
+  const west = new THREE.Group();
+  west.position.set(-30.8, 0, 20);
+  west.rotation.y = 0.1;
+  addBox(west, [8.5, 0.45, 5.4], concrete, [0, 0.22, 0]);
+  for (const x of [-3.6, 0, 3.6]) addCylinder(west, 0.17, 0.22, 5.8, steel, [x, 2.9, -2.2], 10);
+  addBox(west, [7.8, 0.28, 0.28], steel, [0, 5.65, -2.2], [0, 0, -0.06]);
+  addBox(west, [4.2, 2.6, 0.22], rust, [-1.7, 1.5, 2.3], [0.08, 0.04, 0.05]);
+  addBox(west, [2.2, 1.9, 0.2], concrete, [2.4, 1.0, 2.35], [-0.12, -0.05, 0.08]);
+  addBox(west, [2.6, 0.18, 0.18], warning, [1.6, 3.7, -2.05], [0, 0, -0.08]);
+  ruins.add(west);
+
+  const east = new THREE.Group();
+  east.position.set(96.5, 0, 30);
+  east.rotation.y = -0.18;
+  addBox(east, [9.2, 0.5, 5.8], concrete, [0, 0.24, 0]);
+  for (const z of [-2.2, 2.2]) {
+    addCylinder(east, 0.2, 0.25, 6.3, steel, [-3.7, 3.15, z], 10, [0, 0, z > 0 ? 0.08 : -0.04]);
+    addCylinder(east, 0.2, 0.25, 4.8, rust, [3.6, 2.4, z], 10, [0, 0, z > 0 ? -0.16 : 0.12]);
+  }
+  addBox(east, [7.6, 0.32, 0.32], steel, [-0.2, 5.95, -2.2], [0, 0.02, -0.09]);
+  addBox(east, [5.8, 0.28, 0.28], rust, [0.6, 4.45, 2.2], [0, -0.03, 0.16]);
+  addPipe(east, [-3.5, 3.7, 0], [3.2, 3.0, 0], 0.17, rust, 10);
+  ruins.add(east);
+
+  const north = new THREE.Group();
+  north.position.set(53, 0, -34.5);
+  addGantry(north, 0, 0, 15, 7.2, { dark: steel, steel, accent: warning }, 0);
+  addBox(north, [5.2, 2.4, 3.4], rust, [-4.5, 1.3, -2.5], [0, -0.08, -0.06]);
+  addBox(north, [3.4, 1.8, 2.8], concrete, [4.7, 0.95, 2.2], [0, 0.11, 0.04]);
+  ruins.add(north);
+
+  ruins.traverse((node) => {
+    if (!node.isMesh) return;
+    node.castShadow = false;
+    node.receiveShadow = true;
+  });
+  root.add(ruins);
+}
+
+function buildNearClutter(root) {
+  const clutter = new THREE.Group();
+  clutter.name = 'sf-world-overhaul-near-clutter';
+  const random = seededRandom(912044);
+  const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
+  const rockMat = material(0x5c584e, { roughness: 0.98, metalness: 0.02 });
+  const rockMesh = new THREE.InstancedMesh(rockGeometry, rockMat, 42);
+  const dummy = new THREE.Object3D();
+
+  for (let i = 0; i < 42; i += 1) {
+    const side = i % 3;
+    let x;
+    let z;
+    if (side === 0) {
+      x = 28 + random() * 62;
+      z = random() > 0.5 ? 25.5 + random() * 2.3 : -25.5 - random() * 2.0;
+    } else if (side === 1) {
+      x = 25 + random() * 65;
+      z = random() > 0.5 ? 19 + random() * 5 : -19 - random() * 5;
+    } else {
+      x = 30 + random() * 60;
+      z = -22 + random() * 44;
+    }
+    const s = 0.12 + random() * 0.24;
+    dummy.position.set(x, s * 0.38 + 0.02, z);
+    dummy.rotation.set(random() * 0.6, random() * Math.PI, random() * 0.5);
+    dummy.scale.set(s * (0.8 + random()), s * (0.45 + random() * 0.55), s * (0.8 + random()));
+    dummy.updateMatrix();
+    rockMesh.setMatrixAt(i, dummy.matrix);
+  }
+  rockMesh.instanceMatrix.needsUpdate = true;
+  rockMesh.castShadow = false;
+  rockMesh.receiveShadow = true;
+  clutter.add(rockMesh);
+
+  const scrapMat = material(0x666a65, { roughness: 0.86, metalness: 0.5 });
+  const scrapRust = material(0x774d38, { roughness: 0.88, metalness: 0.42 });
+  for (let i = 0; i < 24; i += 1) {
+    const x = 30 + random() * 59;
+    const z = -25 + random() * 50;
+    const width = 0.18 + random() * 0.46;
+    const depth = 0.1 + random() * 0.32;
+    const piece = addBox(clutter, [width, 0.018 + random() * 0.018, depth], i % 4 === 0 ? scrapRust : scrapMat, [x, 0.075, z]);
+    piece.rotation.y = random() * Math.PI;
+    piece.rotation.z = (random() - 0.5) * 0.12;
+    piece.castShadow = false;
+  }
+
+  root.add(clutter);
+}
+
 function buildGroundStory(root) {
   const random = seededRandom(170926);
   const stains = new THREE.Group();
@@ -232,6 +376,95 @@ function buildGroundStory(root) {
   root.add(stains);
 }
 
+function buildSkyLayer(world, root) {
+  const sky = new THREE.Group();
+  sky.name = 'sf-world-overhaul-sky';
+
+  const skyMaterial = new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: {
+      topColor: { value: new THREE.Color(0x6f8992) },
+      horizonColor: { value: new THREE.Color(0xb8b2a2) },
+      bottomColor: { value: new THREE.Color(0x8f9791) },
+    },
+    vertexShader: `
+      varying float vHeight;
+      void main() {
+        vHeight = normalize(position).y;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying float vHeight;
+      uniform vec3 topColor;
+      uniform vec3 horizonColor;
+      uniform vec3 bottomColor;
+      void main() {
+        float upper = smoothstep(-0.02, 0.62, vHeight);
+        float lower = smoothstep(-0.75, 0.0, vHeight);
+        vec3 lowBand = mix(bottomColor, horizonColor, lower);
+        vec3 color = mix(lowBand, topColor, upper);
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(165, 36, 20), skyMaterial);
+  dome.position.set(34, 18, 7);
+  dome.renderOrder = -10;
+  sky.add(dome);
+
+  const sun = new THREE.Mesh(
+    new THREE.SphereGeometry(4.6, 20, 12),
+    new THREE.MeshBasicMaterial({ color: 0xf3d39a, transparent: true, opacity: 0.82, depthWrite: false }),
+  );
+  sun.position.set(-84, 58, -118);
+  sky.add(sun);
+
+  const cloudMaterial = new THREE.MeshBasicMaterial({ color: 0xc7cdca, transparent: true, opacity: 0.075, depthWrite: false });
+  const cloudGeometry = new THREE.SphereGeometry(1, 12, 8);
+  const cloudMesh = new THREE.InstancedMesh(cloudGeometry, cloudMaterial, 22);
+  const random = seededRandom(209716);
+  const dummy = new THREE.Object3D();
+  for (let i = 0; i < 22; i += 1) {
+    const angle = (i / 22) * Math.PI * 2 + random() * 0.2;
+    const radius = 78 + random() * 35;
+    dummy.position.set(34 + Math.cos(angle) * radius, 27 + random() * 15, 7 + Math.sin(angle) * radius);
+    dummy.scale.set(8 + random() * 13, 1.4 + random() * 2.6, 3.5 + random() * 8);
+    dummy.rotation.y = random() * Math.PI;
+    dummy.updateMatrix();
+    cloudMesh.setMatrixAt(i, dummy.matrix);
+  }
+  cloudMesh.instanceMatrix.needsUpdate = true;
+  cloudMesh.frustumCulled = false;
+  sky.add(cloudMesh);
+
+  root.add(sky);
+  world.visualFx ??= {};
+  world.visualFx.environmentSky = sky;
+}
+
+function buildIndustrialSmoke(world, root) {
+  const smoke = new THREE.Group();
+  smoke.name = 'sf-world-overhaul-smoke';
+  const smokeMat = new THREE.MeshBasicMaterial({ color: 0x7b8280, transparent: true, opacity: 0.085, depthWrite: false });
+  const geometry = new THREE.SphereGeometry(1, 12, 8);
+  const sources = [[-3, 13, -61], [44, 17, -66], [69, 13, 74], [-55, 15, -18], [132, 17, 37]];
+  for (const [x, y, z] of sources) {
+    for (let i = 0; i < 5; i += 1) {
+      const puff = new THREE.Mesh(geometry, smokeMat);
+      puff.position.set(x + i * 0.45, y + i * 2.2, z + Math.sin(i) * 0.7);
+      const scale = 1.2 + i * 0.65;
+      puff.scale.set(scale * 1.25, scale, scale);
+      smoke.add(puff);
+    }
+  }
+  root.add(smoke);
+  world.visualFx ??= {};
+  world.visualFx.environmentSmoke = smoke;
+}
+
 function buildHorizonHaze(world, root) {
   const haze = new THREE.Group();
   haze.name = 'sf-world-overhaul-haze';
@@ -262,8 +495,17 @@ function buildHorizonHaze(world, root) {
 function tuneAtmosphere(world) {
   const { scene, renderer } = world;
   scene.background = new THREE.Color(0x93a3a6);
-  scene.fog = new THREE.FogExp2(0xa2aca9, 0.0102);
-  renderer.toneMappingExposure = 1.02;
+  scene.fog = new THREE.FogExp2(0x9fa9a6, 0.0094);
+  renderer.toneMappingExposure = 1.05;
+
+  const ambientLift = new THREE.HemisphereLight(0xc9dde2, 0x51473c, 0.24);
+  ambientLift.name = 'sf-world-overhaul-hemi';
+  scene.add(ambientLift);
+  const warmRim = new THREE.DirectionalLight(0xf0bd82, 0.32);
+  warmRim.name = 'sf-world-overhaul-rim';
+  warmRim.position.set(-45, 28, -32);
+  warmRim.castShadow = false;
+  scene.add(warmRim);
 }
 
 function applyEnvironmentQuality(world, quality) {
@@ -271,10 +513,20 @@ function applyEnvironmentQuality(world, quality) {
   const root = world.scene.getObjectByName(ROOT_TAG);
   const groundDetails = root?.getObjectByName('sf-world-overhaul-ground-details');
   const perimeter = root?.getObjectByName('sf-world-overhaul-perimeter');
+  const terrain = root?.getObjectByName('sf-world-overhaul-terrain');
+  const ruins = root?.getObjectByName('sf-world-overhaul-ruins');
+  const clutter = root?.getObjectByName('sf-world-overhaul-near-clutter');
+  const smoke = root?.getObjectByName('sf-world-overhaul-smoke');
+  const sky = root?.getObjectByName('sf-world-overhaul-sky');
   if (world.visualFx?.skyline) world.visualFx.skyline.visible = key !== 'low';
   if (world.visualFx?.cloudGroup) world.visualFx.cloudGroup.visible = key !== 'low';
   if (groundDetails) groundDetails.visible = key !== 'low';
   if (perimeter) perimeter.visible = true;
+  if (terrain) terrain.visible = true;
+  if (ruins) ruins.visible = key !== 'low';
+  if (clutter) clutter.visible = key === 'high';
+  if (smoke) smoke.visible = key === 'high';
+  if (sky) sky.visible = true;
 }
 
 function install(world) {
@@ -287,9 +539,14 @@ function install(world) {
   root.userData[ROOT_TAG] = true;
   world.scene.add(root);
 
+  buildSkyLayer(world, root);
   buildDistantIndustry(world, root);
+  buildTerrainFrame(root);
+  buildAbandonedFacilities(root);
   buildPerimeterInfrastructure(root);
+  buildNearClutter(root);
   buildGroundStory(root);
+  buildIndustrialSmoke(world, root);
   buildHorizonHaze(world, root);
 
   const runtime = window.__scrapFactoryRuntime;
