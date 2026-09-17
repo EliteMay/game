@@ -22,4 +22,5 @@ import './visual-language-ui.js';
 import './visual-overhaul-v2.js';
 import './visual-overhaul-v3.js';
 import './world-environment-overhaul.js';
+import './world-structure-pass.js';
 export * from './progression-ui-v4.js';
