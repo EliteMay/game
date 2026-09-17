@@ -22,7 +22,7 @@ try {
 
   page.on('pageerror', (error) => consoleErrors.push(`pageerror: ${error.message}`));
   page.on('console', (message) => {
-    if (message.type() === 'error') consoleErrors.push(`console: ${message.text()}`));
+    if (message.type() === 'error') consoleErrors.push(`console: ${message.text()}`);
   });
 
   await page.addInitScript(() => {
