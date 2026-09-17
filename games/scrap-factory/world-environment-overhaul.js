@@ -112,27 +112,23 @@ function buildDistantIndustry(world, root) {
   const skyline = new THREE.Group();
   skyline.name = 'sf-world-overhaul-skyline';
 
-  // North: previously almost empty.
   addFactoryBlock(skyline, -4, -61, 0.9, mats, 1);
   addSiloCluster(skyline, 18, -58, 0.8, mats);
   addFactoryBlock(skyline, 44, -66, 1.05, mats, 2);
   addGantry(skyline, 72, -54, 13, 8.5, mats, 0.06);
   addSiloCluster(skyline, 91, -62, 0.92, mats);
 
-  // South: broken silhouettes prevent the open-horizon look.
   addSiloCluster(skyline, -10, 69, 0.78, mats);
   addFactoryBlock(skyline, 14, 72, 0.88, mats, 0);
   addGantry(skyline, 42, 63, 16, 9.5, mats, -0.08);
   addFactoryBlock(skyline, 69, 74, 1.0, mats, 1);
   addSiloCluster(skyline, 97, 67, 0.86, mats);
 
-  // West: a salvage terminal anchors the starting-base horizon.
   addFactoryBlock(skyline, -55, -18, 0.95, mats, 1);
   addSiloCluster(skyline, -61, 4, 0.82, mats);
   addFactoryBlock(skyline, -57, 28, 0.84, mats, 0);
   addGantry(skyline, -48, 45, 11, 7.5, mats, Math.PI / 2);
 
-  // East complements the existing industrial-art skyline without duplicating it.
   addGantry(skyline, 117, -39, 17, 10, mats, 0.03);
   addFactoryBlock(skyline, 132, 37, 0.95, mats, 2);
   addSiloCluster(skyline, 139, -2, 0.84, mats);
@@ -159,7 +155,6 @@ function buildPerimeterInfrastructure(root) {
   const infra = new THREE.Group();
   infra.name = 'sf-world-overhaul-perimeter';
 
-  // Pipe rack on the yard edge, outside the main buildable pad.
   for (let x = 28; x <= 88; x += 10) {
     for (const z of [-29.2, 31.4]) {
       addCylinder(infra, 0.11, 0.14, 3.4, steel, [x, 1.7, z], 10);
@@ -170,7 +165,6 @@ function buildPerimeterInfrastructure(root) {
   addPipe(infra, [28, 3.25, -29.2], [88, 3.25, -29.2], 0.09, steel, 10);
   addPipe(infra, [28, 3.55, 31.4], [88, 3.55, 31.4], 0.13, pipe, 12);
 
-  // Utility poles and sagging cables create repeated depth markers.
   const northPoles = [];
   for (let x = -15; x <= 88; x += 17) {
     const z = -27.2 + Math.sin(x * 0.13) * 1.1;
@@ -210,7 +204,6 @@ function buildGroundStory(root) {
     stains.add(mesh);
   }
 
-  // Worn vehicle tracks through the salvage yard.
   const trackMat = new THREE.MeshBasicMaterial({ color: 0x353936, transparent: true, opacity: 0.18, depthWrite: false });
   for (const z of [-4.4, -3.35]) {
     const track = new THREE.Mesh(new THREE.PlaneGeometry(61, 0.46), trackMat);
@@ -273,6 +266,17 @@ function tuneAtmosphere(world) {
   renderer.toneMappingExposure = 1.02;
 }
 
+function applyEnvironmentQuality(world, quality) {
+  const key = quality === 'low' ? 'low' : quality === 'medium' ? 'medium' : 'high';
+  const root = world.scene.getObjectByName(ROOT_TAG);
+  const groundDetails = root?.getObjectByName('sf-world-overhaul-ground-details');
+  const perimeter = root?.getObjectByName('sf-world-overhaul-perimeter');
+  if (world.visualFx?.skyline) world.visualFx.skyline.visible = key !== 'low';
+  if (world.visualFx?.cloudGroup) world.visualFx.cloudGroup.visible = key !== 'low';
+  if (groundDetails) groundDetails.visible = key !== 'low';
+  if (perimeter) perimeter.visible = true;
+}
+
 function install(world) {
   if (!world?.scene || world.scene.userData?.[ROOT_TAG]) return false;
   world.scene.userData[ROOT_TAG] = true;
@@ -287,6 +291,27 @@ function install(world) {
   buildPerimeterInfrastructure(root);
   buildGroundStory(root);
   buildHorizonHaze(world, root);
+
+  const runtime = window.__scrapFactoryRuntime;
+  const game = runtime?.getGame?.();
+  const initialQuality = game?.settings?.performanceMode
+    ? 'low'
+    : game?.settings?.quality === 'medium'
+      ? 'medium'
+      : game?.settings?.quality === 'low'
+        ? 'low'
+        : 'high';
+  applyEnvironmentQuality(world, initialQuality);
+
+  const originalSetQuality = world.setQuality?.bind(world);
+  if (originalSetQuality && !world.userData?.worldEnvironmentQualityPatched) {
+    world.userData ??= {};
+    world.userData.worldEnvironmentQualityPatched = true;
+    world.setQuality = (quality) => {
+      originalSetQuality(quality);
+      applyEnvironmentQuality(world, quality);
+    };
+  }
   return true;
 }
 
