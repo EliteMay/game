@@ -41,6 +41,12 @@ try {
     const world = runtime.world;
     const positions = [-8, -4, 0, 4, 8];
 
+    // Screenshot verification must show only the audit machines. Existing starter
+    // buildings can otherwise overlap the lineup and make the visual receipt lie.
+    for (const [id, root] of world.buildingMeshes.entries()) {
+      if (!String(id).startsWith('visual-loop-')) root.visible = false;
+    }
+
     for (let i = 0; i < types.length; i += 1) {
       const type = types[i];
       const id = `visual-loop-${type}`;
