@@ -60,8 +60,6 @@ try {
       'LatheGeometry',
     ]);
     const boxTypes = new Set(['BoxGeometry', 'RoundedBoxGeometry']);
-    const worldScale = new THREE.Vector3();
-    const size = new THREE.Vector3();
 
     const isActuallyVisible = (node, root) => {
       let current = node;
@@ -77,11 +75,21 @@ try {
       node.geometry.computeBoundingBox?.();
       const box = node.geometry.boundingBox;
       if (!box) return 0;
-      box.getSize(size);
-      node.getWorldScale(worldScale);
-      const x = Math.abs(size.x * worldScale.x);
-      const y = Math.abs(size.y * worldScale.y);
-      const z = Math.abs(size.z * worldScale.z);
+
+      let sx = 1;
+      let sy = 1;
+      let sz = 1;
+      let current = node;
+      while (current) {
+        sx *= Math.abs(Number(current.scale?.x ?? 1));
+        sy *= Math.abs(Number(current.scale?.y ?? 1));
+        sz *= Math.abs(Number(current.scale?.z ?? 1));
+        current = current.parent;
+      }
+
+      const x = Math.abs((box.max.x - box.min.x) * sx);
+      const y = Math.abs((box.max.y - box.min.y) * sy);
+      const z = Math.abs((box.max.z - box.min.z) * sz);
       return Math.max(0.0001, x * y + y * z + z * x);
     };
 
