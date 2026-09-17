@@ -21,4 +21,5 @@ import './high-polling-input.js';
 import './visual-language-ui.js';
 import './visual-overhaul-v2.js';
 import './visual-overhaul-v3.js';
+import './world-environment-overhaul.js';
 export * from './progression-ui-v4.js';
