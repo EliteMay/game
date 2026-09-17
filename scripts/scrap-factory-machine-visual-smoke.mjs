@@ -59,13 +59,22 @@ try {
     const perType = {};
     let visibleLargeLegacyBoxes = 0;
 
+    const insideV3Detail = (node) => {
+      let current = node;
+      while (current) {
+        if (current.userData?.sfVisualOverhaulV3Detail) return true;
+        current = current.parent;
+      }
+      return false;
+    };
+
     for (const root of world.buildingMeshes.values()) {
       const type = root.userData?.entity?.type || 'unknown';
       let detail = 0;
       let largeBoxes = 0;
       root.traverse((node) => {
         if (node.userData?.sfVisualOverhaulV3Detail) detail += 1;
-        if (!node.isMesh || node.visible === false || node.userData?.sfVisualOverhaulV3Detail) return;
+        if (!node.isMesh || node.visible === false || insideV3Detail(node)) return;
         const g = node.geometry;
         if (!['BoxGeometry', 'RoundedBoxGeometry'].includes(g?.type)) return;
         const p = g.parameters || {};
