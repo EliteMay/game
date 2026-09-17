@@ -19,5 +19,6 @@ import './pause-notification-ui.js';
 import './phase7-world-runtime.js';
 import './high-polling-input.js';
 import './visual-language-ui.js';
-import './visual-overhaul-v2.js';
+import './visual-overhaul-v3.js';
+import './visual-overhaul-v3-iteration2.js';
 export * from './progression-ui-v4.js';
