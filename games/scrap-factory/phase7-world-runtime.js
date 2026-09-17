@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ScrapWorld as EnhancedScrapWorld } from './world-runtime.js?phase7-template=v1';
 import { Phase7WorldPolish } from './phase7-world-polish.js';
+import { buildPhase7Environment } from './phase7-environment-art.js';
 
 const ENHANCED_TYPES = new Set([
   'conveyor_mk2', 'conveyor_mk3', 'splitter', 'merger', 'smart_sorter', 'priority_splitter', 'overflow_splitter',
@@ -159,6 +160,7 @@ function patchProductionWorld(runtime) {
   world.userData ??= {};
   world.userData.phase7ProductionPatched = true;
   ensureSolidYardPropColliders(world);
+  buildPhase7Environment(world);
 
   let bulkLoading = false;
   const originalAddBuilding = world.addBuilding.bind(world);
