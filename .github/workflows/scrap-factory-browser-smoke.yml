@@ -6,6 +6,7 @@ on:
       - 'games/scrap-factory/**'
       - 'scripts/scrap-factory-browser-smoke.mjs'
       - 'scripts/scrap-factory-ui-stability-smoke.mjs'
+      - 'scripts/scrap-factory-visual-evidence.mjs'
       - '.github/workflows/scrap-factory-browser-smoke.yml'
 
 permissions:
@@ -39,6 +40,8 @@ jobs:
         run: node scripts/scrap-factory-browser-smoke.mjs
       - name: Run UI stability smoke
         run: node scripts/scrap-factory-ui-stability-smoke.mjs
+      - name: Capture machine visual evidence
+        run: node scripts/scrap-factory-visual-evidence.mjs
       - name: Upload smoke screenshot
         if: always()
         uses: actions/upload-artifact@v4
