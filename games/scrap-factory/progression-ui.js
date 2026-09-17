@@ -20,4 +20,5 @@ import './phase7-world-runtime.js';
 import './high-polling-input.js';
 import './visual-language-ui.js';
 import './visual-overhaul-v3.js';
+import './visual-refinement-v4.js';
 export * from './progression-ui-v4.js';
